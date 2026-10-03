@@ -1,0 +1,47 @@
+{
+  "name": "batuta",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CRM/ERP academico para la Academia de Musica VioliniStar",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && cp -r .next/static .next/standalone/.next/static",
+    "start": "node .next/standalone/server.js",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "preparar": "npm run db:migrate && npm run db:seed",
+    "db:reset": "rm -f data/batuta.db* && npm run db:migrate && npm run db:seed",
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
+    "verify": "node scripts/verifica-garantias.mjs && node scripts/verifica-saldos.mjs && node scripts/verifica-finanzas.mjs && node scripts/verifica-comunicacion.mjs && node scripts/verifica-bajas.mjs",
+    "usuario": "tsx src/db/crear-usuario.ts",
+    "limpiar:alumnos": "node scripts/limpiar-alumnos.mjs",
+    "docente": "tsx src/db/crear-docente.ts",
+    "respaldo": "node scripts/respaldo.mjs",
+    "restaurar": "node scripts/restaurar.mjs"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.1",
+    "better-sqlite3": "11.10.0",
+    "drizzle-orm": "0.45.2",
+    "next": "16.3.5",
+    "qrcode": "^1.5.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "server-only": "^0.0.1",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "22.15.32",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "drizzle-kit": "0.31.10",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3"
+  }
+}

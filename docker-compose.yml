@@ -1,0 +1,29 @@
+services:
+  batuta:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      TZ: America/Mexico_City
+      DATABASE_URL: /app/data/batuta.db
+      ALMACEN_DIR: /app/almacen
+      LLAVE_DATOS_SENSIBLES: ${LLAVE_DATOS_SENSIBLES:?falta la llave de datos sensibles}
+      AUTH_SECRET: ${AUTH_SECRET:?falta el secreto de sesion}
+      IA_HABILITADA: ${IA_HABILITADA:-false}
+    volumes:
+      # Todo lo que hay que respaldar está en estos dos volúmenes.
+      # El respaldo incluye la base Y el almacén: respaldar solo la base deja
+      # los contratos, recibos y planeaciones fuera, que es la mitad del expediente.
+      - batuta-datos:/app/data
+      - batuta-almacen:/app/almacen
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  batuta-datos:
+  batuta-almacen:

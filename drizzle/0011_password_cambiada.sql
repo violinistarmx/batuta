@@ -1,0 +1,1 @@
+ALTER TABLE `usuarios` ADD `password_cambiada_en` integer;

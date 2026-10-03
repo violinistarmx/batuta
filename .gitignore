@@ -1,0 +1,31 @@
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Base de datos y archivos de alumnos: nunca se versionan
+data/
+almacen/
+*.db
+*.db-shm
+*.db-wal
+
+# Copias que aparta el script de restauración. Llevan expedientes de alumnos
+# dentro, así que el patrón tiene que existir ANTES de la primera restauración.
+almacen.reemplazado-*
+data.reemplazada-*
+*.reemplazada-*
+*.reemplazado-*
+
+# Respaldos
+respaldos/
+
+.env
+.env.local
+.env*.local
+
+.DS_Store
+*.log
+npm-debug.log*

@@ -1,0 +1,2 @@
+DROP INDEX `ux_credito_debito`;--> statement-breakpoint
+CREATE UNIQUE INDEX `ux_credito_debito` ON `creditos_clase` (`clase_id`) WHERE delta < 0 AND clase_id IS NOT NULL AND motivo IN ('clase_tomada','falta_sin_aviso');
