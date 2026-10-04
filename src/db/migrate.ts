@@ -1,15 +1,19 @@
 import { migrate } from "drizzle-orm/mongodb/migrator";
-import { db, client } from "./index";
+import { db, client, connectToDatabase } from "./index";
 
 async function runMigrations() {
   try {
-    await migrate(db, { migrationsFolder: "./drizzle" });
+    // Obtener la instancia de drizzle conectada
+    const drizzleDb = await db.query();
+    await migrate(drizzleDb, { migrationsFolder: "./drizzle" });
     console.log("Migraciones aplicadas.");
   } catch (error) {
     console.error("Error durante migraciones:", error);
     throw error;
   } finally {
-    await client.close();
+    if (client) {
+      await client.close();
+    }
   }
 }
 
