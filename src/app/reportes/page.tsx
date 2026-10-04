@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { Encabezado } from "@/components/encabezado";
+import { GraficaLinea } from "@/components/graficas";
 import { exigirPermiso } from "@/lib/auth/permisos";
+import { alumnosActivosPorMes } from "@/lib/datos/metricas";
 import {
   alumnosEnRiesgo, asistenciaPorDocente, asistenciaPorPrograma, dineroPorPrograma,
   movimientoDeInscripciones, ocupacionDocente, type FilaAsistencia,
@@ -106,6 +108,9 @@ export default async function Reportes({
   const ocupacion = ocupacionDocente(r);
   const dinero = dineroPorPrograma(r);
   const mov = movimientoDeInscripciones(r);
+  // Doce meses fijos, al margen del rango elegido arriba: la gráfica responde
+  // «cómo venimos creciendo», no «qué pasó en este rango».
+  const activos = alumnosActivosPorMes(hoy, 12);
   const riesgo = alumnosEnRiesgo(r);
   const emb = embudo(d, h);
   const origenes = ordenarOrigenes(porOrigen(d, h));
@@ -138,8 +143,28 @@ export default async function Reportes({
           </form>
         </div>
 
-        {/* ------------------------------------------------------- retención */}
+        {/* ------------------------------------------------------- crecimiento */}
         <section className="mt-7">
+          <h2 className="font-display text-xl font-semibold">Crecimiento de la academia</h2>
+          <p className="mt-1 max-w-2xl text-sm text-vs-tinta-2">
+            Alumnos con inscripción vigente al cierre de cada mes, últimos doce.{" "}
+            <strong>No es un acumulado de altas</strong>: un acumulado solo sabe sumar y
+            dibujaría una línea que nunca baja, aunque la academia estuviera perdiendo
+            alumnos. Aquí las bajas se notan. Se cuentan alumnos distintos, así que quien
+            lleva violín y piano cuenta una vez.
+          </p>
+          <div className="mt-4 rounded-xl border border-vs-linea bg-white p-5">
+            <GraficaLinea
+              datos={activos}
+              titulo="Alumnos activos al cierre de cada mes, últimos doce meses"
+              formatoValor={(n) => String(n)}
+              formatoEje={(n) => String(n)}
+            />
+          </div>
+        </section>
+
+        {/* ------------------------------------------------------- retención */}
+        <section className="mt-9">
           <h2 className="font-display text-xl font-semibold">Movimiento de inscripciones</h2>
           <dl className="mt-3 grid gap-px overflow-hidden rounded-lg border border-vs-linea bg-vs-linea sm:grid-cols-3">
             <div className="bg-white px-4 py-3.5">

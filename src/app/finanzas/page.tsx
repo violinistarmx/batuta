@@ -1,8 +1,10 @@
 import Link from "next/link";
 
 import { Encabezado } from "@/components/encabezado";
+import { GraficaColumnas } from "@/components/graficas";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { cobranzaGlobal, resultadoAdministrativo } from "@/lib/datos/finanzas";
+import { ingresosPorMes } from "@/lib/datos/metricas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
 import { pesos } from "@/lib/formato";
 import { hoyEnMexico } from "@/lib/zona";
@@ -23,6 +25,9 @@ export default async function Finanzas({
   const h = hasta && /^\d{4}-\d{2}-\d{2}$/.test(hasta) ? hasta : hoy;
 
   const res = resultadoAdministrativo(d, h);
+  // Doce meses fijos, independientes del filtro de fechas de arriba: la gráfica
+  // responde «cómo venimos», no «cuánto en este rango».
+  const ingresos = ingresosPorMes(hoy, 12);
   const cargos = cobranzaGlobal();
   const resumen = resumirCobranza(cargos, hoy);
   const conAdeudo = cargos
@@ -87,6 +92,23 @@ export default async function Finanzas({
             Incluye la nómina ya impartida aunque todavía no se haya pagado. Sin eso, el
             resultado se vería inflado hasta hacer el corte.
           </p>
+        </section>
+
+        <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+          <h2 className="font-display text-lg font-semibold">Ingresos por mes</h2>
+          <p className="mt-1 text-sm text-vs-tinta-2">
+            Dinero cobrado cada mes, últimos doce. Un mes sin cobros aparece en cero y no
+            se omite: saltárselo dibujaría una recta entre meses lejanos y contaría una
+            historia más suave que la real.
+          </p>
+          <div className="mt-4">
+            <GraficaColumnas
+              datos={ingresos}
+              titulo="Ingresos por mes de los últimos doce meses"
+              formatoValor={(c) => pesos(c)}
+              formatoEje={(c) => pesos(c)}
+            />
+          </div>
         </section>
 
         <section className="mt-7">
