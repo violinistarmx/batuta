@@ -26,6 +26,11 @@ respaldos/
 .env.local
 .env*.local
 
+# Secretos de produccion. La llave de datos sensibles descifra la tabla de
+# salud de los alumnos: fuera del repositorio, siempre.
+SECRETOS-*.txt
+*.bat
+
 .DS_Store
 *.log
 npm-debug.log*
