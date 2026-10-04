@@ -8,30 +8,51 @@ const mongoUrl =
   process.env.DATABASE_URL ??
   "mongodb://localhost:27017/batuta";
 
-// Crear cliente de MongoDB
-const client = new MongoClient(mongoUrl);
-
-// Conectar a MongoDB al inicializar
-let connected = false;
+let cachedClient: MongoClient | null = null;
+let cachedDb: any = null;
 
 async function connectToDatabase() {
-  if (!connected) {
-    try {
-      await client.connect();
-      connected = true;
-      console.log("Connected to MongoDB");
-    } catch (error) {
-      console.error("Failed to connect to MongoDB:", error);
-      throw error;
-    }
+  if (cachedClient && cachedDb) {
+    return cachedDb;
   }
-  return client.db("batuta");
+
+  try {
+    const client = new MongoClient(mongoUrl, {
+      maxPoolSize: 10,
+    });
+
+    await client.connect();
+    console.log("✅ Connected to MongoDB");
+
+    cachedClient = client;
+    cachedDb = client.db("batuta");
+
+    return cachedDb;
+  } catch (error) {
+    console.error("❌ MongoDB connection error:", error);
+    throw error;
+  }
 }
 
-// Inicializar la conexión (se ejecuta cuando el módulo se importa)
-const mongoDb = client.db("batuta");
+// Lazy initialization - la conexión se realiza cuando se necesita
+let dbPromise: Promise<any> | null = null;
 
-export const db = drizzle(mongoDb, { schema });
+function getDrizzleDb() {
+  if (!dbPromise) {
+    dbPromise = connectToDatabase().then(db => drizzle(db, { schema }));
+  }
+  return dbPromise;
+}
 
-// Exportar client para que se pueda cerrar si es necesario
-export { client, connectToDatabase };
+// Export para uso en server components
+export const db = {
+  async query() {
+    return getDrizzleDb();
+  },
+  // Proxy para compatibilidad con código existente
+  then(onFulfilled: any) {
+    return getDrizzleDb().then(onFulfilled);
+  }
+};
+
+export { cachedClient as client, connectToDatabase };
