@@ -3,8 +3,10 @@ import type { Config } from "drizzle-kit";
 export default {
   schema: "./src/db/schema/index.ts",
   out: "./drizzle",
-  dialect: "sqlite",
-  dbCredentials: { url: process.env.DATABASE_URL ?? "./data/batuta.db" },
+  dialect: "mongodb",
+  dbCredentials: {
+    url: process.env.MONGODB_URI ?? process.env.DATABASE_URL ?? "mongodb://localhost:27017/batuta"
+  },
   strict: true,
   verbose: true,
 } satisfies Config;
