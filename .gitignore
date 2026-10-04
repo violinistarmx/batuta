@@ -31,6 +31,9 @@ respaldos/
 SECRETOS-*.txt
 *.bat
 
+# Parches sueltos de trabajo local: se aplican, no se versionan.
+*.patch
+
 .DS_Store
 *.log
 npm-debug.log*
