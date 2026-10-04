@@ -61,7 +61,11 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const cabeceras = await headers();
   const host = cabeceras.get("host") ?? "localhost:3000";
   const protocolo = process.env.NODE_ENV === "production" ? "https" : "http";
-  const qr = await qrComoSvg(alumno.qrToken, `${protocolo}://${host}`);
+  // URL_PUBLICA manda sobre el host de la petición, igual que en la credencial.
+  // Si el QR se genera con el host de quien lo está viendo, el código apunta a
+  // una dirección que el teléfono del alumno no alcanza: desde la red local sale
+  // una IP privada, y desde un proxy, el nombre interno del contenedor.
+  const qr = await qrComoSvg(alumno.qrToken, process.env.URL_PUBLICA ?? `${protocolo}://${host}`);
 
   const imagen = consents.find((c) => c.tipo === "uso_imagen");
   const privacidad = consents.find((c) => c.tipo === "aviso_privacidad");
