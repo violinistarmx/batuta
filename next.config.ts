@@ -5,7 +5,6 @@ const config: NextConfig = {
   serverExternalPackages: ["better-sqlite3"],
   allowedDevOrigins: ['192.168.100.20'],
   experimental: {
-    serverActionsBodySizeLimit: 10 * 1024 * 1024,
   },
 };
 
