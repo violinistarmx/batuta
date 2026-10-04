@@ -309,6 +309,11 @@ const PERMISOS = [
   ["clases.crear", "Programar clases"],
   ["clases.reprogramar", "Posponer y crear recuperaciones"],
   ["clases.autorizar_excepcion", "Autorizar posposición bajo el umbral"],
+  // Corregir NO es posponer: no consume posposición ni genera recuperación.
+  // Es para el error de captura —hora equivocada, cubículo mal elegido—, y por
+  // eso queda solo en dirección: mover una clase sin dejar rastro contractual
+  // es justo lo que la cláusula 4ª pretende impedir.
+  ["clases.corregir", "Corregir horario o cubículo de una clase ya programada"],
   ["asistencia.registrar", "Registrar asistencia"],
   ["planeaciones.subir", "Adjuntar planeación de clase"],
   ["planeaciones.leer_todas", "Ver planeaciones de todos los docentes"],

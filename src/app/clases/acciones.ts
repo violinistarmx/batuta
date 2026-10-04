@@ -9,7 +9,7 @@ import { ciclos, configuracion } from "@/db/schema/index";
 import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import {
-  clasePorId, conflictosDe, crearClase, posponerClase, registrarAsistencia,
+  clasePorId, conflictosDe, corregirClase, crearClase, posponerClase, registrarAsistencia,
 } from "@/lib/datos/clases";
 import { inscripcionPorId } from "@/lib/datos/inscripciones";
 import { describirConflicto } from "@/lib/dominio/conflictos";
@@ -252,6 +252,101 @@ export async function posponer(
   });
 
   revalidatePath(`/clases/${d.claseId}`);
+  revalidatePath(`/inscripciones/${clase.inscripcionId}`);
+  revalidatePath("/agenda");
+  return {};
+}
+
+// -------------------------------------------------------------- corrección ---
+
+const Corregir = z.object({
+  claseId: z.coerce.number().int().positive(),
+  fecha: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha."),
+  hora: z.string().trim().regex(/^\d{2}:\d{2}$/, "Elige la hora."),
+  aulaId: z.coerce.number().int().nonnegative(),
+  modalidad: z.enum(["presencial", "en_linea"]),
+});
+
+/**
+ * Corrige el horario de una clase ya programada. Solo dirección.
+ *
+ * No es posponer. Posponer consume una de las posposiciones del período, exige
+ * 24 horas de aviso y deja una recuperación ligada a la original, porque es un
+ * derecho del alumno con reglas. Esto repara un error de captura y no debe
+ * gastarle nada a nadie — pero sí queda en bitácora con el antes y el después:
+ * mover clases sin rastro es precisamente lo que la cláusula 4ª evita.
+ *
+ * El choque de horarios se valida igual que al agendar, excluyendo la propia
+ * clase de la comparación para que no se detecte a sí misma.
+ */
+export async function corregirHorario(
+  _previo: EstadoAgendar,
+  datos: FormData,
+): Promise<EstadoAgendar> {
+  const sesion = await exigirPermiso("clases.corregir");
+
+  const parsed = Corregir.safeParse({
+    claseId: datos.get("claseId"),
+    fecha: datos.get("fecha"),
+    hora: datos.get("hora"),
+    aulaId: datos.get("aulaId") || "0",
+    modalidad: datos.get("modalidad") ?? "presencial",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
+
+  const d = parsed.data;
+  const clase = clasePorId(d.claseId, alcanceDe(sesion));
+  if (!clase) return { error: "No se encontró la clase." };
+
+  // Una clase ya tomada, faltada o cancelada es un hecho ocurrido: corregirle el
+  // horario falsearía el historial de asistencia.
+  if (clase.estado !== "programada") {
+    return { error: "Solo se corrige una clase que sigue programada." };
+  }
+
+  const iniciaEn = instanteEnMexico(d.fecha, d.hora);
+  const aulaId = d.modalidad === "en_linea" ? null : (d.aulaId || null);
+
+  if (d.modalidad === "presencial" && !aulaId) {
+    return { error: "Una clase presencial necesita cubículo." };
+  }
+
+  const choques = conflictosDe({
+    inscripcionId: clase.inscripcionId,
+    alumnoId: clase.alumnoId,
+    docenteId: clase.docenteId,
+    aulaId,
+    iniciaEn,
+    minutos: clase.minutos,
+    excluirClaseId: clase.id,
+  });
+
+  if (choques.length > 0) {
+    return {
+      error: "Hay un choque de horario.",
+      conflictos: choques.map((c) => describirConflicto(c, horaCivil)),
+    };
+  }
+
+  try {
+    corregirClase(clase.id, { iniciaEn, aulaId, modalidad: d.modalidad });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo corregir." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "clase.corregir",
+    entidad: "clases",
+    entidadId: clase.id,
+    cambios: {
+      iniciaEn: [clase.iniciaEn.toISOString(), iniciaEn.toISOString()],
+      aulaId: [clase.aulaId, aulaId],
+      modalidad: [clase.modalidad, d.modalidad],
+    },
+  });
+
+  revalidatePath(`/clases/${clase.id}`);
   revalidatePath(`/inscripciones/${clase.inscripcionId}`);
   revalidatePath("/agenda");
   return {};

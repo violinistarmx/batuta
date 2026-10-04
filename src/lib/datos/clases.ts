@@ -355,3 +355,39 @@ export function aulasActivas() {
   return db.select({ id: aulas.id, nombre: aulas.nombre })
     .from(aulas).where(eq(aulas.activo, true)).orderBy(asc(aulas.nombre)).all();
 }
+
+export type CorreccionClase = {
+  iniciaEn: Date;
+  aulaId: number | null;
+  modalidad: "presencial" | "en_linea";
+};
+
+/**
+ * Corrección administrativa del horario de una clase ya programada.
+ *
+ * Deliberadamente NO toca posposiciones, créditos ni crea una recuperación: esto
+ * no es posponer. Posponer es un derecho del alumno regulado por la cláusula 4ª y
+ * se contabiliza; esto repara un error de captura y no debe gastarle nada a nadie.
+ *
+ * La duración no se toca: la fija el programa contratado, no quien corrige. Solo
+ * se recalcula el fin a partir del nuevo inicio.
+ */
+export function corregirClase(claseId: number, d: CorreccionClase): void {
+  const actual = db
+    .select({ minutos: clases.minutos })
+    .from(clases)
+    .where(eq(clases.id, claseId))
+    .get();
+  if (!actual) throw new Error("No se encontró la clase.");
+
+  db.update(clases)
+    .set({
+      iniciaEn: d.iniciaEn,
+      terminaEn: new Date(d.iniciaEn.getTime() + actual.minutos * 60_000),
+      // Una clase en línea no ocupa cubículo, igual que al agendarla.
+      aulaId: d.modalidad === "en_linea" ? null : d.aulaId,
+      modalidad: d.modalidad,
+    })
+    .where(eq(clases.id, claseId))
+    .run();
+}

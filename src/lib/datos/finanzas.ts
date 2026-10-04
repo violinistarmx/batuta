@@ -278,6 +278,7 @@ export function reciboPorId(id: number) {
       metodo: pagos.metodo,
       recibidoEl: pagos.recibidoEl,
       referencia: pagos.referencia,
+      nota: pagos.nota,
       alumnoId: alumnos.id,
       alumno: alumnos.nombre,
       alumnoCodigo: alumnos.codigo,

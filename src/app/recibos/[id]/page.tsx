@@ -166,6 +166,16 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
           </div>
         </section>
 
+        {/* La nota que escribió quien cobró. Se guardaba desde el principio y no
+            llegaba al papel: el alumno se iba sin el acuerdo que acababan de
+            pactar en el mostrador. */}
+        {r.nota && (
+          <p className="recibo-nota">
+            <strong>Observaciones</strong>
+            {r.nota}
+          </p>
+        )}
+
         <p className="recibo-lema">{cfg.academia_lema}</p>
 
         <footer className="recibo-franja">

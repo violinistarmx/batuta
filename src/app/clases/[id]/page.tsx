@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 
 import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
-import { clasePorId } from "@/lib/datos/clases";
+import { aulasActivas, clasePorId } from "@/lib/datos/clases";
 import { planeacionDeClase, tareasDeClase } from "@/lib/datos/expediente";
 import { etiquetaDeEstado } from "@/lib/dominio/asistencia";
 import { fechaLarga } from "@/lib/formato";
-import { hoyEnMexico, horaCivil } from "@/lib/zona";
+import { fechaCivil, hoyEnMexico, horaCivil } from "@/lib/zona";
 import { Asistencia, Posponer } from "./acciones-cliente";
+import { Corregir } from "./corregir";
 import { Avance, Planeacion, Tareas } from "./academico";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
 
   const puedeRegistrar = tienePermiso(sesion, "asistencia.registrar");
   const puedeReprogramar = tienePermiso(sesion, "clases.reprogramar");
+  const puedeCorregir = tienePermiso(sesion, "clases.corregir");
   const puedeAutorizar = tienePermiso(sesion, "clases.autorizar_excepcion");
   const puedePlanear = tienePermiso(sesion, "planeaciones.subir");
   const planeacion = planeacionDeClase(clase.id);
@@ -113,6 +115,30 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
                     cierreDePeriodo={clase.cicloTerminaEl}
                     posposicionesUsadas={clase.posposicionesUsadas}
                     puedeAutorizar={puedeAutorizar}
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* Corregir va después de Posponer y con menos peso visual: lo normal
+                es posponer, y esto es para el error de captura. */}
+            {puedeCorregir && clase.estado === "programada" && (
+              <section className="rounded-xl border border-vs-linea bg-vs-crema p-5">
+                <h2 className="font-display text-lg font-semibold">Corregir el horario</h2>
+                <p className="mt-1 text-sm text-vs-tinta-2">
+                  Para un error de captura: hora equivocada, cubículo mal elegido o modalidad
+                  incorrecta. <strong>No consume posposiciones</strong> ni genera clase de
+                  recuperación — si el alumno pidió mover su clase, eso es Posponer. El cambio
+                  queda registrado en la bitácora.
+                </p>
+                <div className="mt-4">
+                  <Corregir
+                    claseId={clase.id}
+                    fecha={fechaCivil(clase.iniciaEn)}
+                    hora={horaCivil(clase.iniciaEn)}
+                    aulaId={clase.aulaId}
+                    modalidad={clase.modalidad}
+                    aulas={aulasActivas()}
                   />
                 </div>
               </section>

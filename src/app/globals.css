@@ -201,6 +201,30 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Observaciones del pago. Texto libre que escribe quien cobra, así que va en su
+   propio bloque y no en la rejilla de dos columnas de los totales: una nota de
+   dos renglones rompe esa alineación. */
+.recibo-nota {
+  position: relative;
+  z-index: 1;
+  margin: 1.25rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid #fed403;
+  background: #fffceb;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.recibo-nota strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6e5c45;
+}
+
 .recibo-lema {
   position: relative;
   z-index: 1;

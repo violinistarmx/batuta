@@ -19,6 +19,7 @@ export type Accion =
   | "inscripcion.crear" | "inscripcion.cambiar_programa" | "inscripcion.baja"
   | "ciclo.renovar" | "ciclo.cerrar"
   | "clase.crear" | "clase.asistencia" | "clase.reprogramar" | "clase.autorizar_excepcion"
+  | "clase.corregir"
   | "pago.registrar" | "pago.modificar" | "cargo.generar"
   | "nomina.calcular" | "nomina.pagar"
   | "recibo.emitir" | "recibo.imprimir"
