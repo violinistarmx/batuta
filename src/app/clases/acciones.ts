@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { ciclos, configuracion } from "@/db/schema/index";
 import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
+import { sincronizarConGoogleCalendar } from "@/lib/datos/calendario";
 import {
   clasePorId, conflictosDe, corregirClase, crearClase, posponerClase, registrarAsistencia,
 } from "@/lib/datos/clases";
@@ -23,6 +24,16 @@ function parametros() {
     horasAvisoPosposicion: Number(cfg.horas_aviso_posposicion ?? 24),
     maxPosposicionesPorCiclo: Number(cfg.max_posposiciones_por_ciclo ?? 2),
   };
+}
+
+/**
+ * Sincroniza una clase con Google Calendar en background.
+ *
+ * No detiene el flujo si falla: la creacion de la clase es lo importante.
+ * Se ejecuta de forma asincrónica para no bloquear la respuesta.
+ */
+async function syncronizarGoogleCalendarEnBackground(claseId: number): Promise<void> {
+  await sincronizarConGoogleCalendar(claseId);
 }
 
 // ---------------------------------------------------------------- agendar ---
@@ -94,6 +105,11 @@ export async function agendar(
     iniciaEn,
     minutos: ciclo.minutosPorClase,
     modalidad: d.modalidad,
+  });
+
+  // Sincronizar con Google Calendar (diferida, no detiene el flujo si falla)
+  syncronizarGoogleCalendarEnBackground(claseId).catch((e) => {
+    console.error("Error sincronizando con Google Calendar:", e);
   });
 
   registrar({
@@ -237,6 +253,18 @@ export async function posponer(
     return { error: r.razon, requiereAutorizacion: r.requiereAutorizacion };
   }
 
+  // Sincronizar cambios con Google Calendar (la clase se pospone)
+  syncronizarGoogleCalendarEnBackground(d.claseId).catch((e) => {
+    console.error("Error sincronizando cambios de clase pospuesta con Google Calendar:", e);
+  });
+
+  // Sincronizar la clase de recuperacion si se creo
+  if (r.claseRecuperacionId) {
+    syncronizarGoogleCalendarEnBackground(r.claseRecuperacionId).catch((e) => {
+      console.error("Error sincronizando clase de recuperacion con Google Calendar:", e);
+    });
+  }
+
   registrar({
     usuarioId: sesion.usuarioId,
     accion: d.autorizar ? "clase.autorizar_excepcion" : "clase.reprogramar",
@@ -333,6 +361,11 @@ export async function corregirHorario(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "No se pudo corregir." };
   }
+
+  // Sincronizar cambios con Google Calendar (horario, modalidad, etc.)
+  syncronizarGoogleCalendarEnBackground(clase.id).catch((e) => {
+    console.error("Error sincronizando cambios de clase corregida con Google Calendar:", e);
+  });
 
   registrar({
     usuarioId: sesion.usuarioId,
