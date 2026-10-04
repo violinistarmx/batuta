@@ -4,7 +4,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema/index";
 import { Encabezado } from "@/components/encabezado";
+import { FotoPerfil } from "@/components/foto-perfil";
 import { exigirSesion } from "@/lib/auth/permisos";
+import { docenteDeUsuario, resumenFotoDocente } from "@/lib/datos/fotos";
 import { debeCambiarPassword } from "@/lib/dominio/usuarios";
 import { fechaLarga } from "@/lib/formato";
 import { CambiarPassword } from "./cliente";
@@ -24,6 +26,11 @@ export default async function Perfil() {
   }).from(usuarios).where(eq(usuarios.id, sesion.usuarioId)).get();
 
   const pendiente = debeCambiarPassword(u?.passwordCambiadaEn ?? null);
+
+  const docenteId = docenteDeUsuario(sesion.usuarioId);
+  const foto = docenteId !== null
+    ? resumenFotoDocente(docenteId)
+    : { tieneFoto: false, version: null };
 
   return (
     <>
@@ -46,6 +53,27 @@ export default async function Perfil() {
               «quién hizo esto» solo tiene respuesta si nadie más puede entrar como tú.
             </p>
           </div>
+        )}
+
+        {/* Solo quien tiene ficha de maestro: la foto identifica al docente ante
+            alumnos y tutores, y una cuenta de recepción no la necesita. */}
+        {docenteId !== null && !pendiente && (
+          <section className="mt-6 rounded-xl border border-vs-linea bg-white p-5">
+            <h2 className="font-display text-lg font-semibold">Tu fotografía</h2>
+            <p className="mt-1 text-sm text-vs-tinta-2">
+              Se muestra dentro del sistema. No se publica ni sale de la academia.
+            </p>
+            <div className="mt-4">
+              <FotoPerfil
+                tipo="docente"
+                id={docenteId}
+                nombre={u?.nombre ?? "tu cuenta"}
+                tieneFoto={foto.tieneFoto}
+                puedeEditar
+                version={foto.version}
+              />
+            </div>
+          </section>
         )}
 
         <section className="mt-6 rounded-xl border border-vs-linea bg-white p-5">

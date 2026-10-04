@@ -48,6 +48,21 @@ export const docentes = sqliteTable("docentes", {
   /** Excepcion a la tarifa general, en centavos por hora. NULL usa la del sistema. */
   tarifaHoraCentavos: integer("tarifa_hora_centavos"),
   activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+  /**
+   * Fotografia de perfil. Vive en el almacen como cualquier archivo: fuera de
+   * public/ y servida por un endpoint que verifica sesion.
+   *
+   * Es atributo de la persona, no documento del expediente: `documentos` cuelga
+   * de una clase para resolver el alcance, y una foto de perfil no tiene clase.
+   * Meterla ahi obligaria a aflojar ese filtro, que es justo el que impide que un
+   * docente lea expedientes ajenos.
+   */
+  fotoRuta: text("foto_ruta"),
+  fotoMime: text("foto_mime"),
+  fotoBytes: integer("foto_bytes"),
+  /** Para detectar corrupcion y verificar que un respaldo restauro la imagen. */
+  fotoHash: text("foto_hash"),
+  fotoActualizadaEn: integer("foto_actualizada_en", { mode: "timestamp" }),
 }, (t) => [index("ix_docentes_usuario").on(t.usuarioId)]);
 
 export const alumnos = sqliteTable("alumnos", {
@@ -73,6 +88,20 @@ export const alumnos = sqliteTable("alumnos", {
   objetivoMusical: text("objetivo_musical"),
   experienciaPrevia: text("experiencia_previa"),
   observaciones: text("observaciones"),
+  /**
+   * Fotografia de perfil. Misma decision que en `docentes`: atributo de la
+   * persona, no documento del expediente.
+   *
+   * Guardarla NO es publicarla. El consentimiento `uso_imagen` sigue gobernando
+   * la difusion (redes, material promocional); esta foto es de uso interno —
+   * identificar al alumno en recepcion y en la credencial que la clausula 10a
+   * obliga a emitir.
+   */
+  fotoRuta: text("foto_ruta"),
+  fotoMime: text("foto_mime"),
+  fotoBytes: integer("foto_bytes"),
+  fotoHash: text("foto_hash"),
+  fotoActualizadaEn: integer("foto_actualizada_en", { mode: "timestamp" }),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (t) => [
   uniqueIndex("ux_alumnos_codigo").on(t.codigo),

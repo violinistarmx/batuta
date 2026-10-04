@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 
 import { Encabezado } from "@/components/encabezado";
+import { FotoPerfil } from "@/components/foto-perfil";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import {
@@ -74,7 +75,16 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
         </Link>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-6">
-          <div>
+          <div className="flex flex-wrap items-start gap-5">
+            <FotoPerfil
+              tipo="alumno"
+              id={alumno.id}
+              nombre={alumno.nombre}
+              tieneFoto={Boolean(alumno.fotoRuta)}
+              puedeEditar={tienePermiso(sesion, "alumnos.editar")}
+              version={alumno.fotoActualizadaEn?.getTime() ?? null}
+            />
+            <div>
             <p className="font-mono text-xs text-vs-tinta-3">{alumno.codigo}</p>
             <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
               {alumno.nombre}
@@ -86,6 +96,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
               {" · Alta el "}
               {fechaLarga(new Date(`${alumno.fechaInscripcion}T12:00:00`))}
             </p>
+            </div>
           </div>
 
           <div className="rounded-xl border border-vs-linea bg-white p-3 text-center">

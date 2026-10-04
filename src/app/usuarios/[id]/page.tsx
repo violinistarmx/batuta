@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Encabezado } from "@/components/encabezado";
+import { FotoPerfil } from "@/components/foto-perfil";
 import { exigirPermiso } from "@/lib/auth/permisos";
+import { resumenFotoDocente } from "@/lib/datos/fotos";
 import { listarUsuarios, usuarioPorId } from "@/lib/datos/usuarios";
 import {
   NOMBRE_ROL, debeCambiarPassword, motivoParaNoDesactivar,
@@ -31,6 +33,9 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
   );
 
   const pendiente = debeCambiarPassword(u.passwordCambiadaEn);
+  const foto = u.docenteId !== null
+    ? resumenFotoDocente(u.docenteId)
+    : { tieneFoto: false, version: null };
 
   return (
     <>
@@ -78,14 +83,33 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
         </dl>
 
         {u.docenteId !== null && (
-          <p id="tiene-ficha"
-             className="mt-4 rounded-lg border border-vs-linea bg-vs-crema px-4 py-3 text-sm">
-            Tiene ficha de maestro. Sus clases, su asistencia y su nómina cuelgan de esa
-            ficha, no de la cuenta: desactivarla o cambiarle el rol no borra ni un peso de
-            lo que se le debe.{" "}
-            <Link href="/finanzas/nomina"
-                  className="no-underline hover:underline">Ver su nómina</Link>
-          </p>
+          <>
+            <p id="tiene-ficha"
+               className="mt-4 rounded-lg border border-vs-linea bg-vs-crema px-4 py-3 text-sm">
+              Tiene ficha de maestro. Sus clases, su asistencia y su nómina cuelgan de esa
+              ficha, no de la cuenta: desactivarla o cambiarle el rol no borra ni un peso de
+              lo que se le debe.{" "}
+              <Link href="/finanzas/nomina"
+                    className="no-underline hover:underline">Ver su nómina</Link>
+            </p>
+
+            <section className="mt-4 rounded-xl border border-vs-linea bg-white p-5">
+              <h2 className="font-display text-lg font-semibold">Fotografía</h2>
+              <p className="mt-1 text-sm text-vs-tinta-2">
+                Se muestra en el sistema para identificar al maestro. No se publica.
+              </p>
+              <div className="mt-4">
+                <FotoPerfil
+                  tipo="docente"
+                  id={u.docenteId}
+                  nombre={u.nombre}
+                  tieneFoto={foto.tieneFoto}
+                  puedeEditar
+                  version={foto.version}
+                />
+              </div>
+            </section>
+          </>
         )}
 
         <div className="mt-7">
