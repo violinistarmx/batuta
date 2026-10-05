@@ -6,7 +6,7 @@ import { db } from "@/db";
 import {
   alumnos, alumnosTutores, boletos, cargos, ciclos, clases, consentimientos,
   credenciales, creditosClase, documentos, inscripciones, pagos, participaciones,
-  posposiciones, prestamos, prospectos, saludAlumno, secuencias, tutores,
+  posposiciones, prestamos, progreso, prospectos, saludAlumno, secuencias, tutores,
 } from "@/db/schema/index";
 import { cifrarOpcional, descifrarOpcional } from "@/lib/cifrado";
 import { generarTokenQr } from "@/lib/qr";
@@ -370,13 +370,20 @@ export function descartarAlumno(alumnoId: number): void {
         .where(eq(ciclos.inscripcionId, i.id)).all().map((c) => c.id);
       if (idsCiclos.length) {
         tx.delete(creditosClase).where(inArray(creditosClase.cicloId, idsCiclos)).run();
+        // progreso.ciclo_id no cascadea, y su cascada por inscripcion_id llega
+        // demasiado tarde: se quita aquí, antes de tocar el ciclo que señala.
+        tx.delete(progreso).where(inArray(progreso.cicloId, idsCiclos)).run();
       }
 
-      // planeaciones (por clase_id) y tareas/progreso (por inscripcion_id) sí
+      // Los cargos (la mensualidad) apuntan al ciclo. Hay que soltarlos antes
+      // de borrar el ciclo, no después: un ciclo con un cargo todavía
+      // apuntándole no se puede borrar.
+      tx.delete(cargos).where(eq(cargos.inscripcionId, i.id)).run();
+
+      // planeaciones (por clase_id) y tareas (por inscripcion_id) sí
       // cascadean: se van solas al borrar clases e inscripción.
       tx.delete(clases).where(eq(clases.inscripcionId, i.id)).run();
       tx.delete(ciclos).where(eq(ciclos.inscripcionId, i.id)).run();
-      tx.delete(cargos).where(eq(cargos.inscripcionId, i.id)).run();
     }
 
     tx.delete(inscripciones).where(eq(inscripciones.alumnoId, alumnoId)).run();
