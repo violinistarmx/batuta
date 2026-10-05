@@ -230,10 +230,11 @@ export function listarAlumnos(alcance: Alcance, busqueda?: string): ResumenAlumn
       telefono: alumnos.telefono,
       estado: alumnos.estado,
       tutor: sql<string | null>`(
-        SELECT ${tutores.nombre} FROM ${alumnosTutores}
-        JOIN ${tutores} ON ${tutores.id} = ${alumnosTutores.tutorId}
+        SELECT GROUP_CONCAT(${tutores.nombre}, ', ')
+        FROM ${alumnosTutores}
+        INNER JOIN ${tutores} ON ${tutores.id} = ${alumnosTutores.tutorId}
         WHERE ${alumnosTutores.alumnoId} = ${alumnos.id}
-        LIMIT 1
+        ORDER BY ${alumnosTutores.esResponsablePago} DESC, ${tutores.nombre}
       )`,
     })
     .from(alumnos)
