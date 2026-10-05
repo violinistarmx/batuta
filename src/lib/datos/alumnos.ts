@@ -1,15 +1,17 @@
 import "server-only";
 
-import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  alumnos, alumnosTutores, consentimientos, credenciales, inscripciones,
-  saludAlumno, secuencias, tutores,
+  alumnos, alumnosTutores, boletos, cargos, ciclos, clases, consentimientos,
+  credenciales, creditosClase, documentos, inscripciones, pagos, participaciones,
+  posposiciones, prestamos, prospectos, saludAlumno, secuencias, tutores,
 } from "@/db/schema/index";
 import { cifrarOpcional, descifrarOpcional } from "@/lib/cifrado";
 import { generarTokenQr } from "@/lib/qr";
 import type { Alcance } from "@/lib/auth/permisos";
+import { motivoParaNoDescartar, type SituacionDescarte } from "@/lib/dominio/descarte";
 
 /**
  * Acceso a alumnos. El alcance por rol se aplica AQUÍ, no en las pantallas.
@@ -304,6 +306,91 @@ export function saludDe(alumnoId: number) {
     observaciones: descifrarOpcional(fila.observaciones),
     actualizadoEn: fila.actualizadoEn,
   };
+}
+
+/**
+ * Qué tan seguro es descartar a este alumno. Ver `motivoParaNoDescartar`.
+ */
+export function situacionDescarte(alumnoId: number): SituacionDescarte {
+  const pagosRegistrados = db.select({ n: sql<number>`count(*)` }).from(pagos)
+    .where(eq(pagos.alumnoId, alumnoId)).get()?.n ?? 0;
+
+  const clasesConAsistenciaOFalta = db.select({ n: sql<number>`count(*)` })
+    .from(clases)
+    .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .where(and(
+      eq(inscripciones.alumnoId, alumnoId),
+      inArray(clases.estado, ["asistio", "falta", "falta_justificada"]),
+    ))
+    .get()?.n ?? 0;
+
+  const prestamosRegistrados = db.select({ n: sql<number>`count(*)` }).from(prestamos)
+    .where(eq(prestamos.alumnoId, alumnoId)).get()?.n ?? 0;
+
+  const participacionesEnRecitales = db.select({ n: sql<number>`count(*)` })
+    .from(participaciones).where(eq(participaciones.alumnoId, alumnoId)).get()?.n ?? 0;
+
+  return { pagosRegistrados, clasesConAsistenciaOFalta, prestamosRegistrados, participacionesEnRecitales };
+}
+
+/**
+ * Descarta un alumno que nunca debió existir: de prueba, duplicado o con datos
+ * equivocados. Ver `lib/dominio/descarte.ts` para la diferencia con dar de baja.
+ *
+ * Revalida la situación aquí dentro, no solo en la pantalla: entre que se
+ * mostró el botón y se confirmó pudo registrarse un pago.
+ */
+export function descartarAlumno(alumnoId: number): void {
+  const situacion = situacionDescarte(alumnoId);
+  const impedimento = motivoParaNoDescartar(situacion);
+  if (impedimento) throw new Error(impedimento);
+
+  db.transaction((tx) => {
+    // Documentos del expediente: cuelgan de alumnoId con cascada, pero algunos
+    // también apuntan a una inscripción o clase que vamos a borrar más abajo, y
+    // esas dos referencias NO cascadean. Se quitan primero para no toparse con
+    // esa restricción.
+    tx.delete(documentos).where(eq(documentos.alumnoId, alumnoId)).run();
+
+    const insc = tx.select({ id: inscripciones.id }).from(inscripciones)
+      .where(eq(inscripciones.alumnoId, alumnoId)).all();
+
+    for (const i of insc) {
+      const idsClases = tx.select({ id: clases.id }).from(clases)
+        .where(eq(clases.inscripcionId, i.id)).all().map((c) => c.id);
+
+      if (idsClases.length) {
+        tx.delete(posposiciones).where(or(
+          inArray(posposiciones.claseOriginalId, idsClases),
+          inArray(posposiciones.claseRecuperacionId, idsClases),
+        )).run();
+      }
+
+      const idsCiclos = tx.select({ id: ciclos.id }).from(ciclos)
+        .where(eq(ciclos.inscripcionId, i.id)).all().map((c) => c.id);
+      if (idsCiclos.length) {
+        tx.delete(creditosClase).where(inArray(creditosClase.cicloId, idsCiclos)).run();
+      }
+
+      // planeaciones (por clase_id) y tareas/progreso (por inscripcion_id) sí
+      // cascadean: se van solas al borrar clases e inscripción.
+      tx.delete(clases).where(eq(clases.inscripcionId, i.id)).run();
+      tx.delete(ciclos).where(eq(ciclos.inscripcionId, i.id)).run();
+      tx.delete(cargos).where(eq(cargos.inscripcionId, i.id)).run();
+    }
+
+    tx.delete(inscripciones).where(eq(inscripciones.alumnoId, alumnoId)).run();
+
+    // Referencias opcionales que no cascadean: se desligan, no se borran — el
+    // prospecto o el boleto siguen existiendo, solo dejan de apuntar aquí.
+    tx.update(prospectos).set({ alumnoId: null }).where(eq(prospectos.alumnoId, alumnoId)).run();
+    tx.update(boletos).set({ alumnoId: null }).where(eq(boletos.alumnoId, alumnoId)).run();
+
+    // alumnos_tutores, salud_alumno, consentimientos, credenciales, cargos y
+    // pagos por alumno_id, y mensajes de comunicación: todos cascadean desde
+    // aquí.
+    tx.delete(alumnos).where(eq(alumnos.id, alumnoId)).run();
+  });
 }
 
 /**

@@ -300,6 +300,10 @@ const PERMISOS = [
   ["alumnos.leer", "Ver expedientes de alumnos"],
   ["alumnos.crear", "Dar de alta alumnos"],
   ["alumnos.editar", "Modificar alumnos"],
+  // Descartar NO es dar de baja: borra por completo a un alumno que nunca
+  // debió existir (de prueba, duplicado). Solo dirección, y solo si no dejó
+  // rastro real — ver lib/dominio/descarte.ts.
+  ["alumnos.descartar", "Descartar un alumno sin actividad real (borra su expediente)"],
   ["salud.leer", "Ver datos de salud (sensibles)"],
   ["salud.editar", "Capturar datos de salud (sensibles)"],
   ["inscripciones.leer", "Ver inscripciones y saldos"],

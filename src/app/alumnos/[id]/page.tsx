@@ -74,9 +74,17 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
     <>
       <Encabezado sesion={sesion} activo="alumnos" />
       <main className="mx-auto max-w-5xl px-5 py-8">
-        <Link href="/alumnos" className="text-xs text-vs-tinta-3 no-underline hover:underline">
-          ← Alumnos
-        </Link>
+        <div className="flex items-baseline justify-between">
+          <Link href="/alumnos" className="text-xs text-vs-tinta-3 no-underline hover:underline">
+            ← Alumnos
+          </Link>
+          {tienePermiso(sesion, "alumnos.descartar") && (
+            <Link href={`/alumnos/${alumno.id}/descartar`}
+                  className="text-xs text-vs-tinta-3 no-underline hover:text-red-700 hover:underline">
+              Descartar alumno
+            </Link>
+          )}
+        </div>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-6">
           <div className="flex flex-wrap items-start gap-5">
