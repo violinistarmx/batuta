@@ -27,6 +27,7 @@ export default async function Catalogo() {
 
   const catalogo = db
     .select({
+      id: programas.id,
       nombre: programas.nombre,
       descripcion: programas.descripcion,
       clases: programas.clasesPorCiclo,
@@ -40,6 +41,8 @@ export default async function Catalogo() {
     .where(isNull(preciosVigencia.vigenteHasta))
     .all()
     .sort((a, b) => a.orden - b.orden);
+
+  const puedeEditarCatalogo = tienePermiso(sesion, "configuracion.gestionar");
 
   const listaInstrumentos = db.select().from(instrumentos).all().sort((a, b) => a.orden - b.orden);
   const listaAulas = db.select().from(aulas).all();
@@ -66,7 +69,9 @@ export default async function Catalogo() {
         </p>
 
         <section className="mt-7">
-          <h2 className="font-display text-xl font-semibold">Programas vigentes</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-xl font-semibold">Programas vigentes</h2>
+          </div>
           <div className="mt-4 overflow-x-auto rounded-lg border border-vs-linea bg-white">
             <table id="tabla-programas" className="w-full min-w-[700px] text-sm">
               <thead>
@@ -80,6 +85,9 @@ export default async function Catalogo() {
                       <th className="px-4 py-2.5 text-right font-semibold">Costo docente</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Margen</th>
                     </>
+                  )}
+                  {puedeEditarCatalogo && (
+                    <th className="px-4 py-2.5 text-center font-semibold">Editar</th>
                   )}
                 </tr>
               </thead>
@@ -112,6 +120,16 @@ export default async function Catalogo() {
                             {margenPorcentaje.toFixed(1)} %
                           </td>
                         </>
+                      )}
+                      {puedeEditarCatalogo && (
+                        <td className="px-4 py-2.5 text-center">
+                          <Link
+                            href={`/catalogo/programas/${p.id}`}
+                            className="text-xs text-vs-tinta-3 no-underline hover:text-vs-naranja-700 hover:underline"
+                          >
+                            Editar
+                          </Link>
+                        </td>
                       )}
                     </tr>
                   );
