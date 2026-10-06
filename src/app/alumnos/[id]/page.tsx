@@ -14,7 +14,7 @@ import { cargosDeAlumno, cargosDeAlumnoCancelados, pagosDeAlumno } from "@/lib/d
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
 import { hoyEnMexico } from "@/lib/zona";
 import { Cobrar } from "./cobrar";
-import { reactivarCargoAccion } from "./cargos/acciones";
+import { BotonReactivar } from "./cargos/boton-reactivar";
 import { edad, esMenorDeEdad, fechaLarga, pesos } from "@/lib/formato";
 import { qrComoSvg } from "@/lib/qr";
 
@@ -427,18 +427,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                           <td className="px-4 py-2 text-right tabular-nums">{pesos(c.montoCentavos)}</td>
                           <td className="px-4 py-2 text-xs text-vs-tinta-3">{c.motivoCancelacion ?? "—"}</td>
                           <td className="px-3 py-2 text-right">
-                            <form action={reactivarCargoAccion.bind(null, {})}>
-                              <input type="hidden" name="cargoId" value={c.id} />
-                              <input type="hidden" name="alumnoId" value={alumno.id} />
-                              <button
-                                type="submit"
-                                className="inline-flex items-center gap-1 rounded-md border border-green-200
-                                           bg-green-50 px-2.5 py-1 text-xs font-medium text-green-800
-                                           transition hover:border-green-400 hover:bg-green-100"
-                              >
-                                ↩ Reactivar
-                              </button>
-                            </form>
+                            <BotonReactivar cargoId={c.id} alumnoId={alumno.id} />
                           </td>
                         </tr>
                       ))}
