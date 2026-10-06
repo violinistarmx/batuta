@@ -10,10 +10,11 @@ import {
   alumnoPorId, consentimientosDe, credencialDe, saludDe, tutoresDe,
 } from "@/lib/datos/alumnos";
 import { inscripcionesDe } from "@/lib/datos/inscripciones";
-import { cargosDeAlumno, pagosDeAlumno } from "@/lib/datos/finanzas";
+import { cargosDeAlumno, cargosDeAlumnoCancelados, pagosDeAlumno } from "@/lib/datos/finanzas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
 import { hoyEnMexico } from "@/lib/zona";
 import { Cobrar } from "./cobrar";
+import { reactivarCargoAccion } from "./cargos/acciones";
 import { edad, esMenorDeEdad, fechaLarga, pesos } from "@/lib/formato";
 import { qrComoSvg } from "@/lib/qr";
 
@@ -39,6 +40,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const puedeDescontar = tienePermiso(sesion, "configuracion.gestionar");
   const verFinanzas = tienePermiso(sesion, "finanzas.leer") || puedeCobrar;
   const cargos = verFinanzas ? cargosDeAlumno(alumno.id) : [];
+  const cargosCancelados = verFinanzas ? cargosDeAlumnoCancelados(alumno.id) : [];
   const pagos = verFinanzas ? pagosDeAlumno(alumno.id) : [];
   const hoyMx = hoyEnMexico();
   const cobranza = resumirCobranza(cargos, hoyMx);
@@ -397,6 +399,53 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {cargosCancelados.length > 0 && puedeCobrar && (
+              <details className="mt-3">
+                <summary className="cursor-pointer select-none text-xs text-vs-tinta-3 hover:text-vs-tinta">
+                  {cargosCancelados.length} cargo{cargosCancelados.length !== 1 ? "s" : ""} cancelado{cargosCancelados.length !== 1 ? "s" : ""} — clic para ver
+                </summary>
+                <div className="mt-2 overflow-x-auto rounded-lg border border-dashed border-vs-linea bg-white">
+                  <table className="w-full min-w-[560px] text-sm">
+                    <thead>
+                      <tr className="bg-vs-crema text-[11px] uppercase tracking-wider text-vs-tinta-3">
+                        <th className="px-4 py-2 text-left font-semibold">Concepto</th>
+                        <th className="px-4 py-2 text-left font-semibold">Periodo</th>
+                        <th className="px-4 py-2 text-left font-semibold">Vence</th>
+                        <th className="px-4 py-2 text-right font-semibold">Monto</th>
+                        <th className="px-4 py-2 text-left font-semibold">Motivo</th>
+                        <th className="px-4 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cargosCancelados.map((c) => (
+                        <tr key={c.id} className="border-t border-vs-linea opacity-60">
+                          <td className="px-4 py-2 line-through">{c.descripcion}</td>
+                          <td className="px-4 py-2 text-xs text-vs-tinta-3">{c.periodo ?? "—"}</td>
+                          <td className="px-4 py-2 tabular-nums">{c.venceEl}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{pesos(c.montoCentavos)}</td>
+                          <td className="px-4 py-2 text-xs text-vs-tinta-3">{c.motivoCancelacion ?? "—"}</td>
+                          <td className="px-3 py-2 text-right">
+                            <form action={reactivarCargoAccion}>
+                              <input type="hidden" name="cargoId" value={c.id} />
+                              <input type="hidden" name="alumnoId" value={alumno.id} />
+                              <button
+                                type="submit"
+                                className="inline-flex items-center gap-1 rounded-md border border-green-200
+                                           bg-green-50 px-2.5 py-1 text-xs font-medium text-green-800
+                                           transition hover:border-green-400 hover:bg-green-100"
+                              >
+                                ↩ Reactivar
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             )}
 
             {pagos.length > 0 && (

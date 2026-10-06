@@ -7,7 +7,7 @@ import { z } from "zod";
 import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
-import { actualizarCargo, cancelarCargo, cargoPorId } from "@/lib/datos/finanzas";
+import { actualizarCargo, cancelarCargo, cargoPorId, reactivarCargo } from "@/lib/datos/finanzas";
 
 // ------------------------------------------------------------------ editar ---
 
@@ -109,6 +109,49 @@ export async function cancelarCargoAccion(
     entidad: "cargos",
     entidadId: d.cargoId,
     cambios: { motivo: d.motivo },
+  });
+
+  revalidatePath(`/alumnos/${d.alumnoId}`);
+  redirect(`/alumnos/${d.alumnoId}`);
+  return {};
+}
+
+// --------------------------------------------------------------- reactivar ---
+
+const CargoReactivar = z.object({
+  cargoId: z.coerce.number().int().positive(),
+  alumnoId: z.coerce.number().int().positive(),
+});
+
+export type EstadoCargoReactivar = { error?: string };
+
+export async function reactivarCargoAccion(
+  _previo: EstadoCargoReactivar,
+  datos: FormData,
+): Promise<EstadoCargoReactivar> {
+  const sesion = await exigirPermiso("pagos.registrar");
+
+  const parsed = CargoReactivar.safeParse({
+    cargoId: datos.get("cargoId"),
+    alumnoId: datos.get("alumnoId"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Error en los datos." };
+
+  const d = parsed.data;
+  if (!alumnoPorId(d.alumnoId, alcanceDe(sesion))) return { error: "No se encontró el alumno." };
+
+  try {
+    reactivarCargo(d.cargoId, d.alumnoId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo reactivar el cargo." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "cargo.editar",
+    entidad: "cargos",
+    entidadId: d.cargoId,
+    cambios: { accion: "reactivado" },
   });
 
   revalidatePath(`/alumnos/${d.alumnoId}`);

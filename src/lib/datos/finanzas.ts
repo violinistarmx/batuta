@@ -216,6 +216,39 @@ export function cancelarCargo(
   }).where(eq(cargos.id, cargoId)).run();
 }
 
+/**
+ * Regresa un cargo cancelado a activo.
+ * Útil cuando se canceló por error y hay que restablecer la deuda del alumno.
+ */
+export function reactivarCargo(cargoId: number, alumnoId: number): void {
+  const cargo = db.select({ id: cargos.id, alumnoId: cargos.alumnoId, cancelado: cargos.cancelado })
+    .from(cargos).where(eq(cargos.id, cargoId)).get();
+  if (!cargo || cargo.alumnoId !== alumnoId) throw new Error("No se encontró el cargo.");
+  if (!cargo.cancelado) throw new Error("El cargo ya está activo.");
+
+  db.update(cargos).set({
+    cancelado: false,
+    motivoCancelacion: null,
+  }).where(eq(cargos.id, cargoId)).run();
+}
+
+/** Cargos cancelados de un alumno — para mostrarlos colapsados y permitir reactivarlos. */
+export function cargosDeAlumnoCancelados(alumnoId: number) {
+  return db
+    .select({
+      id: cargos.id,
+      descripcion: cargos.descripcion,
+      periodo: cargos.periodo,
+      montoCentavos: cargos.montoCentavos,
+      venceEl: cargos.venceEl,
+      motivoCancelacion: cargos.motivoCancelacion,
+    })
+    .from(cargos)
+    .where(and(eq(cargos.alumnoId, alumnoId), eq(cargos.cancelado, true)))
+    .orderBy(asc(cargos.venceEl), asc(cargos.id))
+    .all();
+}
+
 export function cargoPorId(cargoId: number) {
   return db.select({
     id: cargos.id,
