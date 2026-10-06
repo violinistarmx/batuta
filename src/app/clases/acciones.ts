@@ -43,6 +43,7 @@ const Agendar = z.object({
   cicloId: z.coerce.number().int().positive(),
   fecha: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha."),
   hora: z.string().trim().regex(/^\d{2}:\d{2}$/, "Elige la hora."),
+  duracion: z.coerce.number().int().min(15, "Mínimo 15 minutos.").max(240, "Máximo 240 minutos."),
   aulaId: z.coerce.number().int().nonnegative(),
   modalidad: z.enum(["presencial", "en_linea"]),
 });
@@ -60,6 +61,7 @@ export async function agendar(
     cicloId: datos.get("cicloId"),
     fecha: datos.get("fecha"),
     hora: datos.get("hora"),
+    duracion: datos.get("duracion"),
     aulaId: datos.get("aulaId") || "0",
     modalidad: datos.get("modalidad") ?? "presencial",
   });
@@ -87,7 +89,7 @@ export async function agendar(
     docenteId: insc.docenteId,
     aulaId,
     iniciaEn,
-    minutos: ciclo.minutosPorClase,
+    minutos: d.duracion,
   });
 
   if (choques.length > 0) {
@@ -103,7 +105,7 @@ export async function agendar(
     docenteId: insc.docenteId,
     aulaId,
     iniciaEn,
-    minutos: ciclo.minutosPorClase,
+    minutos: d.duracion,
     modalidad: d.modalidad,
   });
 
