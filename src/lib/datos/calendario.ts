@@ -261,7 +261,8 @@ export async function sincronizarConGoogleCalendar(claseId: number): Promise<str
 
     const asistentes = construirAsistentes(datos);
     const terminaEn = new Date(datos.iniciaEn.getTime() + datos.minutos * 60_000);
-    const eventoId = `batuta-clase-${claseId}`;
+    // Google Calendar solo acepta IDs con caracteres [a-v0-9], 5-1024 chars
+    const eventoId = `batutaclase${claseId}x`;
 
     await crearOActualizarEvento({
       id: eventoId,
