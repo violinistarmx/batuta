@@ -24,11 +24,15 @@ function Boton() {
   );
 }
 
+/** Parsea "HH:MM" y devuelve [horas, minutos] como enteros seguros. */
+function parseHora(hhmm: string): [number, number] {
+  const sep = hhmm.indexOf(":");
+  return [parseInt(hhmm.slice(0, sep), 10) || 0, parseInt(hhmm.slice(sep + 1), 10) || 0];
+}
+
 /** Calcula la hora de fin sumando minutos a una cadena "HH:MM". */
 function horaFin(horaInicio: string, minutos: number): string {
-  const parts = horaInicio.split(":").map(Number);
-  const h = parts[0] ?? 0;
-  const m = parts[1] ?? 0;
+  const [h, m] = parseHora(horaInicio);
   const totalMin = h * 60 + m + minutos;
   const hh = String(Math.floor(totalMin / 60) % 24).padStart(2, "0");
   const mm = String(totalMin % 60).padStart(2, "0");
@@ -37,9 +41,7 @@ function horaFin(horaInicio: string, minutos: number): string {
 
 /** Convierte "HH:MM" a formato civil "4:00 pm". */
 function civil(hhmm: string): string {
-  const parts = hhmm.split(":").map(Number);
-  const h = parts[0] ?? 0;
-  const m = parts[1] ?? 0;
+  const [h, m] = parseHora(hhmm);
   const ampm = h >= 12 ? "pm" : "am";
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
