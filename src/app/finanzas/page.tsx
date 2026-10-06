@@ -41,6 +41,21 @@ export default async function Finanzas({
     { t: "Gastos", v: -res.gastosCentavos, n: "Registrados en el periodo" },
   ];
 
+  // Botones de acceso rápido: todos los meses del año en curso hasta hoy
+  const anioActual = Number(hoy.slice(0, 4));
+  const mesActual = Number(hoy.slice(5, 7));
+  const nombresMes = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const mesesRapidos = Array.from({ length: mesActual }, (_, i) => {
+    const m = String(i + 1).padStart(2, "0");
+    const ultimoDia = new Date(anioActual, i + 1, 0).getDate();
+    return {
+      etiqueta: nombresMes[i],
+      desde: `${anioActual}-${m}-01`,
+      hasta: `${anioActual}-${m}-${String(ultimoDia).padStart(2, "0")}`,
+    };
+  });
+
   return (
     <>
       <Encabezado sesion={sesion} activo="finanzas" />
@@ -62,6 +77,36 @@ export default async function Finanzas({
               Ver
             </button>
           </form>
+        </div>
+
+        {/* Acceso rápido por mes */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {mesesRapidos.map((m) => {
+            const activo = d === m.desde && h === m.hasta;
+            return (
+              <a
+                key={m.etiqueta}
+                href={`/finanzas?desde=${m.desde}&hasta=${m.hasta}`}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  activo
+                    ? "bg-vs-naranja text-vs-tinta"
+                    : "border border-vs-linea bg-white text-vs-tinta-2 hover:border-vs-naranja hover:text-vs-tinta"
+                }`}
+              >
+                {m.etiqueta}
+              </a>
+            );
+          })}
+          <a
+            href={`/finanzas?desde=${anioActual}-01-01&hasta=${hoy}`}
+            className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+              d === `${anioActual}-01-01` && h === hoy
+                ? "bg-vs-naranja text-vs-tinta"
+                : "border border-vs-linea bg-white text-vs-tinta-2 hover:border-vs-naranja hover:text-vs-tinta"
+            }`}
+          >
+            Todo {anioActual}
+          </a>
         </div>
 
         <dl className="mt-6 grid gap-px overflow-hidden rounded-lg border border-vs-linea bg-vs-linea sm:grid-cols-2 lg:grid-cols-4">
