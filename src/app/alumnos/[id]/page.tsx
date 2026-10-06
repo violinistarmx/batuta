@@ -381,12 +381,14 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                             : pesos(adeudoDe(c))}
                         </td>
                         {verFinanzas && (
-                          <td className="px-4 py-2.5 text-right">
+                          <td className="px-3 py-2 text-right">
                             <Link
                               href={`/alumnos/${alumno.id}/cargos/${c.id}`}
-                              className="text-xs text-vs-tinta-3 hover:text-vs-naranja-700 hover:underline"
+                              className="inline-flex items-center gap-1 rounded-md border border-vs-linea
+                                         bg-vs-crema px-2.5 py-1 text-xs font-medium text-vs-tinta-2
+                                         transition hover:border-vs-naranja-700 hover:text-vs-naranja-700"
                             >
-                              editar
+                              ✎ Editar
                             </Link>
                           </td>
                         )}
