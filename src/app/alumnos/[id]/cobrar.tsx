@@ -99,9 +99,9 @@ export function Cobrar({
         <label htmlFor="descripcion" className="text-xs font-medium text-vs-tinta-2">
           Descripción <span className="font-normal text-vs-tinta-3">(aparece en el recibo)</span>
         </label>
-        <input
-          id="descripcion" name="descripcion"
-          placeholder="Ej: mensualidad octubre con beca del 10%"
+        <textarea
+          id="descripcion" name="descripcion" rows={3}
+          placeholder={"Ej: mensualidad octubre con beca del 10%\nClases programadas: sábado 4, 11, 18 y 25 de octubre"}
           className={campo}
         />
       </div>
