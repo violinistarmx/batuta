@@ -225,6 +225,15 @@ body {
   color: #6e5c45;
 }
 
+/* Descripción libre del pago: aparece bajo el concepto del cargo, dentro de la tabla */
+.recibo-descripcion-pago {
+  margin: 0.3rem 0 0;
+  font-size: 11px;
+  color: #5a4a35;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .recibo-lema {
   position: relative;
   z-index: 1;

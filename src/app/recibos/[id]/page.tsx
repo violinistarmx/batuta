@@ -113,6 +113,10 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
                         {resta > 0 && <> · resta {pesosExactos(resta)}</>}
                       </em>
                     )}
+                    {/* Descripción libre del pago: se muestra junto al primer cargo */}
+                    {i === 0 && r.descripcion && (
+                      <p className="recibo-descripcion-pago">{r.descripcion}</p>
+                    )}
                   </td>
                   <td className="num">{pesosExactos(x.montoAplicado)}</td>
                   <td className="num">1</td>
@@ -179,17 +183,11 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
           </div>
         </section>
 
-        {/* Descripción pública: aparece en el recibo tal como la capturó quien cobró. */}
-        {r.descripcion && (
-          <p className="recibo-nota">
-            {r.descripcion}
-          </p>
-        )}
-
-        {/* Observaciones internas: visibles en pantalla pero NO se imprimen. */}
+        {/* Observaciones internas: siempre visibles en el recibo (pantalla e impresión). */}
         {r.nota && (
-          <p className="recibo-nota no-print" style={{ color: "var(--vs-tinta-3, #888)", fontStyle: "italic" }}>
-            <strong style={{ fontStyle: "normal" }}>Obs. internas:</strong> {r.nota}
+          <p className="recibo-nota recibo-obs-internas">
+            <strong>OBS. INTERNAS:</strong><br />
+            <em>{r.nota}</em>
           </p>
         )}
 

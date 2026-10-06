@@ -108,7 +108,7 @@ export function Cobrar({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="nota" className="text-xs font-medium text-vs-tinta-2">
-          Observaciones <span className="font-normal text-vs-tinta-3">(internas, no aparecen en el recibo)</span>
+          Observaciones internas
         </label>
         <textarea id="nota" name="nota" rows={3} className={campo} />
       </div>
