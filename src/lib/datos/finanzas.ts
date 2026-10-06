@@ -343,6 +343,14 @@ export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: str
       tx.insert(aplicaciones).values({
         pagoId: pago.id, cargoId: a.cargoId, montoCentavos: a.montoCentavos,
       }).run();
+
+      // Ajustar el monto del cargo al monto real pagado (incluye descuento).
+      // Si el alumno pagó menos por descuento autorizado, el cargo refleja
+      // el valor válido en lugar del precio original del ciclo.
+      tx.update(cargos)
+        .set({ montoCentavos: a.montoCentavos })
+        .where(eq(cargos.id, a.cargoId))
+        .run();
     }
 
     const anio = Number(d.recibidoEl.slice(0, 4));
@@ -424,6 +432,14 @@ export function actualizarPago(
       tx.insert(aplicaciones).values({
         pagoId, cargoId: a.cargoId, montoCentavos: a.montoCentavos,
       }).run();
+
+      // Ajustar el monto del cargo al monto real pagado (incluye descuento).
+      // Si el alumno pagó menos por descuento autorizado, el cargo refleja
+      // el valor válido en lugar del precio original del ciclo.
+      tx.update(cargos)
+        .set({ montoCentavos: a.montoCentavos })
+        .where(eq(cargos.id, a.cargoId))
+        .run();
     }
   });
 }
