@@ -363,6 +363,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                       <th className="px-4 py-2.5 text-left font-semibold">Vence</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Cargo</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Adeudo</th>
+                      {verFinanzas && <th className="px-4 py-2.5" />}
                     </tr>
                   </thead>
                   <tbody>
@@ -379,6 +380,16 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                             ? <span className="text-green-800">saldado</span>
                             : pesos(adeudoDe(c))}
                         </td>
+                        {verFinanzas && (
+                          <td className="px-4 py-2.5 text-right">
+                            <Link
+                              href={`/alumnos/${alumno.id}/cargos/${c.id}`}
+                              className="text-xs text-vs-tinta-3 hover:text-vs-naranja-700 hover:underline"
+                            >
+                              editar
+                            </Link>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

@@ -163,6 +163,73 @@ export function cargosDeAlumno(alumnoId: number) {
     .all();
 }
 
+export type DatosActualizarCargo = {
+  descripcion: string;
+  periodo: string | null;
+  montoCentavos: number;
+  venceEl: string;
+};
+
+/**
+ * Edita los campos editables de un cargo existente.
+ * Solo permite tocar descripción, periodo, monto y fecha de vencimiento.
+ * No toca las aplicaciones ya hechas: si el nuevo monto es menor que lo ya
+ * aplicado, el cargo quedará "sobre-pagado" y el sistema lo manejará como
+ * saldo a favor del alumno en el siguiente pago.
+ */
+export function actualizarCargo(
+  cargoId: number,
+  alumnoId: number,
+  d: DatosActualizarCargo,
+  usuarioId: number,
+): void {
+  const cargo = db.select({ id: cargos.id, alumnoId: cargos.alumnoId })
+    .from(cargos).where(eq(cargos.id, cargoId)).get();
+  if (!cargo || cargo.alumnoId !== alumnoId) throw new Error("No se encontró el cargo.");
+
+  db.update(cargos).set({
+    descripcion: d.descripcion,
+    periodo: d.periodo,
+    montoCentavos: d.montoCentavos,
+    venceEl: d.venceEl,
+  }).where(eq(cargos.id, cargoId)).run();
+}
+
+/**
+ * Cancela (soft-delete) un cargo.
+ * Las aplicaciones previas se dejan en la BD para no corromper el historial de
+ * pagos ya emitidos; solo el cargo deja de aparecer en la cobranza activa.
+ */
+export function cancelarCargo(
+  cargoId: number,
+  alumnoId: number,
+  motivo: string,
+  usuarioId: number,
+): void {
+  const cargo = db.select({ id: cargos.id, alumnoId: cargos.alumnoId })
+    .from(cargos).where(eq(cargos.id, cargoId)).get();
+  if (!cargo || cargo.alumnoId !== alumnoId) throw new Error("No se encontró el cargo.");
+
+  db.update(cargos).set({
+    cancelado: true,
+    motivoCancelacion: motivo || "Cancelado manualmente",
+  }).where(eq(cargos.id, cargoId)).run();
+}
+
+export function cargoPorId(cargoId: number) {
+  return db.select({
+    id: cargos.id,
+    alumnoId: cargos.alumnoId,
+    concepto: cargos.concepto,
+    descripcion: cargos.descripcion,
+    periodo: cargos.periodo,
+    montoCentavos: cargos.montoCentavos,
+    venceEl: cargos.venceEl,
+    cancelado: cargos.cancelado,
+    aplicadoCentavos: APLICADO,
+  }).from(cargos).where(eq(cargos.id, cargoId)).get();
+}
+
 // ------------------------------------------------------------------- pagos ---
 
 export type DatosPago = {
