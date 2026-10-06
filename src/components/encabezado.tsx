@@ -49,6 +49,7 @@ export function Encabezado(
     permisos.has("bitacora.leer")
       ? { href: "/bitacora", texto: "Bitácora", clave: "bitacora" }
       : null,
+    { href: "/catalogo", texto: "Catálogo", clave: "catalogo" },
     permisos.has("configuracion.gestionar")
       ? { href: "/ajustes", texto: "Ajustes", clave: "ajustes" }
       : null,
