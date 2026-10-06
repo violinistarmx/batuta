@@ -221,6 +221,11 @@ export function listarAlumnos(alcance: Alcance, busqueda?: string): ResumenAlumn
 
   const activas = condiciones.filter(Boolean);
 
+  // Se usa LEFT JOIN + GROUP BY en lugar de un subquery correlacionado.
+  // Drizzle no interpola ${alumnos.id} como referencia correlacionada dentro
+  // de sql`(SELECT ...)`, lo que causaba que el filtro WHERE no aplicara y
+  // se devolviera el mismo tutor (o todos los tutores) para cada fila.
+  // Con JOIN + GROUP BY el motor correlaciona correctamente por alumno.
   return db
     .select({
       id: alumnos.id,
@@ -229,15 +234,12 @@ export function listarAlumnos(alcance: Alcance, busqueda?: string): ResumenAlumn
       fechaNacimiento: alumnos.fechaNacimiento,
       telefono: alumnos.telefono,
       estado: alumnos.estado,
-      tutor: sql<string | null>`(
-        SELECT GROUP_CONCAT(${tutores.nombre}, ', ')
-        FROM ${alumnosTutores}
-        INNER JOIN ${tutores} ON ${tutores.id} = ${alumnosTutores.tutorId}
-        WHERE ${alumnosTutores.alumnoId} = ${alumnos.id}
-        ORDER BY ${alumnosTutores.esResponsablePago} DESC, ${tutores.nombre}
-      )`,
+      tutor: sql<string | null>`GROUP_CONCAT(DISTINCT ${tutores.nombre})`,
     })
     .from(alumnos)
+    .leftJoin(alumnosTutores, eq(alumnosTutores.alumnoId, alumnos.id))
+    .leftJoin(tutores, eq(tutores.id, alumnosTutores.tutorId))
+    .groupBy(alumnos.id)
     .where(activas.length ? and(...activas) : undefined)
     .orderBy(desc(alumnos.creadoEn))
     .limit(200)
