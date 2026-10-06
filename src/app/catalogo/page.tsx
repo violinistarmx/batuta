@@ -71,6 +71,16 @@ export default async function Catalogo() {
         <section className="mt-7">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl font-semibold">Programas vigentes</h2>
+            {puedeEditarCatalogo && (
+              <Link
+                href="/catalogo/programas/nuevo"
+                className="rounded-lg border border-vs-linea bg-white px-3 py-1.5 text-xs
+                           font-medium text-vs-tinta-2 no-underline transition
+                           hover:border-vs-naranja hover:text-vs-tinta"
+              >
+                + Nuevo programa
+              </Link>
+            )}
           </div>
           <div className="mt-4 overflow-x-auto rounded-lg border border-vs-linea bg-white">
             <table id="tabla-programas" className="w-full min-w-[700px] text-sm">

@@ -79,6 +79,49 @@ export function programaPorId(id: number): ResumenPrograma | null {
   return fila ?? null;
 }
 
+export type DatosCrearPrograma = {
+  clave: string;
+  nombre: string;
+  descripcion: string;
+  clasesPorCiclo: number;
+  minutosPorClase: number;
+  alumnosIncluidos: number;
+  renovable: boolean;
+  permitePrestamoACasa: boolean;
+  orden: number;
+  precioCentavos: number;
+  vigenteDesde: string;
+};
+
+/** Crea un nuevo programa con su precio inicial. */
+export function crearPrograma(datos: DatosCrearPrograma): number {
+  return db.transaction((tx) => {
+    const resultado = tx.insert(programas).values({
+      clave: datos.clave,
+      nombre: datos.nombre,
+      descripcion: datos.descripcion,
+      clasesPorCiclo: datos.clasesPorCiclo,
+      minutosPorClase: datos.minutosPorClase,
+      alumnosIncluidos: datos.alumnosIncluidos,
+      renovable: datos.renovable,
+      permitePrestamoACasa: datos.permitePrestamoACasa,
+      activo: true,
+      orden: datos.orden,
+    }).run();
+
+    const programaId = Number(resultado.lastInsertRowid);
+
+    tx.insert(preciosVigencia).values({
+      programaId,
+      precioCentavos: datos.precioCentavos,
+      vigenteDesde: datos.vigenteDesde,
+      vigenteHasta: null,
+    }).run();
+
+    return programaId;
+  });
+}
+
 /** Actualiza nombre y/o descripción del programa. */
 export function actualizarNombrePrograma(
   id: number,
