@@ -24,6 +24,23 @@ function Boton() {
   );
 }
 
+/** Calcula la hora de fin sumando minutos a una cadena "HH:MM". */
+function horaFin(horaInicio: string, minutos: number): string {
+  const [h, m] = horaInicio.split(":").map(Number);
+  const totalMin = h * 60 + m + minutos;
+  const hh = String(Math.floor(totalMin / 60) % 24).padStart(2, "0");
+  const mm = String(totalMin % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** Convierte "HH:MM" a formato civil "4:00 pm". */
+function civil(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
 export function Agendar({
   inscripcionId, cicloId, aulas, hoy, minutos, saldo,
 }: {
@@ -33,6 +50,7 @@ export function Agendar({
 }) {
   const [estado, accion] = useActionState<EstadoAgendar, FormData>(agendar, {});
   const [modalidad, setModalidad] = useState<"presencial" | "en_linea">("presencial");
+  const [hora, setHora] = useState("16:00");
 
   return (
     <form action={accion} className="flex flex-col gap-4">
@@ -61,8 +79,12 @@ export function Agendar({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="hora" className="text-xs font-medium text-vs-tinta-2">Hora</label>
-          <input id="hora" name="hora" type="time" defaultValue="16:00" required className={campo} />
+          <label htmlFor="hora" className="text-xs font-medium text-vs-tinta-2">Hora inicio</label>
+          <input
+            id="hora" name="hora" type="time"
+            value={hora} required className={campo}
+            onChange={(e) => setHora(e.target.value)}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -94,7 +116,8 @@ export function Agendar({
       <div className="flex flex-wrap items-center gap-4">
         <Boton />
         <p className="text-xs text-vs-tinta-3">
-          Durará {minutos} minutos. Se avisa antes de guardar si choca con otra clase.
+          {civil(hora)} – {civil(horaFin(hora, minutos))}
+          {" "}({minutos} min). Se avisa si choca con otra clase.
         </p>
       </div>
     </form>
