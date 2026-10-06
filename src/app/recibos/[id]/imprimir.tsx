@@ -1,6 +1,40 @@
 "use client";
 
 import Link from "next/link";
+import { useActionState } from "react";
+
+import { anularPagoAccion, type EstadoAnular } from "@/app/finanzas/acciones";
+
+function BotonAnular({ reciboId }: { reciboId: number }) {
+  const [estado, accion] = useActionState<EstadoAnular, FormData>(anularPagoAccion, {});
+
+  function handleSubmit(e: { preventDefault: () => void }) {
+    const ok = window.confirm(
+      "¿Anular este pago?\n\n" +
+      "Se eliminará el recibo y las aplicaciones. " +
+      "Los cargos que cubría quedarán pendientes de nuevo.\n\n" +
+      "Esta acción no se puede deshacer.",
+    );
+    if (!ok) e.preventDefault();
+  }
+
+  return (
+    <form action={accion} onSubmit={handleSubmit}>
+      <input type="hidden" name="reciboId" value={reciboId} />
+      {estado.error && (
+        <p className="text-xs text-red-700">{estado.error}</p>
+      )}
+      <button
+        type="submit"
+        className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold
+                   text-red-700 transition hover:bg-red-50 focus-visible:outline-2
+                   focus-visible:outline-offset-2 focus-visible:outline-red-600"
+      >
+        Anular pago
+      </button>
+    </form>
+  );
+}
 
 /**
  * Barra de acciones del recibo. No se imprime: `@media print` la oculta.
@@ -28,6 +62,8 @@ export function Imprimir({
       >
         Editar pago
       </Link>
+
+      <BotonAnular reciboId={reciboId} />
 
       <button
         type="button"

@@ -395,6 +395,22 @@ export function actualizarPago(
   });
 }
 
+/**
+ * Anula un pago ya registrado: elimina el pago, su recibo y todas las aplicaciones.
+ *
+ * Gracias al `onDelete: "cascade"` en aplicaciones y recibos, basta con borrar
+ * el pago y el motor elimina todo lo relacionado en una sola operación.
+ * Los cargos que estaban saldados por ese pago quedan automáticamente pendientes
+ * de nuevo, porque las aplicaciones que los cubrían desaparecen.
+ */
+export function anularPago(pagoId: number, alumnoId: number): void {
+  const pago = db.select({ id: pagos.id, alumnoId: pagos.alumnoId })
+    .from(pagos).where(eq(pagos.id, pagoId)).get();
+  if (!pago) throw new Error("No se encontró el pago.");
+  if (pago.alumnoId !== alumnoId) throw new Error("El pago no pertenece a este alumno.");
+  db.delete(pagos).where(eq(pagos.id, pagoId)).run();
+}
+
 export function pagosDeAlumno(alumnoId: number) {
   return db
     .select({

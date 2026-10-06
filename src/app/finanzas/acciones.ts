@@ -10,7 +10,7 @@ import { configuracion } from "@/db/schema/index";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
-import { actualizarPago, generarNomina, pagarNomina, reciboPorId, registrarPago } from "@/lib/datos/finanzas";
+import { actualizarPago, anularPago, generarNomina, pagarNomina, reciboPorId, registrarPago } from "@/lib/datos/finanzas";
 import { hoyEnMexico, instanteEnMexico } from "@/lib/zona";
 
 function cfg() {
@@ -93,6 +93,7 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
   });
 
   redirect(`/recibos/${r.reciboId}`);
+  return {};
 }
 
 // --------------------------------------------------------------- editar pago ---
@@ -156,6 +157,7 @@ export async function editarPago(_previo: EstadoEditar, datos: FormData): Promis
   });
 
   redirect(`/recibos/${r.id}`);
+  return {};
 }
 
 // ----------------------------------------------------------------- nómina ---
@@ -246,4 +248,42 @@ export async function pagarDocente(
   revalidatePath("/finanzas/nomina");
   revalidatePath("/finanzas");
   return { ok: `Pagado: ${r.clases} clase(s) por $${(r.totalCentavos / 100).toLocaleString("es-MX")}.` };
+}
+
+// --------------------------------------------------------------- anular pago ---
+
+const PagoAnular = z.object({
+  reciboId: z.coerce.number().int().positive(),
+});
+
+export type EstadoAnular = { error?: string };
+
+export async function anularPagoAccion(
+  _previo: EstadoAnular,
+  datos: FormData,
+): Promise<EstadoAnular> {
+  const sesion = await exigirPermiso("pagos.registrar");
+
+  const parsed = PagoAnular.safeParse({ reciboId: datos.get("reciboId") });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Error en los datos." };
+
+  const r = reciboPorId(parsed.data.reciboId);
+  if (!r) return { error: "No se encontró el recibo." };
+
+  try {
+    anularPago(r.pagoId, r.alumnoId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo anular el pago." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "pago.modificar",
+    entidad: "pagos",
+    entidadId: r.pagoId,
+    cambios: { folio: r.folio, motivo: "anulado manualmente" },
+  });
+
+  redirect(`/alumnos/${r.alumnoId}`);
+  return {};
 }
