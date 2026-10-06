@@ -37,7 +37,7 @@ const Pago = z.object({
    * Aparece en el recibo junto al concepto del cargo. Campo público.
    * Distinto de `nota`, que es una observación interna.
    */
-  descripcion: z.string().trim().max(300).transform((s) => (s === "" ? null : s)),
+  descripcion: z.string().trim().max(1000).transform((s) => (s === "" ? null : s)),
   nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
 });
 
@@ -105,7 +105,7 @@ const PagoEditar = z.object({
   metodo: z.enum(["efectivo", "transferencia", "tarjeta", "deposito", "otro"]),
   recibidoEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha del pago."),
   referencia: z.string().trim().max(100).transform((s) => (s === "" ? null : s)),
-  descripcion: z.string().trim().max(300).transform((s) => (s === "" ? null : s)),
+  descripcion: z.string().trim().max(1000).transform((s) => (s === "" ? null : s)),
   nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
 });
 
