@@ -37,14 +37,21 @@ export type ParametrosCiclo = {
  * Devuelve null cuando no hay movimiento: una clase pospuesta a tiempo NO genera
  * fila en el libro mayor. Si generara una fila con delta 0, el libro se llenaria
  * de ruido y el saldo seguiria siendo el mismo.
+ *
+ * @param creditosAConsumir - Cuantos creditos consume esta clase. Por defecto 1
+ *   (clase de una hora). Las clases de 2 horas (programa Allegro Virtuoso Familiar
+ *   y otros) pasan 2 para que el libro mayor refleje el tiempo real dedicado.
  */
-export function efectoEnCreditos(estado: EstadoClase): MovimientoCredito | null {
+export function efectoEnCreditos(
+  estado: EstadoClase,
+  creditosAConsumir = 1,
+): MovimientoCredito | null {
   switch (estado) {
     case "asistio":
-      return { delta: -1, motivo: "clase_tomada" };
+      return { delta: -creditosAConsumir, motivo: "clase_tomada" };
     case "falta":
       // Clausula 4a: sin aviso o con menos de 24 h, la clase se considera consumida.
-      return { delta: -1, motivo: "falta_sin_aviso" };
+      return { delta: -creditosAConsumir, motivo: "falta_sin_aviso" };
     case "falta_justificada":
     case "reprogramada":
       // El alumno aviso a tiempo, o el director autorizo la excepcion.

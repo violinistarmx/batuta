@@ -26,16 +26,26 @@ function Enviar({ texto, pendiente }: { texto: string; pendiente: string }) {
   );
 }
 
-const OPCIONES = [
-  { valor: "asistio", texto: "Asistió", nota: "Consume una clase del período." },
-  { valor: "falta", texto: "Falta sin aviso", nota: "Consume la clase (cláusula 4ª)." },
-  { valor: "falta_justificada", texto: "Falta justificada", nota: "No consume. Requiere autorización del director." },
-  { valor: "cancelada", texto: "Canceló la academia", nota: "No consume ni genera pago docente." },
-] as const;
+function opcionesAsistencia(minutos: number) {
+  const creditos = Math.max(1, Math.ceil(minutos / 60));
+  const notaConsumo = creditos === 1
+    ? "Consume una clase del período."
+    : `Consume ${creditos} clases del período (clase de ${minutos} min).`;
+  const notaFalta = creditos === 1
+    ? "Consume la clase (cláusula 4ª)."
+    : `Consume ${creditos} clases del período (cláusula 4ª).`;
+  return [
+    { valor: "asistio" as const, texto: "Asistió", nota: notaConsumo },
+    { valor: "falta" as const, texto: "Falta sin aviso", nota: notaFalta },
+    { valor: "falta_justificada" as const, texto: "Falta justificada", nota: "No consume. Requiere autorización del director." },
+    { valor: "cancelada" as const, texto: "Canceló la academia", nota: "No consume ni genera pago docente." },
+  ];
+}
 
-export function Asistencia({ claseId, estadoActual }: { claseId: number; estadoActual: string }) {
+export function Asistencia({ claseId, estadoActual, minutos = 60 }: { claseId: number; estadoActual: string; minutos?: number }) {
   const [estado, accion] = useActionState<EstadoAsistencia, FormData>(marcarAsistencia, {});
   const yaRegistrada = estadoActual !== "programada";
+  const opciones = opcionesAsistencia(minutos);
 
   return (
     <form action={accion} className="flex flex-col gap-4">
@@ -63,7 +73,7 @@ export function Asistencia({ claseId, estadoActual }: { claseId: number; estadoA
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-xs font-medium text-vs-tinta-2">¿Qué pasó?</legend>
-        {OPCIONES.map((o) => (
+        {opciones.map((o) => (
           <label
             key={o.valor}
             htmlFor={`estado-${o.valor}`}

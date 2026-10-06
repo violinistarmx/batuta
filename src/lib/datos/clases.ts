@@ -106,13 +106,17 @@ export function registrarAsistencia(
 ): { anterior: EstadoClase; movimiento: number } {
   return db.transaction((tx) => {
     const clase = tx.select({
-      id: clases.id, cicloId: clases.cicloId, estado: clases.estado,
+      id: clases.id, cicloId: clases.cicloId, estado: clases.estado, minutos: clases.minutos,
     }).from(clases).where(eq(clases.id, claseId)).get();
 
     if (!clase) throw new Error("La clase no existe.");
 
     const anterior = clase.estado as EstadoClase;
-    const mov = movimientoPorCambio(anterior, nuevo);
+    // Una clase de 60 min consume 1 crédito; una de 120 min consume 2. Cualquier
+    // otra duración redondea hacia arriba en múltiplos de 60 min, aunque en la
+    // práctica solo existen esas dos.
+    const creditosAConsumir = Math.max(1, Math.ceil(clase.minutos / 60));
+    const mov = movimientoPorCambio(anterior, nuevo, creditosAConsumir);
 
     tx.update(clases).set({
       estado: nuevo,

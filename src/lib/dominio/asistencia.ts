@@ -40,13 +40,18 @@ const NOMBRE: Record<EstadoClase, string> = {
  * «falta sin aviso» consume un crédito en ambos casos, así que el saldo ya es
  * correcto y agregar un movimiento de cero solo ensuciaría el libro. El cambio de
  * estado sí queda en bitácora.
+ *
+ * @param creditosAConsumir - Cuántos créditos consume esta clase (1 por defecto, 2
+ *   para clases de 2 horas). Se aplica solo a los estados que consumen créditos
+ *   («asistio» y «falta»); el resto siempre queda en cero.
  */
 export function movimientoPorCambio(
   anterior: EstadoClase,
   nuevo: EstadoClase,
+  creditosAConsumir = 1,
 ): MovimientoAsistencia | null {
-  const deltaAnterior = efectoEnCreditos(anterior)?.delta ?? 0;
-  const efectoNuevo = efectoEnCreditos(nuevo);
+  const deltaAnterior = efectoEnCreditos(anterior, creditosAConsumir)?.delta ?? 0;
+  const efectoNuevo = efectoEnCreditos(nuevo, creditosAConsumir);
   const deltaNuevo = efectoNuevo?.delta ?? 0;
   const diferencia = deltaNuevo - deltaAnterior;
 
@@ -54,7 +59,7 @@ export function movimientoPorCambio(
 
   // Primer registro sobre una clase programada: es consumo, no corrección.
   if (anterior === "programada" && efectoNuevo) {
-    return { delta: efectoNuevo.delta, motivo: efectoNuevo.motivo, nota: NOMBRE[nuevo] };
+    return { delta: efectoNuevo.delta, motivo: efectoNuevo.motivo, nota: `${NOMBRE[nuevo]}${creditosAConsumir > 1 ? ` (${creditosAConsumir} créditos)` : ""}` };
   }
 
   // Cualquier otra transición es una corrección de algo ya registrado.

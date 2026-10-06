@@ -95,7 +95,7 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
               <section className="rounded-xl border border-vs-linea bg-white p-5">
                 <h2 className="font-display text-lg font-semibold">Asistencia</h2>
                 <div className="mt-4">
-                  <Asistencia claseId={clase.id} estadoActual={clase.estado} />
+                  <Asistencia claseId={clase.id} estadoActual={clase.estado} minutos={clase.minutos} />
                 </div>
               </section>
             )}
