@@ -68,6 +68,7 @@ export async function editarCargo(
   });
 
   redirect(`/alumnos/${d.alumnoId}`);
+  return {};
 }
 
 // ----------------------------------------------------------------- cancelar ---
@@ -112,4 +113,5 @@ export async function cancelarCargoAccion(
 
   revalidatePath(`/alumnos/${d.alumnoId}`);
   redirect(`/alumnos/${d.alumnoId}`);
+  return {};
 }

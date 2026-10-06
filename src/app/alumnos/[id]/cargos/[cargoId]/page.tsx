@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { exigirPermiso } from "@/lib/auth/permisos";
+import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { alumnoPorId } from "@/lib/datos/alumnos";
 import { cargoPorId } from "@/lib/datos/finanzas";
 import { FormularioEditarCargo } from "./formulario";
@@ -12,14 +12,14 @@ export default async function EditarCargo({
 }: {
   params: Promise<{ id: string; cargoId: string }>;
 }) {
-  await exigirPermiso("pagos.registrar");
+  const sesion = await exigirPermiso("pagos.registrar");
   const { id, cargoId } = await params;
 
   const alumnoId = Number(id);
   const cId = Number(cargoId);
   if (!Number.isInteger(alumnoId) || !Number.isInteger(cId)) notFound();
 
-  const alumno = alumnoPorId(alumnoId);
+  const alumno = alumnoPorId(alumnoId, alcanceDe(sesion));
   if (!alumno) notFound();
 
   const cargo = cargoPorId(cId);
