@@ -140,7 +140,7 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
                 <td className="num">{pesosExactos(aFavor)}</td>
               </tr>
             )}
-            {Array.from({ length: Math.max(0, 5 - renglones.length - (aFavor > 0 ? 1 : 0)) }).map((_, i) => (
+            {Array.from({ length: Math.max(0, 2 - renglones.length - (aFavor > 0 ? 1 : 0)) }).map((_, i) => (
               <tr key={`v${i}`} className="vacia"><td colSpan={4}>&nbsp;</td></tr>
             ))}
           </tbody>

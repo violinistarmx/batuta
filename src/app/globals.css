@@ -275,13 +275,42 @@ body {
     max-width: none;
     border: none;
     border-radius: 0;
+    font-size: 11.5px;
+    line-height: 1.35;
+    padding: 0;
     /* Los círculos y el amarillo son la identidad: sin esto el navegador los
        descarta al imprimir y el recibo sale en blanco y negro. */
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   .recibo::before, .recibo::after { opacity: 0.3; }
-  @page { size: letter; margin: 14mm; }
+
+  /* Cabeza y datos */
+  .recibo-cabeza { padding-top: 0; }
+  .recibo-titulo { font-size: 26px; }
+  .recibo-datos { margin-top: 1rem; }
+  .recibo-datos p { margin-bottom: 0.3rem; padding-bottom: 0.2rem; }
+
+  /* Tabla más compacta */
+  .recibo-tabla { margin-top: 0.9rem; }
+  .recibo-tabla thead th { padding: 0.35rem 0.5rem; font-size: 9.5px; }
+  .recibo-tabla tbody td { padding: 0.35rem 0.5rem; font-size: 11px; }
+  /* Filas vacías reducidas al mínimo */
+  .recibo-tabla tbody tr.vacia td { height: 1rem; }
+
+  /* Sección pie */
+  .recibo-pie { margin-top: 1rem; gap: 1rem; }
+  .recibo-terminos p { font-size: 9.5px; line-height: 1.35; margin-bottom: 0.3rem; }
+  .recibo-totales .fila { padding: 0.25rem 0; font-size: 10.5px; }
+  .recibo-totales .total { margin-top: 0.5rem; padding: 0.45rem 0.7rem; }
+
+  /* Nota y lema */
+  .recibo-nota { margin-top: 0.7rem; padding: 0.4rem 0.7rem; font-size: 10.5px; line-height: 1.35; }
+  .recibo-lema { margin: 0.9rem 0 0.5rem; font-size: 11px; }
+  .recibo-franja { padding: 0.6rem 0; }
+  .recibo-emision { margin: 0.5rem 0 0.8rem; }
+
+  @page { size: letter; margin: 12mm 14mm; }
 }
 
 @media (max-width: 640px) {
