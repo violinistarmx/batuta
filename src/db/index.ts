@@ -5,23 +5,26 @@ import { dirname } from "node:path";
 
 import * as schema from "./schema/index";
 
-const url = process.env.DATABASE_URL ?? "./data/batuta.db";
+// Durante `next build` en Railway, DATABASE_URL no está inyectada.
+// Los 31 workers paralelos del build abren la misma DB simultáneamente y
+// colisionan al intentar poner journal_mode=WAL (requiere candado exclusivo).
+// Solución: si no hay DATABASE_URL usamos :memory: — solo lectura de esquema,
+// sin escrituras reales, sin archivos, sin candados.
+const url = process.env.DATABASE_URL;
+const dbPath = url ?? ":memory:";
 
-// mkdirSync siempre: en build el directorio tampoco existe, así que lo creamos
-// antes de abrir la conexión. Si ya existe, { recursive: true } no falla.
-mkdirSync(dirname(url), { recursive: true });
+if (url) {
+  mkdirSync(dirname(url), { recursive: true });
+}
 
-const sqlite = new Database(url);
+const sqlite = new Database(dbPath);
 
-// busy_timeout PRIMERO: protege todas las sentencias siguientes.
-// Con 31 workers en paralelo durante `next build`, cada uno abre la DB;
-// sin timeout, el segundo en llegar recibe SQLITE_BUSY y tumba el build.
 sqlite.pragma("busy_timeout = 10000");
 
-// WAL permite lecturas concurrentes sin bloquear escrituras. El pragma exige
-// un candado exclusivo la primera vez; con busy_timeout ya activo, los workers
-// que lleguen después esperan su turno en lugar de fallar de inmediato.
-sqlite.pragma("journal_mode = WAL");
+// WAL solo tiene sentido con un archivo real; :memory: no tiene journal.
+if (dbPath !== ":memory:") {
+  sqlite.pragma("journal_mode = WAL");
+}
 
 // Las llaves foráneas no están activas por omisión en SQLite.
 sqlite.pragma("foreign_keys = ON");
