@@ -174,7 +174,6 @@ async function crearOActualizarEvento(
   };
 
   const body = JSON.stringify({
-    id: evento.id,
     summary: evento.title,
     description: evento.description,
     location: evento.location,
@@ -192,39 +191,21 @@ async function crearOActualizarEvento(
     sendUpdates: "all",
   });
 
-  // Intentar actualizar primero (idempotente)
-  const putResp = await fetch(`${base}/${encodeURIComponent(evento.id)}?sendUpdates=all`, {
-    method: "PUT",
+  // Crear el evento (Google asigna el ID)
+  const postResp = await fetch(`${base}?sendUpdates=all`, {
+    method: "POST",
     headers,
     body,
   });
 
-  if (putResp.ok) {
-    const data = await putResp.json() as { id: string };
-    console.log(`[Calendario] Evento actualizado: ${evento.id}`);
+  if (postResp.ok) {
+    const data = await postResp.json() as { id: string };
+    console.log(`[Calendario] Evento creado: ${data.id}`);
     return data.id;
   }
 
-  if (putResp.status === 404) {
-    // El evento no existe, crearlo
-    const postResp = await fetch(`${base}?sendUpdates=all`, {
-      method: "POST",
-      headers,
-      body,
-    });
-
-    if (postResp.ok) {
-      const data = await postResp.json() as { id: string };
-      console.log(`[Calendario] Evento creado: ${evento.id}`);
-      return data.id;
-    }
-
-    const err = await postResp.text();
-    throw new Error(`Error creando evento (${postResp.status}): ${err}`);
-  }
-
-  const err = await putResp.text();
-  throw new Error(`Error actualizando evento (${putResp.status}): ${err}`);
+  const err = await postResp.text();
+  throw new Error(`Error creando evento (${postResp.status}): ${err}`);
 }
 
 // ─── Función pública ──────────────────────────────────────────────────────────
@@ -261,11 +242,8 @@ export async function sincronizarConGoogleCalendar(claseId: number): Promise<str
 
     const asistentes = construirAsistentes(datos);
     const terminaEn = new Date(datos.iniciaEn.getTime() + datos.minutos * 60_000);
-    // Google Calendar solo acepta IDs con caracteres [a-v0-9], 5-1024 chars
-    const eventoId = `batutaclase${claseId}x`;
-
-    await crearOActualizarEvento({
-      id: eventoId,
+    const googleEventoId = await crearOActualizarEvento({
+      id: `batutaclase${claseId}x`,
       title: tituloEvento(datos.alumnoNombre, datos.programaNombre, datos.docenteNombre),
       startTime: datos.iniciaEn,
       endTime: terminaEn,
@@ -283,11 +261,11 @@ export async function sincronizarConGoogleCalendar(claseId: number): Promise<str
     }, token);
 
     db.update(clases)
-      .set({ eventoExternoId: eventoId })
+      .set({ eventoExternoId: googleEventoId })
       .where(eq(clases.id, claseId))
       .run();
 
-    return eventoId;
+    return googleEventoId;
   } catch (error) {
     console.error(`[Calendario] Error sincronizando clase ${claseId}:`, error);
     return null;
