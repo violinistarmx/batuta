@@ -66,7 +66,10 @@ const ACCIONES: Record<string, Descripcion> = {
 
   "pago.registrar": { texto: "Registró un pago", grupo: "dinero" },
   "pago.modificar": { texto: "Modificó un pago ya registrado", grupo: "dinero", delicado: true },
+  "pago.editar": { texto: "Editó un pago registrado", grupo: "dinero", delicado: true },
   "cargo.generar": { texto: "Generó cargos", grupo: "dinero" },
+  "cargo.editar": { texto: "Editó un cargo", grupo: "dinero", delicado: true },
+  "cargo.cancelar": { texto: "Canceló un cargo", grupo: "dinero", delicado: true },
   "nomina.calcular": { texto: "Calculó un corte de nómina", grupo: "dinero" },
   "nomina.pagar": { texto: "Marcó un corte como pagado", grupo: "dinero" },
   "recibo.emitir": { texto: "Emitió un recibo", grupo: "dinero" },
