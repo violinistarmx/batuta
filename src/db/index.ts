@@ -6,28 +6,27 @@ import { dirname } from "node:path";
 import * as schema from "./schema/index";
 
 const url = process.env.DATABASE_URL ?? "./data/batuta.db";
-mkdirSync(dirname(url), { recursive: true });
 
-const sqlite = new Database(url);
+// Durante `next build` los 31 workers abren la DB al mismo tiempo; WAL exige
+// un candado exclusivo que provoca SQLITE_BUSY. En fase de build abrimos en
+// modo solo-lectura para evitar cualquier escritura concurrente.
+const esBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-// busy_timeout PRIMERO: sin él, cualquier SQLITE_BUSY durante el build (31
-// workers en paralelo) tumba la compilación de inmediato. 10 s es amplio para
-// el peor caso en Railway.
-sqlite.pragma("busy_timeout = 10000");
-
-// WAL requiere un candado exclusivo al cambiar por primera vez. Si otro proceso
-// ya lo hizo, el pragma devuelve "wal" y no hace nada — está bien. Si devuelve
-// algo distinto de "wal" en producción puede indicar un FS sin soporte (ej.
-// red), pero en Railway con volumen persistente funciona.
-try {
-  sqlite.pragma("journal_mode = WAL");
-} catch {
-  // En build sobre FS temporal Railway puede fallar aquí sin consecuencias;
-  // en producción el volumen persiste y el pragma ya fue aplicado.
+if (!esBuild) {
+  mkdirSync(dirname(url), { recursive: true });
 }
 
-// Las llaves foraneas NO estan activas por omision en SQLite. Sin esto, borrar
-// un alumno dejaria inscripciones huerfanas sin que nada se queje.
+const sqlite = new Database(url, esBuild ? { readonly: true, fileMustExist: false } : undefined);
+
+sqlite.pragma("busy_timeout = 10000");
+
+if (!esBuild) {
+  // WAL: lecturas concurrentes sin bloquear escrituras. Solo se aplica en
+  // tiempo de ejecución, no durante el build donde hay 31 conexiones simultáneas.
+  sqlite.pragma("journal_mode = WAL");
+}
+
+// Las llaves foraneas NO estan activas por omision en SQLite.
 sqlite.pragma("foreign_keys = ON");
 
 /**
