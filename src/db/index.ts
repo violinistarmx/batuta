@@ -7,44 +7,38 @@ import * as schema from "./schema/index";
 
 const url = process.env.DATABASE_URL ?? "./data/batuta.db";
 
-// Durante `next build` los 31 workers abren la DB al mismo tiempo; WAL exige
-// un candado exclusivo que provoca SQLITE_BUSY. En fase de build abrimos en
-// modo solo-lectura para evitar cualquier escritura concurrente.
+// Durante `next build` (NEXT_PHASE=phase-production-build) los 31 workers
+// evalúan este módulo en paralelo sin que exista la DB en disco. No hay
+// ninguna consulta real en tiempo de build —Next.js solo importa el módulo
+// para analizar rutas— así que creamos un stub que satisface los tipos sin
+// tocar el sistema de archivos.
 const esBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-if (!esBuild) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let db: ReturnType<typeof drizzle<typeof schema>>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let sqlite: InstanceType<typeof Database>;
+
+if (esBuild) {
+  // Stub: drizzle necesita un objeto con la interfaz de Database.
+  // Ninguna de sus funciones se llama durante el build.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sqlite = {} as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db = {} as any;
+} else {
   mkdirSync(dirname(url), { recursive: true });
+  const _sqlite = new Database(url);
+  _sqlite.pragma("busy_timeout = 10000");
+  _sqlite.pragma("journal_mode = WAL");
+  _sqlite.pragma("foreign_keys = ON");
+  _sqlite.function("sin_acentos", { deterministic: true }, (valor: unknown) =>
+    typeof valor === "string"
+      ? valor.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      : valor as null,
+  );
+  sqlite = _sqlite;
+  db = drizzle(_sqlite, { schema });
 }
 
-const sqlite = new Database(url, esBuild ? { readonly: true, fileMustExist: false } : undefined);
-
-sqlite.pragma("busy_timeout = 10000");
-
-if (!esBuild) {
-  // WAL: lecturas concurrentes sin bloquear escrituras. Solo se aplica en
-  // tiempo de ejecución, no durante el build donde hay 31 conexiones simultáneas.
-  sqlite.pragma("journal_mode = WAL");
-}
-
-// Las llaves foraneas NO estan activas por omision en SQLite.
-sqlite.pragma("foreign_keys = ON");
-
-/**
- * Búsqueda sin acentos.
- *
- * SQLite compara «Martínez» y «martinez» como distintos, y nadie en recepción
- * teclea los acentos al buscar. Esta función normaliza ambos lados de la
- * comparación: descompone los caracteres y descarta las marcas diacríticas.
- *
- * Impide usar índices, así que recorre la tabla — con cientos de alumnos eso son
- * microsegundos. Si algún día son decenas de miles, toca una columna normalizada
- * mantenida en cada escritura.
- */
-sqlite.function("sin_acentos", { deterministic: true }, (valor: unknown) =>
-  typeof valor === "string"
-    ? valor.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
-    : valor as null,
-);
-
-export const db = drizzle(sqlite, { schema });
-export { sqlite };
+export { db, sqlite };
