@@ -57,29 +57,12 @@ export function Encabezado(
 
   return (
     <header className="border-b border-vs-linea bg-white/70 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
+      {/* Fila superior: logo + nombre + salir */}
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-5 pt-3">
         <Link href="/" className="font-display text-lg font-semibold tracking-tight no-underline">
           Batuta
         </Link>
-
-        <nav className="flex gap-1 text-sm">
-          {enlaces.map((e) => (
-            <Link
-              key={e.href}
-              href={e.href}
-              aria-current={activo === e.clave ? "page" : undefined}
-              className={`rounded-md px-2.5 py-1 no-underline transition ${
-                activo === e.clave
-                  ? "bg-vs-amarillo-suave font-medium text-vs-tinta"
-                  : "text-vs-tinta-2 hover:bg-vs-crema"
-              }`}
-            >
-              {e.texto}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <Link href="/perfil"
                 className="text-xs text-vs-tinta-3 no-underline hover:underline">
             {TITULO_ROL[sesion.rol]} {sesion.nombre}
@@ -97,6 +80,26 @@ export function Encabezado(
           </form>
         </div>
       </div>
+
+      {/* Fila de navegación: scroll horizontal en móvil */}
+      <nav className="scrollbar-none overflow-x-auto">
+        <div className="mx-auto flex max-w-5xl gap-1 px-4 pb-2 pt-1 text-sm">
+          {enlaces.map((e) => (
+            <Link
+              key={e.href}
+              href={e.href}
+              aria-current={activo === e.clave ? "page" : undefined}
+              className={`shrink-0 rounded-md px-2.5 py-1 no-underline transition ${
+                activo === e.clave
+                  ? "bg-vs-amarillo-suave font-medium text-vs-tinta"
+                  : "text-vs-tinta-2 hover:bg-vs-crema"
+              }`}
+            >
+              {e.texto}
+            </Link>
+          ))}
+        </div>
+      </nav>
     </header>
   );
 }

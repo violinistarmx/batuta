@@ -32,6 +32,15 @@ body {
   color: var(--color-vs-tinta);
 }
 
+/* Oculta la barra de scroll sin deshabilitar el scroll (usado en nav móvil) */
+.scrollbar-none {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / Edge */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari */
+}
+
 /* ---------------------------------------------------------------------------
    Nota de remisión.
 
