@@ -168,6 +168,8 @@ export function cargosDeAlumno(alumnoId: number) {
 export type DatosPago = {
   alumnoId: number;
   montoCentavos: number;
+  /** Condonación aprobada por el director. No es dinero real recibido. */
+  descuentoCentavos?: number;
   metodo: "efectivo" | "transferencia" | "tarjeta" | "deposito" | "otro";
   recibidoEl: string;
   referencia: string | null;
@@ -201,9 +203,12 @@ function siguienteFolio(tx: Tx, prefijo: string, anio: number): string {
  */
 export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: string): ResultadoPago {
   return db.transaction((tx) => {
+    const descuento = d.descuentoCentavos ?? 0;
+
     const pago = tx.insert(pagos).values({
       alumnoId: d.alumnoId,
       montoCentavos: d.montoCentavos,
+      descuentoCentavos: descuento,
       metodo: d.metodo,
       recibidoEl: d.recibidoEl,
       referencia: d.referencia,
@@ -223,7 +228,9 @@ export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: str
       .where(and(eq(cargos.alumnoId, d.alumnoId), eq(cargos.cancelado, false)))
       .all() as Cargo[];
 
-    const plan = planearAplicacion(d.montoCentavos, abiertos);
+    // El plan distribuye dinero real + condonación como si fuera un solo pago.
+    // Así el cargo queda saldado aunque el alumno haya pagado menos.
+    const plan = planearAplicacion(d.montoCentavos + descuento, abiertos);
 
     for (const a of plan.asignaciones) {
       tx.insert(aplicaciones).values({
@@ -239,11 +246,12 @@ export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: str
     }).returning({ id: recibos.id }).get();
     if (!recibo) throw new Error("No se pudo emitir el recibo.");
 
+    const totalAplicado = d.montoCentavos + descuento - plan.aFavorCentavos;
     return {
       pagoId: pago.id,
       reciboId: recibo.id,
       folio,
-      aplicadoCentavos: d.montoCentavos - plan.aFavorCentavos,
+      aplicadoCentavos: totalAplicado,
       aFavorCentavos: plan.aFavorCentavos,
     };
   });
@@ -275,6 +283,7 @@ export function reciboPorId(id: number) {
       emitidoEn: recibos.emitidoEn,
       pagoId: pagos.id,
       montoCentavos: pagos.montoCentavos,
+      descuentoCentavos: pagos.descuentoCentavos,
       metodo: pagos.metodo,
       recibidoEl: pagos.recibidoEl,
       referencia: pagos.referencia,

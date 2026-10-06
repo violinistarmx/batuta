@@ -50,7 +50,9 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
   // el recibo se captura tarde, y el documento no debe disimularlo.
   const [ae = 0, me = 1, de = 1] = fechaCivil(r.emitidoEn).split("-").map(Number);
   const aplicado = renglones.reduce((s, x) => s + x.montoAplicado, 0);
-  const aFavor = r.montoCentavos - aplicado;
+  // El descuento es condonación, no dinero real: el saldo a favor refleja solo
+  // lo que el alumno pagó en efectivo/transferencia y no se aplicó a ningún cargo.
+  const aFavor = Math.max(0, r.montoCentavos - aplicado);
 
   return (
     <>
@@ -115,6 +117,14 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
                 </tr>
               );
             })}
+            {r.descuentoCentavos > 0 && (
+              <tr>
+                <td><em>Descuento / condonación autorizado por dirección</em></td>
+                <td className="num">{pesosExactos(r.descuentoCentavos)}</td>
+                <td className="num">1</td>
+                <td className="num">({pesosExactos(r.descuentoCentavos)})</td>
+              </tr>
+            )}
             {aFavor > 0 && (
               <tr>
                 <td>Saldo a favor del alumno</td>

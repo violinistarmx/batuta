@@ -25,16 +25,20 @@ function Boton() {
 }
 
 export function Cobrar({
-  alumnoId, hoy, adeudoTotal, adeudoTexto,
+  alumnoId, hoy, adeudoTotal, adeudoTexto, puedeDescontar,
 }: {
   alumnoId: number; hoy: string; adeudoTotal: number; adeudoTexto: string;
+  puedeDescontar?: boolean;
 }) {
   const [estado, accion] = useActionState<EstadoPago, FormData>(cobrar, {});
   const [monto, setMonto] = useState(adeudoTotal > 0 ? (adeudoTotal / 100).toFixed(2) : "");
+  const [descuento, setDescuento] = useState("");
 
   const montoNum = Number(monto) || 0;
-  const parcial = adeudoTotal > 0 && montoNum > 0 && montoNum * 100 < adeudoTotal;
-  const sobra = montoNum * 100 > adeudoTotal;
+  const descuentoNum = Number(descuento) || 0;
+  const totalEfectivo = montoNum + descuentoNum;
+  const parcial = adeudoTotal > 0 && totalEfectivo > 0 && totalEfectivo * 100 < adeudoTotal;
+  const sobra = totalEfectivo * 100 > adeudoTotal;
 
   return (
     <form action={accion} className="flex flex-col gap-4">
@@ -55,6 +59,19 @@ export function Cobrar({
             className={campo} value={monto} onChange={(e) => setMonto(e.target.value)}
           />
         </div>
+
+        {puedeDescontar && (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="descuento" className="text-xs font-medium text-vs-tinta-2">
+              Descuento (condonar)
+            </label>
+            <input
+              id="descuento" name="descuento" type="number" step="0.01" min="0"
+              placeholder="0.00"
+              className={campo} value={descuento} onChange={(e) => setDescuento(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="metodo" className="text-xs font-medium text-vs-tinta-2">Forma de pago</label>
@@ -86,9 +103,16 @@ export function Cobrar({
       {parcial && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Es un <strong>pago a cuenta</strong>: quedará un saldo pendiente de{" "}
-          {((adeudoTotal - montoNum * 100) / 100).toLocaleString("es-MX", {
+          {((adeudoTotal - totalEfectivo * 100) / 100).toLocaleString("es-MX", {
             style: "currency", currency: "MXN", minimumFractionDigits: 0,
           })}. El recibo lo indicará.
+        </p>
+      )}
+      {descuentoNum > 0 && !parcial && (
+        <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+          Se condonarán{" "}
+          {(descuentoNum).toLocaleString("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 0 })}{" "}
+          del adeudo. El recibo solo refleja lo cobrado en efectivo/transferencia.
         </p>
       )}
       {sobra && adeudoTotal >= 0 && (

@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { configuracion } from "@/db/schema/index";
-import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
+import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
 import { generarNomina, pagarNomina, registrarPago } from "@/lib/datos/finanzas";
@@ -25,6 +25,11 @@ const Pago = z.object({
   alumnoId: z.coerce.number().int().positive(),
   /** Llega en pesos y se convierte a centavos: la interfaz habla en pesos. */
   monto: z.coerce.number().positive("El monto debe ser mayor que cero.").max(1_000_000),
+  /**
+   * Condonación en pesos. Solo la valida y aplica el director; para cualquier otro
+   * rol el campo llega vacío y se ignora.
+   */
+  descuento: z.coerce.number().nonnegative("El descuento no puede ser negativo.").max(1_000_000).default(0),
   metodo: z.enum(["efectivo", "transferencia", "tarjeta", "deposito", "otro"]),
   recibidoEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha del pago."),
   referencia: z.string().trim().max(100).transform((s) => (s === "" ? null : s)),
@@ -39,6 +44,7 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
   const parsed = Pago.safeParse({
     alumnoId: datos.get("alumnoId"),
     monto: datos.get("monto"),
+    descuento: datos.get("descuento") ?? "0",
     metodo: datos.get("metodo") ?? "efectivo",
     recibidoEl: datos.get("recibidoEl"),
     referencia: datos.get("referencia") ?? "",
@@ -53,9 +59,18 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
   // convertir evita que $750.005 se guarde como 75000.49999.
   const montoCentavos = Math.round(d.monto * 100);
 
+  // El descuento solo lo puede aplicar el director. Cualquier otro rol lo ignora
+  // aunque envíe el campo — así no hay vector de escalación de privilegios.
+  const esDirector = tienePermiso(sesion, "configuracion.gestionar");
+  const descuentoCentavos = esDirector ? Math.round(d.descuento * 100) : 0;
+
   let r: Awaited<ReturnType<typeof registrarPago>>;
   try {
-    r = registrarPago({ ...d, montoCentavos }, sesion.usuarioId, String(cfg().recibo_prefijo_folio ?? "VS"));
+    r = registrarPago(
+      { ...d, montoCentavos, descuentoCentavos },
+      sesion.usuarioId,
+      String(cfg().recibo_prefijo_folio ?? "VS"),
+    );
   } catch (e) {
     return { error: e instanceof Error ? e.message : "No se pudo registrar el pago." };
   }
@@ -66,7 +81,7 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
     entidad: "pagos",
     entidadId: r.pagoId,
     cambios: {
-      alumnoId: d.alumnoId, montoCentavos, metodo: d.metodo,
+      alumnoId: d.alumnoId, montoCentavos, descuentoCentavos, metodo: d.metodo,
       folio: r.folio, aplicado: r.aplicadoCentavos, aFavor: r.aFavorCentavos,
     },
   });

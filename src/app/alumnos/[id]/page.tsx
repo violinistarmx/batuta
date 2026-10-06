@@ -36,6 +36,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const inscripciones = inscripcionesDe(alumno.id, alcanceDe(sesion));
   const puedeInscribir = tienePermiso(sesion, "inscripciones.crear");
   const puedeCobrar = tienePermiso(sesion, "pagos.registrar");
+  const puedeDescontar = tienePermiso(sesion, "configuracion.gestionar");
   const verFinanzas = tienePermiso(sesion, "finanzas.leer") || puedeCobrar;
   const cargos = verFinanzas ? cargosDeAlumno(alumno.id) : [];
   const pagos = verFinanzas ? pagosDeAlumno(alumno.id) : [];
@@ -420,6 +421,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                         ? `Se aplicará primero al cargo más antiguo. Adeudo total: ${pesos(cobranza.porCobrarCentavos)}.`
                         : "Sin adeudos: lo que se cobre quedará a favor del alumno."
                     }
+                    puedeDescontar={puedeDescontar}
                   />
                 </div>
               </div>

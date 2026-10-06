@@ -92,6 +92,13 @@
       "when": 1791105023436,
       "tag": "0012_fotografias",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1791200000000,
+      "tag": "0013_descuento_pago",
+      "breakpoints": true
     }
   ]
 }

@@ -43,6 +43,8 @@ export const pagos = sqliteTable("pagos", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   alumnoId: integer("alumno_id").notNull().references(() => alumnos.id, { onDelete: "cascade" }),
   montoCentavos: integer("monto_centavos").notNull(),
+  /** Condonación: importe que el director perdona sin recibir dinero. */
+  descuentoCentavos: integer("descuento_centavos").notNull().default(0),
   metodo: text("metodo", {
     enum: ["efectivo", "transferencia", "tarjeta", "deposito", "otro"],
   }).notNull(),
