@@ -429,19 +429,28 @@ export function actualizarPago(
 }
 
 /**
- * Anula un pago ya registrado: elimina el pago, su recibo y todas las aplicaciones.
+ * Anula un pago ya registrado: elimina el recibo, las aplicaciones y el pago.
  *
- * Gracias al `onDelete: "cascade"` en aplicaciones y recibos, basta con borrar
- * el pago y el motor elimina todo lo relacionado en una sola operación.
+ * El orden importa: `recibos` tiene FK a pagos SIN cascade, por lo que hay que
+ * borrarlo primero. `aplicaciones` sí tiene cascade, pero lo borramos
+ * explícitamente antes del pago para dejar los cargos pendientes de nuevo.
  * Los cargos que estaban saldados por ese pago quedan automáticamente pendientes
- * de nuevo, porque las aplicaciones que los cubrían desaparecen.
+ * porque las aplicaciones que los cubrían desaparecen.
  */
 export function anularPago(pagoId: number, alumnoId: number): void {
   const pago = db.select({ id: pagos.id, alumnoId: pagos.alumnoId })
     .from(pagos).where(eq(pagos.id, pagoId)).get();
   if (!pago) throw new Error("No se encontró el pago.");
   if (pago.alumnoId !== alumnoId) throw new Error("El pago no pertenece a este alumno.");
-  db.delete(pagos).where(eq(pagos.id, pagoId)).run();
+
+  db.transaction((tx) => {
+    // 1. Borrar recibo (FK sin cascade — debe ir primero)
+    tx.delete(recibos).where(eq(recibos.pagoId, pagoId)).run();
+    // 2. Borrar aplicaciones (tienen cascade pero las borramos explícitamente)
+    tx.delete(aplicaciones).where(eq(aplicaciones.pagoId, pagoId)).run();
+    // 3. Borrar el pago
+    tx.delete(pagos).where(eq(pagos.id, pagoId)).run();
+  });
 }
 
 export function pagosDeAlumno(alumnoId: number) {
