@@ -122,6 +122,32 @@ export function crearPrograma(datos: DatosCrearPrograma): number {
   });
 }
 
+export type DatosEstructuraPrograma = {
+  clave: string;
+  clasesPorCiclo: number;
+  minutosPorClase: number;
+};
+
+/**
+ * Actualiza la estructura técnica del programa: clave, clases por ciclo y minutos por clase.
+ * Solo debe usarse cuando no hay contratos activos que dependan de estas cifras.
+ */
+export function actualizarEstructuraPrograma(
+  id: number,
+  datos: DatosEstructuraPrograma,
+): void {
+  const resultado = db
+    .update(programas)
+    .set({
+      clave: datos.clave,
+      clasesPorCiclo: datos.clasesPorCiclo,
+      minutosPorClase: datos.minutosPorClase,
+    })
+    .where(eq(programas.id, id))
+    .run();
+  if (resultado.changes === 0) throw new Error("El programa no existe.");
+}
+
 /** Actualiza nombre y/o descripción del programa. */
 export function actualizarNombrePrograma(
   id: number,

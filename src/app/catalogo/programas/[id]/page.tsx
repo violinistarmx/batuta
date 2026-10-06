@@ -5,8 +5,8 @@ import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { programaPorId } from "@/lib/datos/catalogo";
 import { pesos } from "@/lib/formato";
-import { guardarNombrePrograma, guardarPrecioPrograma } from "./acciones";
-import { FormularioNombre, FormularioPrecio } from "./cliente";
+import { guardarEstructuraPrograma, guardarNombrePrograma, guardarPrecioPrograma } from "./acciones";
+import { FormularioEstructura, FormularioNombre, FormularioPrecio } from "./cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +26,8 @@ export default async function EditarPrograma({
 
   const hoy = new Date().toISOString().slice(0, 10);
   const precioActualPesos = (programa.precioCentavos / 100).toFixed(2);
+  // Programas no renovables (ej: clase única) se cobran por clase, no por mes.
+  const etiquetaPrecio = programa.renovable ? "Precio mensual" : "Precio por clase";
 
   return (
     <>
@@ -46,7 +48,7 @@ export default async function EditarPrograma({
           con fecha de vigencia y no afectan contratos activos.
         </p>
 
-        {/* Ficha de referencia */}
+        {/* Ficha de referencia rápida */}
         <div className="mt-6 rounded-xl border border-vs-linea bg-vs-crema px-5 py-4 text-sm">
           <div className="grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-4">
             <div>
@@ -68,10 +70,27 @@ export default async function EditarPrograma({
           </div>
           <p className="mt-2 text-xs text-vs-tinta-3">
             Precio vigente desde {programa.vigenteDesde}.
-            La estructura del programa (clases, duración, alumnos incluidos)
-            solo puede cambiarse directamente en la base de datos.
+            {" "}{programa.renovable ? "Programa renovable mensualmente." : "Programa de clase única — precio por clase."}
           </p>
         </div>
+
+        {/* Formulario: estructura (clave, clases, minutos) */}
+        <section className="mt-8">
+          <h2 className="font-display text-lg font-semibold">Estructura del programa</h2>
+          <p className="mt-1 text-sm text-vs-tinta-2">
+            Clave interna y configuración del ciclo. Aplican de inmediato a los cálculos
+            del catálogo; los contratos ya emitidos no se ven afectados.
+          </p>
+          <div className="mt-4 rounded-xl border border-vs-linea bg-white p-5">
+            <FormularioEstructura
+              programaId={programaId}
+              claveActual={programa.clave}
+              clasesPorCicloActual={programa.clasesPorCiclo}
+              minutosPorClaseActual={programa.minutosPorClase}
+              accion={guardarEstructuraPrograma}
+            />
+          </div>
+        </section>
 
         {/* Formulario: nombre y descripción */}
         <section className="mt-8">
@@ -91,7 +110,7 @@ export default async function EditarPrograma({
 
         {/* Formulario: precio */}
         <section className="mt-8">
-          <h2 className="font-display text-lg font-semibold">Precio mensual</h2>
+          <h2 className="font-display text-lg font-semibold">{etiquetaPrecio}</h2>
           <p className="mt-1 text-sm text-vs-tinta-2">
             El precio nuevo entra en vigor en la fecha elegida. El historial queda
             intacto: cualquier contrato firmado antes conserva el precio de entonces.
@@ -101,6 +120,7 @@ export default async function EditarPrograma({
               programaId={programaId}
               precioActualPesos={precioActualPesos}
               hoy={hoy}
+              etiqueta={etiquetaPrecio}
               accion={guardarPrecioPrograma}
             />
           </div>
