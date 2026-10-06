@@ -50,6 +50,12 @@ export const pagos = sqliteTable("pagos", {
   }).notNull(),
   recibidoEl: text("recibido_el").notNull(),
   referencia: text("referencia"),
+  /**
+   * Descripción libre que aparece en el renglón del recibo junto al concepto.
+   * Distinta de `nota`: la descripción es pública (va en el comprobante),
+   * la nota es interna (solo la ven dirección y recepción).
+   */
+  descripcion: text("descripcion"),
   nota: text("nota"),
   registradoPor: integer("registrado_por").references(() => usuarios.id),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),

@@ -259,7 +259,7 @@ body {
 }
 
 @media print {
-  .no-imprimir { display: none !important; }
+  .no-imprimir, .no-print { display: none !important; }
   body { background: #fff; }
   .recibo {
     margin: 0;

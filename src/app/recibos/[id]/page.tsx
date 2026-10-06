@@ -50,14 +50,17 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
   // el recibo se captura tarde, y el documento no debe disimularlo.
   const [ae = 0, me = 1, de = 1] = fechaCivil(r.emitidoEn).split("-").map(Number);
   const aplicado = renglones.reduce((s, x) => s + x.montoAplicado, 0);
-  // El descuento es condonación, no dinero real: el saldo a favor refleja solo
-  // lo que el alumno pagó en efectivo/transferencia y no se aplicó a ningún cargo.
-  const aFavor = Math.max(0, r.montoCentavos - aplicado);
+  // El dinero real que entró: lo que pagó el alumno menos la condonación.
+  // Si el formulario capturó el total del cargo como "monto", restamos el descuento
+  // para obtener lo que el alumno efectivamente pagó de bolsillo.
+  const totalReal = r.montoCentavos - r.descuentoCentavos;
+  // El saldo a favor refleja solo el dinero real no aplicado a ningún cargo.
+  const aFavor = Math.max(0, totalReal - Math.max(0, aplicado - r.descuentoCentavos));
 
   return (
     <>
       {/* La barra no se imprime: solo existe para volver y para disparar la impresión. */}
-      <Imprimir volverA={`/alumnos/${r.alumnoId}`} folio={r.folio} />
+      <Imprimir volverA={`/alumnos/${r.alumnoId}`} folio={r.folio} reciboId={r.id} />
 
       <main className="recibo">
         <header className="recibo-cabeza">
@@ -171,18 +174,22 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
               <span>IMPUESTOS</span><span>—</span>
             </div>
             <div className="total">
-              <span>TOTAL</span><span id="recibo-total">{pesosExactos(r.montoCentavos)}</span>
+              <span>TOTAL</span><span id="recibo-total">{pesosExactos(totalReal)}</span>
             </div>
           </div>
         </section>
 
-        {/* La nota que escribió quien cobró. Se guardaba desde el principio y no
-            llegaba al papel: el alumno se iba sin el acuerdo que acababan de
-            pactar en el mostrador. */}
-        {r.nota && (
+        {/* Descripción pública: aparece en el recibo tal como la capturó quien cobró. */}
+        {r.descripcion && (
           <p className="recibo-nota">
-            <strong>Observaciones</strong>
-            {r.nota}
+            {r.descripcion}
+          </p>
+        )}
+
+        {/* Observaciones internas: visibles en pantalla pero NO se imprimen. */}
+        {r.nota && (
+          <p className="recibo-nota no-print" style={{ color: "var(--vs-tinta-3, #888)", fontStyle: "italic" }}>
+            <strong style={{ fontStyle: "normal" }}>Obs. internas:</strong> {r.nota}
           </p>
         )}
 

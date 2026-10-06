@@ -173,6 +173,12 @@ export type DatosPago = {
   metodo: "efectivo" | "transferencia" | "tarjeta" | "deposito" | "otro";
   recibidoEl: string;
   referencia: string | null;
+  /**
+   * Nota libre visible en el recibo, en el renglón junto al concepto.
+   * Útil para aclarar "mensualidad de octubre con descuento familiar" o similares.
+   */
+  descripcion: string | null;
+  /** Observaciones internas: solo las ven dirección y recepción, no aparecen en el recibo. */
   nota: string | null;
 };
 
@@ -212,6 +218,7 @@ export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: str
       metodo: d.metodo,
       recibidoEl: d.recibidoEl,
       referencia: d.referencia,
+      descripcion: d.descripcion,
       nota: d.nota,
       registradoPor: usuarioId,
     }).returning({ id: pagos.id }).get();
@@ -257,6 +264,70 @@ export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: str
   });
 }
 
+export type DatosActualizarPago = {
+  montoCentavos: number;
+  descuentoCentavos: number;
+  metodo: "efectivo" | "transferencia" | "tarjeta" | "deposito" | "otro";
+  recibidoEl: string;
+  referencia: string | null;
+  descripcion: string | null;
+  nota: string | null;
+};
+
+/**
+ * Corrige un pago ya registrado: actualiza sus campos y redistribuye las aplicaciones.
+ *
+ * Las aplicaciones antiguas se borran y se recalculan desde cero con el nuevo monto.
+ * El folio del recibo se conserva: el comprobante mantiene su número, solo cambia lo
+ * que dice. Si el alumno no tiene el mismo pago, lanza un error para no corromper datos.
+ */
+export function actualizarPago(
+  pagoId: number,
+  alumnoId: number,
+  d: DatosActualizarPago,
+  usuarioId: number,
+): void {
+  db.transaction((tx) => {
+    // Verificar que el pago exista y pertenezca al alumno
+    const pago = tx.select({ id: pagos.id, alumnoId: pagos.alumnoId })
+      .from(pagos).where(eq(pagos.id, pagoId)).get();
+    if (!pago || pago.alumnoId !== alumnoId) throw new Error("No se encontró el pago.");
+
+    // Actualizar campos del pago
+    tx.update(pagos).set({
+      montoCentavos: d.montoCentavos,
+      descuentoCentavos: d.descuentoCentavos,
+      metodo: d.metodo,
+      recibidoEl: d.recibidoEl,
+      referencia: d.referencia,
+      descripcion: d.descripcion,
+      nota: d.nota,
+    }).where(eq(pagos.id, pagoId)).run();
+
+    // Borrar aplicaciones antiguas y recalcular
+    tx.delete(aplicaciones).where(eq(aplicaciones.pagoId, pagoId)).run();
+
+    const abiertos = tx
+      .select({
+        id: cargos.id,
+        montoCentavos: cargos.montoCentavos,
+        aplicadoCentavos: APLICADO,
+        venceEl: cargos.venceEl,
+      })
+      .from(cargos)
+      .where(and(eq(cargos.alumnoId, alumnoId), eq(cargos.cancelado, false)))
+      .all() as Cargo[];
+
+    const plan = planearAplicacion(d.montoCentavos + d.descuentoCentavos, abiertos);
+
+    for (const a of plan.asignaciones) {
+      tx.insert(aplicaciones).values({
+        pagoId, cargoId: a.cargoId, montoCentavos: a.montoCentavos,
+      }).run();
+    }
+  });
+}
+
 export function pagosDeAlumno(alumnoId: number) {
   return db
     .select({
@@ -287,6 +358,7 @@ export function reciboPorId(id: number) {
       metodo: pagos.metodo,
       recibidoEl: pagos.recibidoEl,
       referencia: pagos.referencia,
+      descripcion: pagos.descripcion,
       nota: pagos.nota,
       alumnoId: alumnos.id,
       alumno: alumnos.nombre,

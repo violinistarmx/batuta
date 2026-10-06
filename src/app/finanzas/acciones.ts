@@ -10,7 +10,7 @@ import { configuracion } from "@/db/schema/index";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
-import { generarNomina, pagarNomina, registrarPago } from "@/lib/datos/finanzas";
+import { actualizarPago, generarNomina, pagarNomina, reciboPorId, registrarPago } from "@/lib/datos/finanzas";
 import { hoyEnMexico, instanteEnMexico } from "@/lib/zona";
 
 function cfg() {
@@ -33,7 +33,12 @@ const Pago = z.object({
   metodo: z.enum(["efectivo", "transferencia", "tarjeta", "deposito", "otro"]),
   recibidoEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha del pago."),
   referencia: z.string().trim().max(100).transform((s) => (s === "" ? null : s)),
-  nota: z.string().trim().max(300).transform((s) => (s === "" ? null : s)),
+  /**
+   * Aparece en el recibo junto al concepto del cargo. Campo público.
+   * Distinto de `nota`, que es una observación interna.
+   */
+  descripcion: z.string().trim().max(300).transform((s) => (s === "" ? null : s)),
+  nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
 });
 
 export type EstadoPago = { error?: string };
@@ -48,6 +53,7 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
     metodo: datos.get("metodo") ?? "efectivo",
     recibidoEl: datos.get("recibidoEl"),
     referencia: datos.get("referencia") ?? "",
+    descripcion: datos.get("descripcion") ?? "",
     nota: datos.get("nota") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
@@ -87,6 +93,69 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
   });
 
   redirect(`/recibos/${r.reciboId}`);
+}
+
+// --------------------------------------------------------------- editar pago ---
+
+const PagoEditar = z.object({
+  pagoId: z.coerce.number().int().positive(),
+  monto: z.coerce.number().positive("El monto debe ser mayor que cero.").max(1_000_000),
+  descuento: z.coerce.number().nonnegative("El descuento no puede ser negativo.").max(1_000_000).default(0),
+  metodo: z.enum(["efectivo", "transferencia", "tarjeta", "deposito", "otro"]),
+  recibidoEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha del pago."),
+  referencia: z.string().trim().max(100).transform((s) => (s === "" ? null : s)),
+  descripcion: z.string().trim().max(300).transform((s) => (s === "" ? null : s)),
+  nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
+});
+
+export type EstadoEditar = { error?: string };
+
+export async function editarPago(_previo: EstadoEditar, datos: FormData): Promise<EstadoEditar> {
+  const sesion = await exigirPermiso("pagos.registrar");
+
+  const parsed = PagoEditar.safeParse({
+    pagoId: datos.get("pagoId"),
+    monto: datos.get("monto"),
+    descuento: datos.get("descuento") ?? "0",
+    metodo: datos.get("metodo") ?? "efectivo",
+    recibidoEl: datos.get("recibidoEl"),
+    referencia: datos.get("referencia") ?? "",
+    descripcion: datos.get("descripcion") ?? "",
+    nota: datos.get("nota") ?? "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
+
+  const d = parsed.data;
+
+  // Verificar que el recibo existe y obtener alumnoId
+  const r = reciboPorId(Number(datos.get("reciboId")));
+  if (!r) return { error: "No se encontró el recibo." };
+
+  const montoCentavos = Math.round(d.monto * 100);
+  const esDirector = tienePermiso(sesion, "configuracion.gestionar");
+  const descuentoCentavos = esDirector ? Math.round(d.descuento * 100) : 0;
+
+  try {
+    actualizarPago(
+      d.pagoId,
+      r.alumnoId,
+      { montoCentavos, descuentoCentavos, metodo: d.metodo, recibidoEl: d.recibidoEl,
+        referencia: d.referencia, descripcion: d.descripcion, nota: d.nota },
+      sesion.usuarioId,
+    );
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo actualizar el pago." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "pago.editar",
+    entidad: "pagos",
+    entidadId: d.pagoId,
+    cambios: { montoCentavos, descuentoCentavos, metodo: d.metodo, folio: r.folio },
+  });
+
+  redirect(`/recibos/${r.id}`);
 }
 
 // ----------------------------------------------------------------- nómina ---
@@ -140,7 +209,7 @@ const PagoNomina = z.object({
   desdeEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   hastaEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   metodo: z.enum(["efectivo", "transferencia", "deposito", "otro"]),
-  nota: z.string().trim().max(300).transform((s) => (s === "" ? null : s)),
+  nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
 });
 
 export async function pagarDocente(

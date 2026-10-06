@@ -99,6 +99,13 @@
       "when": 1791200000000,
       "tag": "0013_descuento_pago",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1791300000000,
+      "tag": "0014_descripcion_pago",
+      "breakpoints": true
     }
   ]
 }
