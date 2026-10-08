@@ -46,6 +46,16 @@ export async function guardar(contenido: Buffer, tipo: TipoPermitido): Promise<A
   };
 }
 
+/**
+ * Ruta absoluta de un archivo del almacén, verificada contra salirse de él.
+ *
+ * Para herramientas que leen el archivo por ruta, como markitdown. No devuelve
+ * contenido: quien la use debe respetar los mismos permisos que la descarga.
+ */
+export function rutaAbsoluta(relativa: string): string {
+  return rutaContenida(RAIZ, relativa);
+}
+
 export async function leer(relativa: string): Promise<Buffer> {
   return readFile(rutaContenida(RAIZ, relativa));
 }
