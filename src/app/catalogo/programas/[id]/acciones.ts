@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
-import { actualizarEstructuraPrograma, actualizarNombrePrograma, actualizarPrecioPrograma, programaPorId } from "@/lib/datos/catalogo";
+import { actualizarEstructuraPrograma, actualizarNombrePrograma, actualizarPrecioPrograma, actualizarTarifaDocentePrograma, programaPorId } from "@/lib/datos/catalogo";
 
 export type EstadoAccion = { ok: boolean; mensaje: string };
 
@@ -173,4 +173,64 @@ export async function guardarEstructuraPrograma(
   revalidatePath(`/catalogo/programas/${programaId}`);
   revalidatePath("/catalogo");
   return { ok: true, mensaje: "Estructura actualizada." };
+}
+
+// ─── Tarifa de docente propia del programa ───────────────────────────────────
+
+const EsquemaTarifa = z.object({
+  programaId: z.coerce.number().int().positive(),
+  tarifaPesos: z.preprocess(
+    (v: unknown) => (v === "" || v === null || v === undefined ? null : v),
+    z.coerce
+      .number({ invalid_type_error: "Escribe la tarifa en pesos." })
+      .positive("La tarifa debe ser mayor a cero.")
+      .nullable(),
+  ),
+});
+
+export async function guardarTarifaDocentePrograma(
+  _previo: EstadoAccion,
+  datos: FormData,
+): Promise<EstadoAccion> {
+  const sesion = await exigirPermiso("configuracion.gestionar");
+
+  const raw = datos.get("tarifaPesos");
+  const parsed = EsquemaTarifa.safeParse({
+    programaId: datos.get("programaId"),
+    tarifaPesos: raw === "" ? null : raw,
+  });
+  if (!parsed.success) {
+    return { ok: false, mensaje: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+  }
+
+  const { programaId, tarifaPesos } = parsed.data;
+  const tarifaCentavos = tarifaPesos !== null ? Math.round(tarifaPesos * 100) : null;
+
+  const antes = programaPorId(programaId);
+  if (!antes) return { ok: false, mensaje: "El programa no existe." };
+
+  try {
+    actualizarTarifaDocentePrograma(programaId, tarifaCentavos);
+  } catch (e) {
+    return { ok: false, mensaje: e instanceof Error ? e.message : "No se pudo guardar." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "configuracion.modificar",
+    entidad: "programas",
+    entidadId: programaId,
+    cambios: {
+      tarifaAntesCentavos: antes.tarifaDocenteHoraCentavos ?? null,
+      tarifaDespuesCentavos: tarifaCentavos,
+    },
+  });
+
+  revalidatePath(`/catalogo/programas/${programaId}`);
+  return {
+    ok: true,
+    mensaje: tarifaCentavos === null
+      ? "Tarifa eliminada. Se usará la tarifa global."
+      : `Tarifa actualizada a $${tarifaPesos!.toFixed(2)}/hora.`,
+  };
 }

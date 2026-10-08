@@ -20,7 +20,9 @@ import { configuracion } from "@/db/schema/index";
  * La consulta que lo use debe tener `clases` y `docentes` en el FROM o en un JOIN.
  */
 export function costoDeClaseSql(tarifaHoraCentavos: number, factorFaltaSinAviso: number) {
-  const tarifa = sql`coalesce(docentes.tarifa_hora_centavos, ${tarifaHoraCentavos})`;
+  // Jerarquía: tarifa propia del docente > tarifa del programa > tarifa global
+  // La consulta que lo use debe tener `docentes` y `programas` en los JOINs.
+  const tarifa = sql`coalesce(docentes.tarifa_hora_centavos, programas.tarifa_docente_hora_centavos, ${tarifaHoraCentavos})`;
   const completo = sql`clases.minutos / 60.0 * ${tarifa}`;
   return sql<number>`coalesce(
     (SELECT np.importe_centavos FROM nomina_partidas np WHERE np.clase_id = clases.id),

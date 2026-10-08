@@ -20,6 +20,7 @@ export type ResumenPrograma = {
   precioCentavos: number;
   precioVigenciaId: number;
   vigenteDesde: string;
+  tarifaDocenteHoraCentavos: number | null;
 };
 
 /** Todos los programas activos con su precio vigente. */
@@ -40,6 +41,7 @@ export function listarProgramas(): ResumenPrograma[] {
       precioCentavos: preciosVigencia.precioCentavos,
       precioVigenciaId: preciosVigencia.id,
       vigenteDesde: preciosVigencia.vigenteDesde,
+      tarifaDocenteHoraCentavos: programas.tarifaDocenteHoraCentavos,
     })
     .from(programas)
     .innerJoin(preciosVigencia, and(
@@ -68,6 +70,7 @@ export function programaPorId(id: number): ResumenPrograma | null {
       precioCentavos: preciosVigencia.precioCentavos,
       precioVigenciaId: preciosVigencia.id,
       vigenteDesde: preciosVigencia.vigenteDesde,
+      tarifaDocenteHoraCentavos: programas.tarifaDocenteHoraCentavos,
     })
     .from(programas)
     .innerJoin(preciosVigencia, and(
@@ -143,6 +146,19 @@ export function actualizarEstructuraPrograma(
       clasesPorCiclo: datos.clasesPorCiclo,
       minutosPorClase: datos.minutosPorClase,
     })
+    .where(eq(programas.id, id))
+    .run();
+  if (resultado.changes === 0) throw new Error("El programa no existe.");
+}
+
+/** Actualiza la tarifa de docente propia del programa. null = usa la global. */
+export function actualizarTarifaDocentePrograma(
+  id: number,
+  tarifaHoraCentavos: number | null,
+): void {
+  const resultado = db
+    .update(programas)
+    .set({ tarifaDocenteHoraCentavos: tarifaHoraCentavos })
     .where(eq(programas.id, id))
     .run();
   if (resultado.changes === 0) throw new Error("El programa no existe.");

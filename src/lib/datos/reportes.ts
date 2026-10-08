@@ -112,6 +112,7 @@ export function ocupacionDocente(r: Rango): FilaOcupacion[] {
     .from(clases)
     .innerJoin(docentes, eq(docentes.id, clases.docenteId))
     .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
     .where(and(enRango(r), sql`${clases.estado} IN ('asistio','falta')`))
     .groupBy(docentes.id, docentes.nombre)
     .orderBy(desc(sql`sum(clases.minutos)`))
@@ -166,6 +167,7 @@ export function dineroPorPrograma(r: Rango): FilaPrograma[] {
         FROM clases
         JOIN docentes ON docentes.id = clases.docente_id
         JOIN inscripciones i4 ON i4.id = clases.inscripcion_id
+        JOIN programas ON programas.id = i4.programa_id
         WHERE i4.programa_id = programas.id
           AND clases.inicia_en >= ${epoch(instanteEnMexico(r.desde, "00:00"))}
           AND clases.inicia_en <= ${epoch(instanteEnMexico(r.hasta, "23:59"))}

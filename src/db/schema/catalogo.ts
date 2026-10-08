@@ -39,6 +39,12 @@ export const programas = sqliteTable("programas", {
   permitePrestamoACasa: integer("permite_prestamo_a_casa", { mode: "boolean" }).notNull().default(false),
   activo: integer("activo", { mode: "boolean" }).notNull().default(true),
   orden: integer("orden").notNull().default(0),
+  /**
+   * Tarifa de docente propia para este programa, en centavos por hora.
+   * NULL = usa la tarifa global del sistema (configuracion.tarifa_docente_hora_centavos).
+   * Ejemplo: programa en línea → 10000 ($100/h), dibujo → 20000 ($200/h).
+   */
+  tarifaDocenteHoraCentavos: integer("tarifa_docente_hora_centavos"),
 }, (t) => [uniqueIndex("ux_programas_clave").on(t.clave)]);
 
 /**

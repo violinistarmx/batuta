@@ -557,9 +557,12 @@ export function generarNomina(
       minutos: clases.minutos,
       estado: clases.estado,
       tarifaPropia: docentes.tarifaHoraCentavos,
+      tarifaPrograma: programas.tarifaDocenteHoraCentavos,
     })
     .from(clases)
     .innerJoin(docentes, eq(docentes.id, clases.docenteId))
+    .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
     .where(and(gte(clases.iniciaEn, desde), lte(clases.iniciaEn, hasta)))
     .all();
 
@@ -575,10 +578,12 @@ export function generarNomina(
         .where(eq(nominaPartidas.claseId, c.id)).get();
       if (ya) { omitidas++; continue; }
 
+      // Jerarquía: tarifa propia del docente > tarifa del programa > tarifa global
+      const tarifaEfectiva = c.tarifaPropia ?? c.tarifaPrograma ?? tarifaHoraCentavos;
       const importe = importeDocenteCentavos(
         c.minutos, estado,
         { tarifaHoraCentavos, factorFaltaSinAviso },
-        c.tarifaPropia,
+        tarifaEfectiva,
       );
 
       tx.insert(nominaPartidas).values({
@@ -586,7 +591,7 @@ export function generarNomina(
         docenteId: c.docenteId,
         minutos: c.minutos,
         estadoClase: estado,
-        tarifaHoraCentavos: c.tarifaPropia ?? tarifaHoraCentavos,
+        tarifaHoraCentavos: tarifaEfectiva,
         factor: estado === "asistio" ? "1" : String(factorFaltaSinAviso),
         importeCentavos: importe,
       }).run();
@@ -750,6 +755,8 @@ export function resultadoAdministrativo(desde: string, hasta: string) {
     })
     .from(clases)
     .innerJoin(docentes, eq(docentes.id, clases.docenteId))
+    .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
     .where(and(
       gte(clases.iniciaEn, instanteEnMexico(desde, "00:00")),
       lte(clases.iniciaEn, instanteEnMexico(hasta, "23:59")),

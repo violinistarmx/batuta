@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { programaPorId } from "@/lib/datos/catalogo";
+import { parametrosNomina } from "@/lib/datos/costo-docente";
 import { pesos } from "@/lib/formato";
-import { guardarEstructuraPrograma, guardarNombrePrograma, guardarPrecioPrograma } from "./acciones";
-import { FormularioEstructura, FormularioNombre, FormularioPrecio } from "./cliente";
+import { guardarEstructuraPrograma, guardarNombrePrograma, guardarPrecioPrograma, guardarTarifaDocentePrograma } from "./acciones";
+import { FormularioEstructura, FormularioNombre, FormularioPrecio, FormularioTarifaDocente } from "./cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function EditarPrograma({
   const precioActualPesos = (programa.precioCentavos / 100).toFixed(2);
   // Programas no renovables (ej: clase única) se cobran por clase, no por mes.
   const etiquetaPrecio = programa.renovable ? "Precio mensual" : "Precio por clase";
+  const { tarifaHoraCentavos: tarifaGlobal } = parametrosNomina();
 
   return (
     <>
@@ -104,6 +106,23 @@ export default async function EditarPrograma({
               nombreActual={programa.nombre}
               descripcionActual={programa.descripcion}
               accion={guardarNombrePrograma}
+            />
+          </div>
+        </section>
+
+        {/* Formulario: tarifa de docente */}
+        <section className="mt-8">
+          <h2 className="font-display text-lg font-semibold">Tarifa de docente</h2>
+          <p className="mt-1 text-sm text-vs-tinta-2">
+            Cuánto se le paga al maestro por hora en este programa. Si no se define,
+            se usa la tarifa global del sistema.
+          </p>
+          <div className="mt-4 rounded-xl border border-vs-linea bg-white p-5">
+            <FormularioTarifaDocente
+              programaId={programaId}
+              tarifaPropiaCentavos={programa.tarifaDocenteHoraCentavos}
+              tarifaGlobalCentavos={tarifaGlobal}
+              accion={guardarTarifaDocentePrograma}
             />
           </div>
         </section>
