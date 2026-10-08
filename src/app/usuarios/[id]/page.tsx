@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { eq } from "drizzle-orm";
+
+import { db } from "@/db";
+import { docentes } from "@/db/schema/index";
 import { Encabezado } from "@/components/encabezado";
 import { FotoPerfil } from "@/components/foto-perfil";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { resumenFotoDocente } from "@/lib/datos/fotos";
+import { parametrosNomina } from "@/lib/datos/costo-docente";
 import { listarUsuarios, usuarioPorId } from "@/lib/datos/usuarios";
 import {
   NOMBRE_ROL, debeCambiarPassword, motivoParaNoDesactivar,
@@ -36,6 +41,12 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
   const foto = u.docenteId !== null
     ? resumenFotoDocente(u.docenteId)
     : { tieneFoto: false, version: null };
+
+  const tarifaDocente = u.docenteId !== null
+    ? db.select({ tarifaHoraCentavos: docentes.tarifaHoraCentavos })
+        .from(docentes).where(eq(docentes.id, u.docenteId)).get()?.tarifaHoraCentavos ?? null
+    : null;
+  const { tarifaHoraCentavos: tarifaGlobal } = parametrosNomina();
 
   return (
     <>
@@ -118,7 +129,10 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
               id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo,
               esTuCuenta: u.id === sesion.usuarioId,
               tieneFicha: u.docenteId !== null,
+              docenteId: u.docenteId,
               sesionesAbiertas: u.sesionesAbiertas,
+              tarifaPropiaCentavos: tarifaDocente,
+              tarifaGlobalCentavos: tarifaGlobal,
             }}
             motivoBaja={motivoBaja}
           />

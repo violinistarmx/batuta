@@ -1,7 +1,11 @@
 "use server";
 
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { db } from "@/db";
+import { docentes } from "@/db/schema/index";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { generarPasswordInicial } from "@/lib/auth/password";
 import { registrar } from "@/lib/bitacora";
@@ -174,3 +178,51 @@ export async function cambiarRolCuenta(
   return { ok: `Ahora entra como ${NOMBRE_ROL[rol as (typeof ROLES)[number]]}.` };
 }
 
+
+// ------------------------------------------------ tarifa docente ---
+
+const TarifaDocente = z.object({
+  docenteId: z.coerce.number().int().positive(),
+  tarifaHora: z.string().trim().transform((s) => s === "" ? null : Math.round(Number(s) * 100))
+    .refine((n) => n === null || (Number.isFinite(n) && n >= 0), "Ingresa un monto válido."),
+});
+
+export async function actualizarTarifaDocente(
+  _previo: EstadoCuentas,
+  datos: FormData,
+): Promise<EstadoCuentas> {
+  const sesion = await exigirPermiso("usuarios.gestionar");
+
+  const parsed = TarifaDocente.safeParse({
+    docenteId: datos.get("docenteId"),
+    tarifaHora: datos.get("tarifaHora"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
+
+  const { docenteId, tarifaHora } = parsed.data;
+
+  const doc = db.select({ id: docentes.id, tarifaAnterior: docentes.tarifaHoraCentavos })
+    .from(docentes).where(eq(docentes.id, docenteId)).get();
+  if (!doc) return { error: "No se encontró la ficha del maestro." };
+
+  db.update(docentes)
+    .set({ tarifaHoraCentavos: tarifaHora })
+    .where(eq(docentes.id, docenteId))
+    .run();
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "usuario.editar",
+    entidad: "docentes",
+    entidadId: docenteId,
+    cambios: { tarifaHoraCentavos: [doc.tarifaAnterior, tarifaHora] },
+  });
+
+  revalidatePath(`/usuarios`);
+
+  return {
+    ok: tarifaHora === null
+      ? "Usará la tarifa general del sistema."
+      : `Tarifa actualizada a $${(tarifaHora / 100).toFixed(0)}/h.`,
+  };
+}

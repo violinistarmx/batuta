@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
-  cambiarEstadoCuenta, cambiarRolCuenta, restablecerCuenta, type EstadoCuentas,
+  actualizarTarifaDocente, cambiarEstadoCuenta, cambiarRolCuenta, restablecerCuenta,
+  type EstadoCuentas,
 } from "../acciones";
 import { Credencial } from "../credencial";
 
@@ -16,7 +17,10 @@ type Cuenta = {
   activo: boolean;
   esTuCuenta: boolean;
   tieneFicha: boolean;
+  docenteId: number | null;
   sesionesAbiertas: number;
+  tarifaPropiaCentavos: number | null;
+  tarifaGlobalCentavos: number;
 };
 
 const campo = "rounded-lg border border-vs-linea bg-white px-3 py-2 text-sm " +
@@ -60,6 +64,13 @@ export function Administrar({ cuenta, motivoBaja }: { cuenta: Cuenta; motivoBaja
   return (
     <div className="flex flex-col gap-5">
       <Rol cuenta={cuenta} />
+      {cuenta.tieneFicha && cuenta.docenteId !== null && (
+        <TarifaDocente
+          docenteId={cuenta.docenteId}
+          tarifaPropiaCentavos={cuenta.tarifaPropiaCentavos}
+          tarifaGlobalCentavos={cuenta.tarifaGlobalCentavos}
+        />
+      )}
       <Restablecer cuenta={cuenta} />
       <Estado cuenta={cuenta} motivoBaja={motivoBaja} />
     </div>
@@ -112,6 +123,75 @@ function Rol({ cuenta }: { cuenta: Cuenta }) {
       )}
 
       <Aviso estado={estado} id="rol" />
+    </section>
+  );
+}
+
+// ------------------------------------------------- tarifa docente ---
+
+function TarifaDocente({
+  docenteId, tarifaPropiaCentavos, tarifaGlobalCentavos,
+}: {
+  docenteId: number;
+  tarifaPropiaCentavos: number | null;
+  tarifaGlobalCentavos: number;
+}) {
+  const [estado, accion] = useActionState<EstadoCuentas, FormData>(actualizarTarifaDocente, {});
+  const [valor, setValor] = useState(
+    tarifaPropiaCentavos !== null ? String(tarifaPropiaCentavos / 100) : "",
+  );
+
+  const tarifaEfectiva = tarifaPropiaCentavos !== null
+    ? tarifaPropiaCentavos / 100
+    : tarifaGlobalCentavos / 100;
+
+  return (
+    <section className="rounded-xl border border-vs-linea bg-white p-5">
+      <h2 className="font-display text-lg font-semibold">Tarifa del maestro</h2>
+      <p className="mt-1 text-sm text-vs-tinta-2">
+        Si este maestro cobra diferente a la tarifa general (${tarifaGlobalCentavos / 100}/h),
+        escribe aquí su tarifa. Déjalo vacío para usar la tarifa general.
+        Los cortes de nómina ya pagados no se afectan.
+      </p>
+
+      <p className="mt-3 text-sm">
+        Tarifa efectiva actual:{" "}
+        <span className="font-semibold tabular-nums">${tarifaEfectiva}/h</span>
+        {tarifaPropiaCentavos === null && (
+          <span className="ml-2 text-xs text-vs-tinta-3">(tarifa general)</span>
+        )}
+        {tarifaPropiaCentavos !== null && (
+          <span className="ml-2 text-xs text-vs-naranja-700">(tarifa propia)</span>
+        )}
+      </p>
+
+      <form action={accion} className="mt-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="docenteId" value={docenteId} />
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="tarifaHora" className="text-xs font-medium text-vs-tinta-2">
+            Tarifa por hora (pesos)
+          </label>
+          <input
+            id="tarifaHora" name="tarifaHora" type="number"
+            min={0} step={10} placeholder={`${tarifaGlobalCentavos / 100} (general)`}
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            className={campo}
+          />
+        </div>
+        <Boton>Guardar tarifa</Boton>
+        {valor !== "" && (
+          <button
+            type="button"
+            onClick={() => setValor("")}
+            className="text-xs text-vs-tinta-3 hover:text-vs-tinta hover:underline"
+          >
+            Usar tarifa general
+          </button>
+        )}
+      </form>
+
+      <Aviso estado={estado} id="tarifa" />
     </section>
   );
 }
