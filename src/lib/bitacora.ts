@@ -21,6 +21,7 @@ export type Accion =
   | "clase.crear" | "clase.asistencia" | "clase.reprogramar" | "clase.autorizar_excepcion"
   | "clase.corregir"
   | "pago.registrar" | "pago.modificar" | "pago.editar" | "cargo.generar" | "cargo.editar" | "cargo.cancelar"
+  | "gasto.registrar" | "gasto.editar" | "gasto.eliminar"
   | "nomina.calcular" | "nomina.pagar"
   | "recibo.emitir" | "recibo.imprimir"
   | "documento.subir" | "documento.descargar" | "documento.eliminar"

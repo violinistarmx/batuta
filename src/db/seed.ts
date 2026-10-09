@@ -323,6 +323,7 @@ const PERMISOS = [
   ["planeaciones.leer_todas", "Ver planeaciones de todos los docentes"],
   ["pagos.registrar", "Registrar pagos"],
   ["finanzas.leer", "Ver finanzas de la academia"],
+  ["gastos.gestionar", "Registrar, editar y eliminar gastos de la academia"],
   ["recibos.emitir", "Emitir recibos"],
   ["nomina.leer_propia", "Ver la nómina propia"],
   ["nomina.leer", "Ver la nómina de todos los docentes"],

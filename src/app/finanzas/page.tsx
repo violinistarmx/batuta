@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import { Encabezado } from "@/components/encabezado";
 import { GraficaColumnas } from "@/components/graficas";
-import { exigirPermiso } from "@/lib/auth/permisos";
+import { exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { cobranzaGlobal, resultadoAdministrativo } from "@/lib/datos/finanzas";
+import { gastosDelPeriodo } from "@/lib/datos/gastos";
 import { ingresosPorMes } from "@/lib/datos/metricas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
 import { pesos } from "@/lib/formato";
@@ -25,6 +26,8 @@ export default async function Finanzas({
   const h = hasta && /^\d{4}-\d{2}-\d{2}$/.test(hasta) ? hasta : hoy;
 
   const res = resultadoAdministrativo(d, h);
+  const puedeGastos = tienePermiso(sesion, "gastos.gestionar");
+  const ultimosGastos = puedeGastos ? gastosDelPeriodo(d, h).slice(0, 5) : [];
   // Doce meses fijos, independientes del filtro de fechas de arriba: la gráfica
   // responde «cómo venimos», no «cuánto en este rango».
   const ingresos = ingresosPorMes(hoy, 12);
@@ -155,6 +158,43 @@ export default async function Finanzas({
             />
           </div>
         </section>
+
+        {/* -------------------------------------------- gastos del periodo */}
+        {puedeGastos && (
+          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="font-display text-lg font-semibold">Gastos del periodo</h2>
+              <Link href="/finanzas/gastos" className="text-sm no-underline hover:underline">
+                Ver todos los gastos →
+              </Link>
+            </div>
+            {ultimosGastos.length === 0 ? (
+              <p className="mt-3 text-sm text-vs-tinta-3">
+                Sin gastos registrados.{" "}
+                <Link href="/finanzas/gastos/nuevo" className="font-medium text-vs-naranja-700 no-underline hover:underline">
+                  Registrar →
+                </Link>
+              </p>
+            ) : (
+              <ul className="mt-3 divide-y divide-vs-linea text-sm">
+                {ultimosGastos.map((g) => (
+                  <li key={g.id} className="flex items-center justify-between gap-4 py-2">
+                    <div>
+                      <span className="font-medium">{g.concepto}</span>
+                      <span className="ml-2 text-[11px] uppercase tracking-wider text-vs-tinta-3">
+                        {g.categoria}
+                      </span>
+                    </div>
+                    <span className="tabular-nums font-semibold">{pesos(g.montoCentavos)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 text-xs text-vs-tinta-3">
+              Total gastos del periodo: <strong className="tabular-nums">{pesos(res.gastosCentavos)}</strong>
+            </p>
+          </section>
+        )}
 
         <section className="mt-7">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
