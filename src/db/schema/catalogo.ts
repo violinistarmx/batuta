@@ -45,6 +45,13 @@ export const programas = sqliteTable("programas", {
    * Ejemplo: programa en línea → 10000 ($100/h), dibujo → 20000 ($200/h).
    */
   tarifaDocenteHoraCentavos: integer("tarifa_docente_hora_centavos"),
+  /**
+   * Cuántos minutos de clase equivalen a 1 crédito en este programa.
+   * Por defecto 60 (sesión de 60 min = 1 crédito, sesión de 120 min = 2).
+   * Dibujo usa 90: su sesión de 90 min vale 1 crédito.
+   * Fórmula: créditos = Math.max(1, Math.round(minutos / minutosPerCredito))
+   */
+  minutosPerCredito: integer("minutos_per_credito").notNull().default(60),
 }, (t) => [uniqueIndex("ux_programas_clave").on(t.clave)]);
 
 /**

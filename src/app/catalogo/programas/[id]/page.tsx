@@ -6,8 +6,8 @@ import { exigirPermiso } from "@/lib/auth/permisos";
 import { programaPorId } from "@/lib/datos/catalogo";
 import { parametrosNomina } from "@/lib/datos/costo-docente";
 import { pesos } from "@/lib/formato";
-import { guardarEstructuraPrograma, guardarNombrePrograma, guardarPrecioPrograma, guardarTarifaDocentePrograma } from "./acciones";
-import { FormularioEstructura, FormularioNombre, FormularioPrecio, FormularioTarifaDocente } from "./cliente";
+import { guardarEstructuraPrograma, guardarMinutosPerCredito, guardarNombrePrograma, guardarPrecioPrograma, guardarTarifaDocentePrograma } from "./acciones";
+import { FormularioEstructura, FormularioMinutosPerCredito, FormularioNombre, FormularioPrecio, FormularioTarifaDocente } from "./cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +123,24 @@ export default async function EditarPrograma({
               tarifaPropiaCentavos={programa.tarifaDocenteHoraCentavos}
               tarifaGlobalCentavos={tarifaGlobal}
               accion={guardarTarifaDocentePrograma}
+            />
+          </div>
+        </section>
+
+        {/* Formulario: minutos por crédito */}
+        <section className="mt-8">
+          <h2 className="font-display text-lg font-semibold">Créditos por sesión</h2>
+          <p className="mt-1 text-sm text-vs-tinta-2">
+            Define cuántos minutos de sesión equivalen a 1 crédito. El valor estándar
+            es 60 min (una sesión = un crédito). Para Dibujo, con sesiones de 90 min,
+            ponlo en 90 para que cada sesión siga consumiendo 1 crédito.
+          </p>
+          <div className="mt-4 rounded-xl border border-vs-linea bg-white p-5">
+            <FormularioMinutosPerCredito
+              programaId={programaId}
+              minutosPerCreditoActual={programa.minutosPerCredito}
+              minutosPorClase={programa.minutosPorClase}
+              accion={guardarMinutosPerCredito}
             />
           </div>
         </section>

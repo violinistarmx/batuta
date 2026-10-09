@@ -113,6 +113,13 @@
       "when": 1791400000000,
       "tag": "0015_tarifa_docente_programa",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1791500000000,
+      "tag": "0016_minutos_per_credito",
+      "breakpoints": true
     }
   ]
 }

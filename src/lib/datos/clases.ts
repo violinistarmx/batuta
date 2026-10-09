@@ -107,15 +107,19 @@ export function registrarAsistencia(
   return db.transaction((tx) => {
     const clase = tx.select({
       id: clases.id, cicloId: clases.cicloId, estado: clases.estado, minutos: clases.minutos,
-    }).from(clases).where(eq(clases.id, claseId)).get();
+      minutosPerCredito: programas.minutosPerCredito,
+    }).from(clases)
+      .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+      .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+      .where(eq(clases.id, claseId)).get();
 
     if (!clase) throw new Error("La clase no existe.");
 
     const anterior = clase.estado as EstadoClase;
-    // Cada sesión consume exactamente 1 crédito, sin importar su duración.
-    // Los minutos solo determinan el costo del docente; para el alumno una sesión
-    // de 90 min de dibujo es una clase, igual que una de 60 min de violín.
-    const creditosAConsumir = 1;
+    // créditos = round(minutos / minutosPerCredito), mínimo 1.
+    // Ejemplos: Dibujo (minutosPerCredito=90): sesión 90 min → 1 crédito.
+    //           Allegro (minutosPerCredito=60): sesión 120 min → 2 créditos.
+    const creditosAConsumir = Math.max(1, Math.round(clase.minutos / clase.minutosPerCredito));
     const mov = movimientoPorCambio(anterior, nuevo, creditosAConsumir);
 
     tx.update(clases).set({

@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
-import { actualizarEstructuraPrograma, actualizarNombrePrograma, actualizarPrecioPrograma, actualizarTarifaDocentePrograma, programaPorId } from "@/lib/datos/catalogo";
+import { actualizarEstructuraPrograma, actualizarMinutosPerCredito, actualizarNombrePrograma, actualizarPrecioPrograma, actualizarTarifaDocentePrograma, programaPorId } from "@/lib/datos/catalogo";
 
 export type EstadoAccion = { ok: boolean; mensaje: string };
 
@@ -233,4 +233,59 @@ export async function guardarTarifaDocentePrograma(
       ? "Tarifa eliminada. Se usará la tarifa global."
       : `Tarifa actualizada a $${tarifaPesos!.toFixed(2)}/hora.`,
   };
+}
+
+// ─── Minutos por crédito ──────────────────────────────────────────────────────
+
+const EsquemaMinutosPerCredito = z.object({
+  programaId: z.coerce.number().int().positive(),
+  minutosPerCredito: z.coerce
+    .number({ invalid_type_error: "Escribe los minutos." })
+    .int("Debe ser un número entero.")
+    .min(15, "Mínimo 15 minutos.")
+    .max(180, "Máximo 180 minutos."),
+});
+
+export async function guardarMinutosPerCredito(
+  _previo: EstadoAccion,
+  datos: FormData,
+): Promise<EstadoAccion> {
+  const sesion = await exigirPermiso("configuracion.gestionar");
+
+  const parsed = EsquemaMinutosPerCredito.safeParse({
+    programaId: datos.get("programaId"),
+    minutosPerCredito: datos.get("minutosPerCredito"),
+  });
+  if (!parsed.success) {
+    return { ok: false, mensaje: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+  }
+
+  const { programaId, minutosPerCredito } = parsed.data;
+
+  const antes = programaPorId(programaId);
+  if (!antes) return { ok: false, mensaje: "El programa no existe." };
+
+  if (minutosPerCredito === antes.minutosPerCredito) {
+    return { ok: false, mensaje: "El valor es igual al actual." };
+  }
+
+  try {
+    actualizarMinutosPerCredito(programaId, minutosPerCredito);
+  } catch (e) {
+    return { ok: false, mensaje: e instanceof Error ? e.message : "No se pudo guardar." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "configuracion.modificar",
+    entidad: "programas",
+    entidadId: programaId,
+    cambios: {
+      minutosPerCreditoAntes: antes.minutosPerCredito,
+      minutosPerCreditoDespues: minutosPerCredito,
+    },
+  });
+
+  revalidatePath(`/catalogo/programas/${programaId}`);
+  return { ok: true, mensaje: `Actualizado: ${minutosPerCredito} min = 1 crédito.` };
 }

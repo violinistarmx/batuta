@@ -326,3 +326,70 @@ export function FormularioPrecio({
     </form>
   );
 }
+
+// ─── Formulario: minutos por crédito ─────────────────────────────────────────
+
+export function FormularioMinutosPerCredito({
+  programaId,
+  minutosPerCreditoActual,
+  minutosPorClase,
+  accion,
+}: {
+  programaId: number;
+  minutosPerCreditoActual: number;
+  minutosPorClase: number;
+  accion: (prev: EstadoAccion, data: FormData) => Promise<EstadoAccion>;
+}) {
+  const [estado, dispatch, pending] = useActionState(accion, { ok: false, mensaje: "" });
+
+  return (
+    <form action={dispatch} className="space-y-4">
+      <input type="hidden" name="programaId" value={programaId} />
+
+      <div>
+        <label htmlFor="minutosPerCredito" className="block text-sm font-medium">
+          Minutos de sesión que equivalen a 1 crédito
+        </label>
+        <div className="relative mt-1 flex items-center gap-2">
+          <input
+            id="minutosPerCredito"
+            name="minutosPerCredito"
+            type="number"
+            required
+            min="15"
+            max="180"
+            step="5"
+            defaultValue={minutosPerCreditoActual}
+            className="w-32 rounded-lg border border-vs-linea bg-white px-3 py-2 text-sm
+                       tabular-nums focus-visible:outline-2 focus-visible:outline-offset-1
+                       focus-visible:outline-vs-naranja-700"
+          />
+          <span className="text-sm text-vs-tinta-3">min</span>
+        </div>
+        <p className="mt-1 text-xs text-vs-tinta-3">
+          La sesión estándar de este programa dura {minutosPorClase} min.{" "}
+          {minutosPerCreditoActual === minutosPorClase
+            ? "Con el valor actual cada sesión consume 1 crédito."
+            : `Con el valor actual, una sesión de ${minutosPorClase} min consume ${
+                Math.max(1, Math.round(minutosPorClase / minutosPerCreditoActual))
+              } crédito${Math.max(1, Math.round(minutosPorClase / minutosPerCreditoActual)) === 1 ? "" : "s"}.`}
+        </p>
+      </div>
+
+      {estado.mensaje && (
+        <p className={`text-sm ${estado.ok ? "text-green-700" : "text-red-700"}`}>
+          {estado.mensaje}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-lg bg-vs-naranja px-4 py-2 text-sm font-semibold text-vs-tinta
+                   transition hover:bg-vs-naranja-claro disabled:opacity-50"
+      >
+        {pending ? "Guardando…" : "Guardar"}
+      </button>
+    </form>
+  );
+}

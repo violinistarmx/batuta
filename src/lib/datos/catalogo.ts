@@ -21,6 +21,7 @@ export type ResumenPrograma = {
   precioVigenciaId: number;
   vigenteDesde: string;
   tarifaDocenteHoraCentavos: number | null;
+  minutosPerCredito: number;
 };
 
 /** Todos los programas activos con su precio vigente. */
@@ -42,6 +43,7 @@ export function listarProgramas(): ResumenPrograma[] {
       precioVigenciaId: preciosVigencia.id,
       vigenteDesde: preciosVigencia.vigenteDesde,
       tarifaDocenteHoraCentavos: programas.tarifaDocenteHoraCentavos,
+      minutosPerCredito: programas.minutosPerCredito,
     })
     .from(programas)
     .innerJoin(preciosVigencia, and(
@@ -71,6 +73,7 @@ export function programaPorId(id: number): ResumenPrograma | null {
       precioVigenciaId: preciosVigencia.id,
       vigenteDesde: preciosVigencia.vigenteDesde,
       tarifaDocenteHoraCentavos: programas.tarifaDocenteHoraCentavos,
+      minutosPerCredito: programas.minutosPerCredito,
     })
     .from(programas)
     .innerJoin(preciosVigencia, and(
@@ -159,6 +162,16 @@ export function actualizarTarifaDocentePrograma(
   const resultado = db
     .update(programas)
     .set({ tarifaDocenteHoraCentavos: tarifaHoraCentavos })
+    .where(eq(programas.id, id))
+    .run();
+  if (resultado.changes === 0) throw new Error("El programa no existe.");
+}
+
+/** Actualiza cuántos minutos de sesión equivalen a 1 crédito para este programa. */
+export function actualizarMinutosPerCredito(id: number, minutos: number): void {
+  const resultado = db
+    .update(programas)
+    .set({ minutosPerCredito: minutos })
     .where(eq(programas.id, id))
     .run();
   if (resultado.changes === 0) throw new Error("El programa no existe.");
