@@ -19,7 +19,8 @@
     "limpiar:alumnos": "node scripts/limpiar-alumnos.mjs",
     "docente": "tsx src/db/crear-docente.ts",
     "respaldo": "node scripts/respaldo.mjs",
-    "restaurar": "node scripts/restaurar.mjs"
+    "restaurar": "node scripts/restaurar.mjs",
+    "corregir:sofia-dibujo": "node scripts/corregir-credito-sofia.mjs"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
