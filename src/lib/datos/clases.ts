@@ -112,10 +112,10 @@ export function registrarAsistencia(
     if (!clase) throw new Error("La clase no existe.");
 
     const anterior = clase.estado as EstadoClase;
-    // Una clase de 60 min consume 1 crédito; una de 120 min consume 2. Cualquier
-    // otra duración redondea hacia arriba en múltiplos de 60 min, aunque en la
-    // práctica solo existen esas dos.
-    const creditosAConsumir = Math.max(1, Math.ceil(clase.minutos / 60));
+    // Cada sesión consume exactamente 1 crédito, sin importar su duración.
+    // Los minutos solo determinan el costo del docente; para el alumno una sesión
+    // de 90 min de dibujo es una clase, igual que una de 60 min de violín.
+    const creditosAConsumir = 1;
     const mov = movimientoPorCambio(anterior, nuevo, creditosAConsumir);
 
     tx.update(clases).set({
