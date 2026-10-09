@@ -1,3 +1,5 @@
+import type { CategoriaGasto } from "@/lib/datos/gastos";
+import { ETIQUETA_CATEGORIA } from "@/lib/datos/gastos";
 import type { PuntoMes } from "@/lib/datos/metricas";
 import { etiquetaDeMes } from "@/lib/dominio/meses";
 
@@ -19,6 +21,7 @@ const TINTA = "#4a3b28";
 const TINTA_SUAVE = "#6e5c45";
 const LINEA = "#e6dcc0";
 const SERIE = "#c2600a";
+const SERIE2 = "#a16207"; // egresos — ámbar oscuro, complementa el naranja
 
 const ANCHO = 720;
 const ALTO = 220;
@@ -178,6 +181,143 @@ export function GraficaLinea({ datos, formatoValor, formatoEje, titulo }: {
       </text>
 
       <EtiquetasDeMes datos={datos} />
+    </svg>
+  );
+}
+
+/**
+ * Gráfica de columnas con dos series: ingresos (naranja) vs egresos (ámbar).
+ * Las columnas se muestran lado a lado dentro de cada mes.
+ */
+export function GraficaDosSeries({
+  ingresos,
+  egresos,
+  formatoValor,
+  formatoEje,
+  titulo,
+}: {
+  ingresos: PuntoMes[];
+  egresos: PuntoMes[];
+  formatoValor: (n: number) => string;
+  formatoEje: (n: number) => string;
+  titulo: string;
+}) {
+  const max = Math.max(...ingresos.map((d) => d.valor), ...egresos.map((d) => d.valor), 0);
+  const { techo, marcas } = escala(max);
+  const paso = areaAncho / ingresos.length;
+  const grupoAncho = Math.min(52, paso - 8);
+  const barAncho = (grupoAncho - 4) / 2;
+
+  return (
+    <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img" aria-label={titulo}>
+      <Rejilla marcas={marcas} techo={techo} formato={formatoEje} />
+
+      {ingresos.map((d, i) => {
+        const eg = egresos[i]?.valor ?? 0;
+        const cx = M.izquierda + paso * (i + 0.5);
+        const xIn = cx - grupoAncho / 2;
+        const xEg = xIn + barAncho + 4;
+
+        const altoIn = (d.valor / techo) * areaAlto;
+        const altoEg = (eg / techo) * areaAlto;
+        const yIn = M.arriba + areaAlto - altoIn;
+        const yEg = M.arriba + areaAlto - altoEg;
+
+        return (
+          <g key={d.mes}>
+            <path d={columna(xIn, yIn, barAncho, altoIn)} fill={SERIE}>
+              <title>{`${etiquetaDeMes(d.mes)} ingresos: ${formatoValor(d.valor)}`}</title>
+            </path>
+            <path d={columna(xEg, yEg, barAncho, altoEg)} fill={SERIE2} fillOpacity="0.75">
+              <title>{`${etiquetaDeMes(d.mes)} egresos: ${formatoValor(eg)}`}</title>
+            </path>
+          </g>
+        );
+      })}
+
+      <EtiquetasDeMes datos={ingresos} />
+
+      {/* Leyenda compacta arriba a la derecha */}
+      <g>
+        <rect x={ANCHO - M.derecha - 120} y={M.arriba} width="10" height="10" rx="2" fill={SERIE} />
+        <text x={ANCHO - M.derecha - 107} y={M.arriba + 9} fontSize="10" fill={TINTA_SUAVE}>Ingresos</text>
+        <rect x={ANCHO - M.derecha - 55} y={M.arriba} width="10" height="10" rx="2" fill={SERIE2} fillOpacity="0.75" />
+        <text x={ANCHO - M.derecha - 42} y={M.arriba + 9} fontSize="10" fill={TINTA_SUAVE}>Egresos</text>
+      </g>
+    </svg>
+  );
+}
+
+/** Donut de distribución de gastos por categoría. */
+export function GraficaDonut({
+  datos,
+  titulo,
+  formatoValor,
+}: {
+  datos: { categoria: CategoriaGasto; totalCentavos: number }[];
+  titulo: string;
+  formatoValor: (n: number) => string;
+}) {
+  const PALETA = ["#c2600a", "#a16207", "#854d0e", "#92400e", "#78350f", "#d97706", "#b45309"];
+
+  const total = datos.reduce((s, d) => s + d.totalCentavos, 0);
+  if (total === 0) return null;
+
+  const CX = 100;
+  const CY = 100;
+  const R = 70;
+  const RIN = 42;
+
+  function arco(pct: number, inicio: number, radio: number, rIn: number): string {
+    const ang = pct * 2 * Math.PI;
+    const x1e = CX + radio * Math.sin(inicio);
+    const y1e = CY - radio * Math.cos(inicio);
+    const x2e = CX + radio * Math.sin(inicio + ang);
+    const y2e = CY - radio * Math.cos(inicio + ang);
+    const x1i = CX + rIn * Math.sin(inicio + ang);
+    const y1i = CY - rIn * Math.cos(inicio + ang);
+    const x2i = CX + rIn * Math.sin(inicio);
+    const y2i = CY - rIn * Math.cos(inicio);
+    const grande = ang > Math.PI ? 1 : 0;
+    return [
+      `M ${x1e} ${y1e}`,
+      `A ${radio} ${radio} 0 ${grande} 1 ${x2e} ${y2e}`,
+      `L ${x1i} ${y1i}`,
+      `A ${rIn} ${rIn} 0 ${grande} 0 ${x2i} ${y2i}`,
+      "Z",
+    ].join(" ");
+  }
+
+  let acum = 0;
+  const sectores = datos.map((d, i) => {
+    const pct = d.totalCentavos / total;
+    const path = arco(pct, acum * 2 * Math.PI, R, RIN);
+    acum += pct;
+    return { ...d, pct, path, color: PALETA[i % PALETA.length]! };
+  });
+
+  const ANCHO_D = 380;
+  const ALTO_D = 200;
+
+  return (
+    <svg viewBox={`0 0 ${ANCHO_D} ${ALTO_D}`} className="h-auto w-full max-w-sm" role="img" aria-label={titulo}>
+      {sectores.map((s) => (
+        <path key={s.categoria} d={s.path} fill={s.color} stroke="#fff" strokeWidth="1.5">
+          <title>{`${ETIQUETA_CATEGORIA[s.categoria]}: ${formatoValor(s.totalCentavos)} (${(s.pct * 100).toFixed(1)}%)`}</title>
+        </path>
+      ))}
+
+      {sectores.map((s, i) => (
+        <g key={`leg-${s.categoria}`} transform={`translate(210, ${16 + i * 22})`}>
+          <rect width="10" height="10" rx="2" fill={s.color} />
+          <text x="14" y="9" fontSize="10" fill={TINTA_SUAVE}>
+            {ETIQUETA_CATEGORIA[s.categoria]}
+          </text>
+          <text x="155" y="9" textAnchor="end" fontSize="10" fontWeight="600" fill={TINTA}>
+            {(s.pct * 100).toFixed(0)}%
+          </text>
+        </g>
+      ))}
     </svg>
   );
 }

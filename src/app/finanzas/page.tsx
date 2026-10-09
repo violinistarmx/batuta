@@ -1,11 +1,12 @@
 import Link from "next/link";
 
 import { Encabezado } from "@/components/encabezado";
-import { GraficaColumnas } from "@/components/graficas";
+import { GraficaColumnas, GraficaDonut, GraficaDosSeries } from "@/components/graficas";
 import { exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { cobranzaGlobal, resultadoAdministrativo } from "@/lib/datos/finanzas";
+import { gastosPorCategoria } from "@/lib/datos/gastos";
 import { gastosDelPeriodo } from "@/lib/datos/gastos";
-import { ingresosPorMes } from "@/lib/datos/metricas";
+import { gastosPorMes, ingresosPorMes } from "@/lib/datos/metricas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
 import { pesos } from "@/lib/formato";
 import { hoyEnMexico } from "@/lib/zona";
@@ -28,9 +29,11 @@ export default async function Finanzas({
   const res = resultadoAdministrativo(d, h);
   const puedeGastos = tienePermiso(sesion, "gastos.gestionar");
   const ultimosGastos = puedeGastos ? gastosDelPeriodo(d, h).slice(0, 5) : [];
+  const categoriaGastos = puedeGastos ? gastosPorCategoria(d, h) : [];
   // Doce meses fijos, independientes del filtro de fechas de arriba: la gráfica
   // responde «cómo venimos», no «cuánto en este rango».
   const ingresos = ingresosPorMes(hoy, 12);
+  const egresosHist = puedeGastos ? gastosPorMes(hoy, 12) : [];
   const cargos = cobranzaGlobal();
   const resumen = resumirCobranza(cargos, hoy);
   const conAdeudo = cargos
@@ -142,22 +145,66 @@ export default async function Finanzas({
           </p>
         </section>
 
-        <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
-          <h2 className="font-display text-lg font-semibold">Ingresos por mes</h2>
-          <p className="mt-1 text-sm text-vs-tinta-2">
-            Dinero cobrado cada mes, últimos doce. Un mes sin cobros aparece en cero y no
-            se omite: saltárselo dibujaría una recta entre meses lejanos y contaría una
-            historia más suave que la real.
-          </p>
-          <div className="mt-4">
-            <GraficaColumnas
-              datos={ingresos}
-              titulo="Ingresos por mes de los últimos doce meses"
-              formatoValor={(c) => pesos(c)}
-              formatoEje={(c) => pesos(c)}
-            />
-          </div>
-        </section>
+        {/* Gráfica comparativa ingresos vs egresos */}
+        {puedeGastos && egresosHist.length > 0 ? (
+          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+            <h2 className="font-display text-lg font-semibold">Ingresos vs Egresos</h2>
+            <p className="mt-1 text-sm text-vs-tinta-2">
+              Dinero cobrado y gastos registrados por mes, últimos doce.
+            </p>
+            <div className="mt-4">
+              <GraficaDosSeries
+                ingresos={ingresos}
+                egresos={egresosHist}
+                titulo="Ingresos vs egresos últimos doce meses"
+                formatoValor={(c) => pesos(c)}
+                formatoEje={(c) => pesos(c)}
+              />
+            </div>
+          </section>
+        ) : (
+          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+            <h2 className="font-display text-lg font-semibold">Ingresos por mes</h2>
+            <p className="mt-1 text-sm text-vs-tinta-2">
+              Dinero cobrado cada mes, últimos doce. Un mes sin cobros aparece en cero y no
+              se omite: saltárselo dibujaría una recta entre meses lejanos y contaría una
+              historia más suave que la real.
+            </p>
+            <div className="mt-4">
+              <GraficaColumnas
+                datos={ingresos}
+                titulo="Ingresos por mes de los últimos doce meses"
+                formatoValor={(c) => pesos(c)}
+                formatoEje={(c) => pesos(c)}
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Distribución de gastos por categoría */}
+        {puedeGastos && categoriaGastos.length > 0 && (
+          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+            <h2 className="font-display text-lg font-semibold">Distribución de gastos</h2>
+            <p className="mt-1 text-sm text-vs-tinta-2">Por categoría en el periodo seleccionado.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-6">
+              <GraficaDonut
+                datos={categoriaGastos}
+                titulo="Distribución de gastos por categoría"
+                formatoValor={(c) => pesos(c)}
+              />
+              <dl className="flex flex-col gap-2 text-sm">
+                {categoriaGastos.map((c) => (
+                  <div key={c.categoria} className="flex items-baseline gap-2">
+                    <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3 w-28">
+                      {c.categoria}
+                    </dt>
+                    <dd className="tabular-nums font-semibold">{pesos(c.totalCentavos)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </section>
+        )}
 
         {/* -------------------------------------------- gastos del periodo */}
         {puedeGastos && (

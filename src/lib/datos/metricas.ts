@@ -3,7 +3,7 @@ import "server-only";
 import { and, gte, isNull, lte, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { inscripciones, pagos } from "@/db/schema/index";
+import { gastos, inscripciones, pagos } from "@/db/schema/index";
 import { finDeMes, ultimosMeses } from "@/lib/dominio/meses";
 
 /**
@@ -34,6 +34,26 @@ export function ingresosPorMes(hasta: string, meses = 12): PuntoMes[] {
 
   const porMes = new Map(filas.map((f) => [f.mes, Number(f.centavos)]));
   return serie.map((mes) => ({ mes, valor: porMes.get(mes) ?? 0 }));
+}
+
+/** Gastos registrados por mes, en centavos. */
+export function gastosPorMes(hasta: string, meses = 12): PuntoMes[] {
+  const serie = ultimosMeses(hasta, meses);
+  const desde = `${serie[0]!}-01`;
+  const fin = finDeMes(serie[serie.length - 1]!);
+
+  const filas = db
+    .select({
+      mes: sql<string>`substr(${gastos.fecha}, 1, 7)`,
+      centavos: sql<number>`coalesce(sum(${gastos.montoCentavos}), 0)`,
+    })
+    .from(gastos)
+    .where(and(gte(gastos.fecha, desde), lte(gastos.fecha, fin)))
+    .groupBy(sql`substr(${gastos.fecha}, 1, 7)`)
+    .all();
+
+  const porMes = new Map(filas.map((f: { mes: string; centavos: number }) => [f.mes, Number(f.centavos)]));
+  return serie.map((mes: string) => ({ mes, valor: porMes.get(mes) ?? 0 }));
 }
 
 /**
