@@ -46,7 +46,7 @@ export default async function Inscribir({ params }: { params: Promise<{ id: stri
           Nueva inscripción
         </h1>
         <p className="mt-1 max-w-xl text-sm text-vs-tinta-2">
-          Un alumno puede tener varias inscripciones a la vez si son instrumentos distintos.
+          Un alumno puede tener varias inscripciones a la vez si son materias o instrumentos distintos.
           Cada una lleva su propio maestro, período y saldo de clases. En los planes
           familiares cada hermano recibe sus propias clases; lo que se comparte es el precio.
         </p>

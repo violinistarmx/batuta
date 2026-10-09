@@ -169,9 +169,22 @@ export default async function Catalogo() {
 
         <section className="mt-10 grid gap-8 sm:grid-cols-2">
           <div>
-            <h2 className="font-display text-xl font-semibold">
-              Instrumentos <span className="text-vs-tinta-3">({listaInstrumentos.length})</span>
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-semibold">
+                Materias e instrumentos{" "}
+                <span className="text-vs-tinta-3">({listaInstrumentos.length})</span>
+              </h2>
+              {puedeEditarCatalogo && (
+                <Link
+                  href="/catalogo/instrumentos"
+                  className="rounded-lg border border-vs-linea bg-white px-3 py-1.5 text-xs
+                             font-medium text-vs-tinta-2 no-underline transition
+                             hover:border-vs-naranja hover:text-vs-tinta"
+                >
+                  Administrar
+                </Link>
+              )}
+            </div>
             <ul className="mt-3 flex flex-wrap gap-2">
               {listaInstrumentos.map((i) => (
                 <li key={i.id} className="rounded border border-vs-linea bg-white px-2.5 py-1 text-sm">

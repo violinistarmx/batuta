@@ -174,11 +174,11 @@ export function FormularioInscripcion({
       )}
 
       <section className="rounded-xl border border-vs-linea bg-white p-5">
-        <h2 className="font-display text-lg font-semibold">Instrumento, maestro y horario</h2>
+        <h2 className="font-display text-lg font-semibold">Materia o instrumento, maestro y horario</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="instrumentoId" className="text-xs font-medium text-vs-tinta-2">
-              Instrumento
+              Materia o instrumento
             </label>
             <select id="instrumentoId" name="instrumentoId" required className={campo} defaultValue="">
               <option value="" disabled>Elige…</option>
