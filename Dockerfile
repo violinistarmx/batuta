@@ -22,9 +22,16 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 # gosu: el arranque necesita privilegios para ajustar el volumen y luego cederlos.
-RUN apt-get update && apt-get install -y --no-install-recommends gosu \
+# python3-venv: markitdown vive en un entorno virtual propio, aislado de la app.
+RUN apt-get update && apt-get install -y --no-install-recommends gosu python3 python3-venv \
     && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --uid 1001 batuta
+
+# markitdown convierte PDF y Word a Markdown antes de enviarlos a un modelo: menos tokens.
+# Corre en local, sin red. Version fijada; cambiarla exige volver a probar la conversion.
+RUN python3 -m venv /opt/markitdown \
+    && /opt/markitdown/bin/pip install --no-cache-dir "markitdown[pdf,docx,pptx,xlsx]==0.1.8"
+ENV MARKITDOWN_BIN=/opt/markitdown/bin/markitdown
 
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
