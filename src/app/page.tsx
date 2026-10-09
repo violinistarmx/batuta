@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 
@@ -84,16 +85,26 @@ export default async function Inicio() {
     <>
       <Encabezado sesion={sesion} activo="tablero" />
       <main className="mx-auto max-w-5xl px-5 py-8">
-        <header>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-vs-tinta-3">
-            {cfg.academia_nombre}
-          </p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-            {saludo(ahora)}, {TITULO_ROL[sesion.rol]} {sesion.nombre} 🎶
-          </h1>
-          <p className="mt-1 text-sm text-vs-tinta-3 tabular-nums">
-            {fechaLarga(ahora)} · Son las {hora(ahora)}
-          </p>
+        <header className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-vs-tinta-3">
+              {cfg.academia_nombre}
+            </p>
+            <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
+              {saludo(ahora)}, {TITULO_ROL[sesion.rol]} {sesion.nombre} 🎶
+            </h1>
+            <p className="mt-1 text-sm text-vs-tinta-3 tabular-nums">
+              {fechaLarga(ahora)} · Son las {hora(ahora)}
+            </p>
+          </div>
+          <Image
+            src="/mascota-violinistar.png"
+            alt="VioliniStar"
+            width={100}
+            height={100}
+            className="shrink-0 drop-shadow-sm"
+            priority
+          />
         </header>
 
         <dl className="mt-6 grid gap-px overflow-hidden rounded-lg border border-vs-linea bg-vs-linea sm:grid-cols-2 lg:grid-cols-4">

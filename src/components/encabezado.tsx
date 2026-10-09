@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { permisosDe } from "@/lib/auth/permisos";
@@ -59,8 +60,18 @@ export function Encabezado(
     <header className="border-b border-vs-linea bg-white/70 backdrop-blur">
       {/* Fila superior: logo + nombre + salir */}
       <div className="mx-auto flex max-w-5xl items-center justify-between px-5 pt-3">
-        <Link href="/" className="font-display text-lg font-semibold tracking-tight no-underline">
-          Batuta
+        <Link href="/" className="flex items-center gap-2 no-underline" aria-label="VioliniStar Batuta — tablero">
+          <Image
+            src="/logo-violinistar.png"
+            alt="VioliniStar"
+            width={38}
+            height={29}
+            className="shrink-0"
+            priority
+          />
+          <span className="font-display text-lg font-semibold tracking-tight leading-none">
+            Batuta
+          </span>
         </Link>
         <div className="flex items-center gap-3">
           <Link href="/perfil"
