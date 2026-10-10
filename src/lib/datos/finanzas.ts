@@ -811,6 +811,27 @@ export function resultadoAdministrativo(desde: string, hasta: string) {
   };
 }
 
+/** Pagos individuales del periodo para exportación/reportes. */
+export function pagosDelPeriodo(desde: string, hasta: string) {
+  return db
+    .select({
+      id: pagos.id,
+      alumno: alumnos.nombre,
+      codigo: alumnos.codigo,
+      montoCentavos: pagos.montoCentavos,
+      descuentoCentavos: pagos.descuentoCentavos,
+      metodo: pagos.metodo,
+      recibidoEl: pagos.recibidoEl,
+      referencia: pagos.referencia,
+      descripcion: pagos.descripcion,
+    })
+    .from(pagos)
+    .innerJoin(alumnos, eq(alumnos.id, pagos.alumnoId))
+    .where(and(gte(pagos.recibidoEl, desde), lte(pagos.recibidoEl, hasta)))
+    .orderBy(asc(pagos.recibidoEl), asc(pagos.id))
+    .all();
+}
+
 export function cobranzaGlobal() {
   return db
     .select({

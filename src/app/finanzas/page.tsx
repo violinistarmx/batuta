@@ -83,6 +83,13 @@ export default async function Finanzas({
                     className="rounded-lg border border-vs-linea bg-white px-3 py-1.5 font-medium">
               Ver
             </button>
+            <Link
+              href={`/finanzas/exportar/flujo?desde=${d}&hasta=${h}`}
+              className="rounded-lg border border-vs-linea bg-white px-3 py-1.5 text-sm font-medium text-vs-tinta-2 no-underline transition hover:border-vs-naranja hover:text-vs-tinta"
+              title="Descargar flujo de caja en CSV"
+            >
+              ↓ CSV
+            </Link>
           </form>
         </div>
 
