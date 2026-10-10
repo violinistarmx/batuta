@@ -97,3 +97,47 @@ export function resumirCobranza(cargos: readonly Pick<Cargo, "montoCentavos" | "
 
   return { porCobrarCentavos: porCobrar, vencidoCentavos: vencido, cobradoCentavos: cobrado };
 }
+
+/**
+ * Desglosa los adeudos abiertos en cubetas de antigüedad (aging).
+ *
+ * Las cubetas corresponden a la pregunta que hace toda dirección en el corte de
+ * mes: «¿cuánto lleva sin pagar y cuánto tiempo lleva así?». Un número total
+ * sin antigüedad esconde si el problema es crónico (30+ días) o solo del ciclo
+ * que acaba de vencer (0-7 días), y la urgencia de cobranza es muy distinta.
+ */
+export type AgingCobranza = {
+  alcorriente: number;   // vence hoy o en el futuro
+  dias1a7: number;       // venció hace 1-7 días
+  dias8a15: number;      // venció hace 8-15 días
+  dias16a30: number;     // venció hace 16-30 días
+  dias30mas: number;     // venció hace más de 30 días
+  totalCentavos: number;
+};
+
+export function agingDeCobranza(
+  cargos: readonly Pick<Cargo, "montoCentavos" | "aplicadoCentavos" | "venceEl">[],
+  hoy: string,
+): AgingCobranza {
+  const result: AgingCobranza = { alcorriente: 0, dias1a7: 0, dias8a15: 0, dias16a30: 0, dias30mas: 0, totalCentavos: 0 };
+
+  const msHoy = new Date(hoy).getTime();
+
+  for (const c of cargos) {
+    const adeudo = adeudoDe(c);
+    if (adeudo <= 0) continue;
+
+    result.totalCentavos += adeudo;
+
+    const msVence = new Date(c.venceEl).getTime();
+    const diasVencido = Math.floor((msHoy - msVence) / 86_400_000);
+
+    if (diasVencido <= 0)       result.alcorriente += adeudo;
+    else if (diasVencido <= 7)  result.dias1a7 += adeudo;
+    else if (diasVencido <= 15) result.dias8a15 += adeudo;
+    else if (diasVencido <= 30) result.dias16a30 += adeudo;
+    else                        result.dias30mas += adeudo;
+  }
+
+  return result;
+}

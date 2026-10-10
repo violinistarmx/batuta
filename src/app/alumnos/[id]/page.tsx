@@ -337,7 +337,17 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
         {verFinanzas && (
           <section className="mt-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="font-display text-xl font-semibold">Cobranza</h2>
+              <div className="flex items-baseline gap-4">
+                <h2 className="font-display text-xl font-semibold">Cobranza</h2>
+                {puedeCobrar && (
+                  <Link
+                    href={`/alumnos/${alumno.id}/cargos/nuevo`}
+                    className="text-sm font-medium text-vs-naranja-700 no-underline hover:underline"
+                  >
+                    + Cargo
+                  </Link>
+                )}
+              </div>
               <p className="text-sm">
                 <span className="text-vs-tinta-3">Adeudo: </span>
                 <span id="adeudo-total" className={`font-semibold tabular-nums ${cobranza.porCobrarCentavos > 0 ? "text-vs-naranja-700" : ""}`}>

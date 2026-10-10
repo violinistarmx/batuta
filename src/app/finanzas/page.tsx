@@ -7,7 +7,7 @@ import { cobranzaGlobal, resultadoAdministrativo } from "@/lib/datos/finanzas";
 import { gastosPorCategoria } from "@/lib/datos/gastos";
 import { gastosDelPeriodo } from "@/lib/datos/gastos";
 import { gastosPorMes, ingresosPorMes } from "@/lib/datos/metricas";
-import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
+import { adeudoDe, agingDeCobranza, resumirCobranza } from "@/lib/dominio/cobranza";
 import { pesos } from "@/lib/formato";
 import { hoyEnMexico } from "@/lib/zona";
 
@@ -36,6 +36,7 @@ export default async function Finanzas({
   const egresosHist = puedeGastos ? gastosPorMes(hoy, 12) : [];
   const cargos = cobranzaGlobal();
   const resumen = resumirCobranza(cargos, hoy);
+  const aging = agingDeCobranza(cargos, hoy);
   const conAdeudo = cargos
     .filter((c) => adeudoDe(c) > 0)
     .sort((a, b) => (a.venceEl < b.venceEl ? -1 : 1));
@@ -257,16 +258,43 @@ export default async function Finanzas({
               <dd id="por-cobrar" className="font-medium tabular-nums">{pesos(resumen.porCobrarCentavos)}</dd>
             </div>
             <div>
-              <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Vencido</dt>
-              <dd id="vencido" className={`font-medium tabular-nums ${resumen.vencidoCentavos > 0 ? "text-vs-naranja-700" : ""}`}>
-                {pesos(resumen.vencidoCentavos)}
-              </dd>
-            </div>
-            <div>
               <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Cobrado</dt>
               <dd id="cobrado" className="font-medium tabular-nums">{pesos(resumen.cobradoCentavos)}</dd>
             </div>
           </dl>
+
+          {/* Aging de cartera vencida */}
+          {resumen.vencidoCentavos > 0 && (
+            <div className="mt-4 rounded-xl border border-vs-linea bg-white p-4">
+              <p className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Antigüedad de cartera vencida</p>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {aging.dias1a7 > 0 && (
+                  <div className="rounded-lg bg-amber-50 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">1–7 días</p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-amber-900">{pesos(aging.dias1a7)}</p>
+                  </div>
+                )}
+                {aging.dias8a15 > 0 && (
+                  <div className="rounded-lg bg-orange-50 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-orange-700">8–15 días</p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-orange-900">{pesos(aging.dias8a15)}</p>
+                  </div>
+                )}
+                {aging.dias16a30 > 0 && (
+                  <div className="rounded-lg bg-red-50 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-red-700">16–30 días</p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-red-900">{pesos(aging.dias16a30)}</p>
+                  </div>
+                )}
+                {aging.dias30mas > 0 && (
+                  <div className="rounded-lg bg-red-100 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-red-800">+30 días</p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-red-900">{pesos(aging.dias30mas)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {conAdeudo.length === 0 ? (
             <p className="mt-4 rounded-xl border border-dashed border-vs-linea bg-white p-8 text-center text-sm text-vs-tinta-3">

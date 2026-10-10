@@ -7,7 +7,72 @@ import { z } from "zod";
 import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
-import { actualizarCargo, cancelarCargo, cargoPorId, reactivarCargo } from "@/lib/datos/finanzas";
+import { actualizarCargo, cancelarCargo, cargoPorId, crearCargoManual, reactivarCargo } from "@/lib/datos/finanzas";
+
+// ------------------------------------------------------------------ crear ----
+
+const CargoCrear = z.object({
+  alumnoId: z.coerce.number().int().positive(),
+  concepto: z.enum(["clase_suelta", "inscripcion", "material", "recital", "otro"]),
+  descripcion: z.string().trim().min(1, "La descripción no puede quedar vacía.").max(300),
+  periodo: z.string().trim().max(100).transform((s) => (s === "" ? null : s)),
+  monto: z.coerce
+    .number()
+    .positive("El monto debe ser mayor que cero.")
+    .max(1_000_000, "El monto es muy alto."),
+  venceEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha de vencimiento."),
+});
+
+export type EstadoCargoCrear = { error?: string };
+
+export async function crearCargoAccion(
+  _previo: EstadoCargoCrear,
+  datos: FormData,
+): Promise<EstadoCargoCrear> {
+  const sesion = await exigirPermiso("pagos.registrar");
+
+  const parsed = CargoCrear.safeParse({
+    alumnoId: datos.get("alumnoId"),
+    concepto: datos.get("concepto"),
+    descripcion: datos.get("descripcion"),
+    periodo: datos.get("periodo") ?? "",
+    monto: datos.get("monto"),
+    venceEl: datos.get("venceEl"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
+
+  const d = parsed.data;
+  if (!alumnoPorId(d.alumnoId, alcanceDe(sesion))) return { error: "No se encontró el alumno." };
+
+  let cargoId: number;
+  try {
+    cargoId = crearCargoManual(
+      d.alumnoId,
+      {
+        concepto: d.concepto,
+        descripcion: d.descripcion,
+        periodo: d.periodo,
+        montoCentavos: Math.round(d.monto * 100),
+        venceEl: d.venceEl,
+      },
+      sesion.usuarioId,
+    );
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo crear el cargo." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "cargo.generar",
+    entidad: "cargos",
+    entidadId: cargoId,
+    cambios: { concepto: d.concepto, descripcion: d.descripcion, montoCentavos: Math.round(d.monto * 100) },
+  });
+
+  revalidatePath(`/alumnos/${d.alumnoId}`);
+  redirect(`/alumnos/${d.alumnoId}`);
+  return {};
+}
 
 // ------------------------------------------------------------------ editar ---
 

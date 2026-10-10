@@ -144,6 +144,41 @@ export function sincronizarDescripcionFamiliar(titularInscripcionId: number): vo
     )).run();
 }
 
+/**
+ * Crea un cargo manual (no mensualidad): inscripción, material, recital, clase suelta, otro.
+ *
+ * La mensualidad solo la genera `generarMensualidad` al renovar, porque ese flujo
+ * maneja idempotencia y familia. Cualquier otro concepto puede crearse libremente
+ * desde el expediente del alumno.
+ */
+export function crearCargoManual(
+  alumnoId: number,
+  d: {
+    concepto: "clase_suelta" | "inscripcion" | "material" | "recital" | "otro";
+    descripcion: string;
+    periodo: string | null;
+    montoCentavos: number;
+    venceEl: string;
+  },
+  usuarioId: number,
+): number {
+  const r = db
+    .insert(cargos)
+    .values({
+      alumnoId,
+      concepto: d.concepto,
+      descripcion: d.descripcion,
+      periodo: d.periodo,
+      montoCentavos: d.montoCentavos,
+      venceEl: d.venceEl,
+      creadoPor: usuarioId,
+    })
+    .returning({ id: cargos.id })
+    .get();
+  if (!r) throw new Error("No se pudo crear el cargo.");
+  return r.id;
+}
+
 export function cargosDeAlumno(alumnoId: number) {
   return db
     .select({
