@@ -437,6 +437,26 @@ sesión, permiso y alcance antes de tocar el disco.
 Un documento fuera de alcance responde **404, no 403**: un maestro no puede siquiera confirmar
 que existe la planeación de otro.
 
+### Texto para el asistente: markitdown
+
+Antes de que un documento llegue a un modelo, `lib/markitdown.ts` lo convierte a Markdown con
+[markitdown](https://github.com/microsoft/markitdown) (Microsoft, MIT). Un PDF de texto viaja como
+texto y no como binario, y el resultado se acota a 40 000 caracteres por documento. Cuando se
+corta, el texto dice cuántos caracteres quedaron fuera, para que el modelo no tome el documento
+por completo.
+
+| Regla | Por qué |
+|-------|---------|
+| Se ejecuta en el servidor, sin llamadas de red | Funciona aunque `IA_HABILITADA` esté apagado, y ningún dato sale de la máquina |
+| Describir imágenes con un modelo está **desactivado** | Mandaría fotos de menores de edad a un tercero |
+| Fotos y escaneos dan texto vacío (no hay OCR) | El resultado se rechaza con razón y el llamador envía el original |
+| Tiempo máximo de 60 s y sin shell | Un PDF mal formado no cuelga al servidor, y su ruta no se interpreta como comando |
+| No registra el contenido de los documentos | Los mensajes de error de Python pueden citar fragmentos del archivo |
+
+La ruta llega siempre por `rutaAbsoluta()` del almacén, que la verifica contra salirse de él. Para
+probar en desarrollo: `pip install "markitdown[pdf,docx,pptx,xlsx]"` y, si no está en el PATH,
+`MARKITDOWN_BIN=/ruta/a/markitdown`. Sin el binario, las pruebas que lo usan se omiten.
+
 ## Cobranza, recibos y nómina
 
 El dinero se mueve en tres piezas separadas a propósito: **cargos** (lo que se debe),
