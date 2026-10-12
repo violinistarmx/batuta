@@ -25,11 +25,44 @@
   --color-vs-linea: #e6dcc0;
 
   --font-display: Newsreader, Georgia, serif;
+
+  /* Curva de salida para toda transición de la interfaz (clase `transition`).
+     Arranca rápido y frena suave: la respuesta se siente inmediata. Sustituye la
+     curva genérica de Tailwind sin tocar cada componente. */
+  --default-transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 body {
   background: var(--color-vs-crema);
   color: var(--color-vs-tinta);
+}
+
+/* Respuesta al presionar un botón. Va en `base` para que las utilidades de cada
+   componente (p. ej. `transition-colors`) sigan mandando sobre ella. */
+@layer base {
+  button:not(:disabled) {
+    transition-property: transform;
+    transition-duration: 150ms;
+  }
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+}
+
+/* Quien tiene activada la reducción de movimiento del sistema no debe ver
+   desplazamientos ni transiciones largas. Se conservan los cambios de color y
+   de foco, que no son movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  button:not(:disabled):active {
+    transform: none !important;
+  }
 }
 
 /* Oculta la barra de scroll sin deshabilitar el scroll (usado en nav móvil) */
