@@ -1,6 +1,6 @@
 import { Encabezado } from "@/components/encabezado";
 import { exigirSesionUsable, tienePermiso } from "@/lib/auth/permisos";
-import { bandejaDe, docentesActivos } from "@/lib/datos/avisos";
+import { adjuntosDeGrupos, bandejaDe, docentesActivos } from "@/lib/datos/avisos";
 import { fechaMedia } from "@/lib/formato";
 import { FormularioAviso, MarcarLeidos } from "./cliente";
 
@@ -10,6 +10,7 @@ export default async function Avisos() {
   const sesion = await exigirSesionUsable();
   const bandeja = bandejaDe(sesion.usuarioId);
   const sinLeer = bandeja.filter((a) => a.leidoEn === null).length;
+  const adjuntos = adjuntosDeGrupos(bandeja.map((a) => a.grupo).filter((g): g is string => g !== null));
 
   const puedeEnviar = tienePermiso(sesion, "avisos.enviar");
   const maestros = puedeEnviar ? docentesActivos() : [];
@@ -26,7 +27,7 @@ export default async function Avisos() {
         </p>
 
         {puedeEnviar && (
-          <details className="mt-6 rounded-xl border border-vs-linea bg-white p-5">
+          <details open className="mt-6 rounded-xl border border-vs-linea bg-white p-5">
             <summary className="cursor-pointer font-display text-lg font-semibold">
               Redactar aviso
             </summary>
@@ -45,6 +46,7 @@ export default async function Avisos() {
           )}
           {bandeja.map((a) => {
             const nuevo = a.leidoEn === null;
+            const archivos = a.grupo ? (adjuntos.get(a.grupo) ?? []) : [];
             return (
               <li
                 key={a.id}
@@ -64,6 +66,32 @@ export default async function Avisos() {
                   De {a.remitente} · {fechaMedia(a.creadoEn)}
                 </p>
                 <p className="mt-3 whitespace-pre-line text-sm text-vs-tinta">{a.cuerpo}</p>
+
+                {archivos.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-3">
+                    {archivos.map((f) =>
+                      f.tipoMime.startsWith("image/") ? (
+                        <a key={f.id} href={`/api/avisos/${f.id}`} target="_blank" rel="noopener noreferrer"
+                           className="block w-fit">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/api/avisos/${f.id}`}
+                            alt={f.nombre}
+                            loading="lazy"
+                            className="max-h-56 rounded-lg border border-vs-linea bg-white object-contain"
+                          />
+                        </a>
+                      ) : (
+                        <a key={f.id} href={`/api/avisos/${f.id}`} target="_blank" rel="noopener noreferrer"
+                           className="flex w-fit items-center gap-2 rounded-lg border border-vs-linea bg-white
+                                      px-3 py-2 text-sm no-underline transition hover:bg-vs-crema">
+                          <span className="font-medium text-vs-tinta">{f.nombre}</span>
+                          <span className="text-xs text-vs-tinta-3">PDF · abrir</span>
+                        </a>
+                      ),
+                    )}
+                  </div>
+                )}
               </li>
             );
           })}

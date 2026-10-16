@@ -5,9 +5,13 @@ import { z } from "zod";
 
 import { exigirPermiso, exigirSesionUsable } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
-import { crearAvisos, docentesActivos, marcarAvisosLeidos } from "@/lib/datos/avisos";
+import { docentesActivos, enviarAviso, marcarAvisosLeidos, type ArchivoNuevo } from "@/lib/datos/avisos";
+import { validarArchivo } from "@/lib/dominio/archivos";
 
 export type EstadoAviso = { error?: string; ok?: string };
+
+/** Cuántos archivos puede llevar un solo envío. */
+const MAXIMO_ARCHIVOS = 3;
 
 const Aviso = z.object({
   destino: z.string().trim().min(1, "Elige a quién va el aviso."),
@@ -16,9 +20,11 @@ const Aviso = z.object({
 });
 
 /**
- * Envía un aviso a un maestro o a todos. El destino se valida contra los maestros
- * con cuenta activa: no se puede escribir a una cuenta de director o de asistente
- * por este medio.
+ * Envía un aviso a un maestro o a todos, con hasta tres archivos (PDF, JPG o PNG).
+ *
+ * El destino se valida contra los maestros con cuenta activa: no se puede escribir
+ * a una cuenta de director o de asistente por este medio. Los archivos se validan
+ * todos antes de guardar nada: si uno no sirve, no se envía nada.
  */
 export async function enviarAvisoAccion(
   _previo: EstadoAviso,
@@ -43,21 +49,43 @@ export async function enviarAvisoAccion(
         : [];
   if (destinatarios.length === 0) return { error: "Elige un maestro activo o «Todos»." };
 
-  crearAvisos(sesion.usuarioId, destinatarios, asunto, cuerpo);
+  const subidos = datos.getAll("archivos").filter(
+    (x): x is File => x instanceof File && x.size > 0,
+  );
+  if (subidos.length > MAXIMO_ARCHIVOS) {
+    return { error: `Puedes adjuntar hasta ${MAXIMO_ARCHIVOS} archivos por aviso.` };
+  }
+
+  // Validar todos antes de guardar: un archivo malo no deja a medias el envío.
+  const archivos: ArchivoNuevo[] = [];
+  for (const f of subidos) {
+    const v = validarArchivo(f.type, f.size);
+    if (!v.ok) return { error: `«${f.name}»: ${v.razon}` };
+    archivos.push({
+      nombre: f.name,
+      tipo: v.tipo,
+      contenido: Buffer.from(await f.arrayBuffer()),
+    });
+  }
+
+  await enviarAviso({
+    remitenteId: sesion.usuarioId,
+    destinatarioIds: destinatarios,
+    asunto,
+    cuerpo,
+    archivos,
+  });
 
   registrar({
     usuarioId: sesion.usuarioId,
     accion: "mensaje.enviar",
     entidad: "avisos",
-    cambios: { destinatarios: destinatarios.length, asunto },
+    cambios: { destinatarios: destinatarios.length, asunto, archivos: archivos.length },
   });
 
   revalidatePath("/", "layout");
-  return {
-    ok: destinatarios.length === 1
-      ? "Aviso enviado."
-      : `Aviso enviado a ${destinatarios.length} maestros.`,
-  };
+  const plural = destinatarios.length === 1 ? "" : `a ${destinatarios.length} maestros`;
+  return { ok: plural ? `Aviso enviado ${plural}.` : "Aviso enviado." };
 }
 
 /** Lo llama la propia bandeja al abrirse: lo que se ve ahí ya se considera leído. */
