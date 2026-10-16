@@ -361,6 +361,13 @@ const PERMISOS_DOCENTE = [
 ];
 
 // El asistente arranca con lo operativo. El director ajusta desde configuración.
+// Rol secundario: administra alumnos e inscripciones. Sin alumnos.descartar
+// (borra expedientes) ni usuarios, finanzas o configuración.
+const PERMISOS_ADMINISTRADORA = [
+  "alumnos.leer", "alumnos.crear", "alumnos.editar",
+  "inscripciones.leer", "inscripciones.crear",
+];
+
 const PERMISOS_ASISTENTE = [
   "buscar", "alumnos.leer", "alumnos.crear", "alumnos.editar",
   "inscripciones.leer", "inscripciones.crear", "clases.leer", "clases.crear",
@@ -415,6 +422,7 @@ function sembrar() {
       { clave: "director", nombre: "Director" },
       { clave: "docente", nombre: "Docente" },
       { clave: "asistente", nombre: "Asistente" },
+      { clave: "administradora", nombre: "Administradora" },
     ]).onConflictDoNothing().run();
 
     tx.insert(permisos).values(
@@ -428,6 +436,7 @@ function sembrar() {
       const claves =
         rol.clave === "director" ? PERMISOS.map(([k]) => k as string)
         : rol.clave === "docente" ? PERMISOS_DOCENTE
+        : rol.clave === "administradora" ? PERMISOS_ADMINISTRADORA
         : PERMISOS_ASISTENTE;
 
       for (const permiso of todosLosPermisos.filter((p) => claves.includes(p.clave))) {

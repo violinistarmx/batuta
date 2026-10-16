@@ -120,6 +120,13 @@
       "when": 1791500000000,
       "tag": "0016_minutos_per_credito",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1791600000000,
+      "tag": "0017_roles_secundarios",
+      "breakpoints": true
     }
   ]
 }

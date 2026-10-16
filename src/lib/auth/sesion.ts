@@ -5,7 +5,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 
 import { db } from "@/db";
-import { roles, sesiones, usuarios } from "@/db/schema/index";
+import { roles, sesiones, usuarios, usuariosRoles } from "@/db/schema/index";
 import { ABSOLUTO_MS, evaluarVigencia } from "./vigencia";
 
 export const COOKIE = "batuta_sesion";
@@ -14,7 +14,10 @@ export type Sesion = {
   usuarioId: number;
   nombre: string;
   email: string;
+  /** Rol principal: decide el título y las reglas de director. */
   rol: "director" | "docente" | "asistente";
+  /** Todos los roles de la cuenta, el principal incluido. Decide el alcance. */
+  roles: string[];
   sesionId: number;
 };
 
@@ -100,11 +103,19 @@ export async function sesionActual(): Promise<Sesion | null> {
       .where(eq(sesiones.id, fila.sesionId)).run();
   }
 
+  const secundarios = db
+    .select({ clave: roles.clave })
+    .from(usuariosRoles)
+    .innerJoin(roles, eq(roles.id, usuariosRoles.rolId))
+    .where(eq(usuariosRoles.usuarioId, fila.usuarioId))
+    .all();
+
   return {
     usuarioId: fila.usuarioId,
     nombre: fila.nombre,
     email: fila.email,
-    rol: fila.rol,
+    rol: fila.rol as Sesion["rol"],
+    roles: [...new Set([fila.rol, ...secundarios.map((s) => s.clave)])],
     sesionId: fila.sesionId,
   };
 }

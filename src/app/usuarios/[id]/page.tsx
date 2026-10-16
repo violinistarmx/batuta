@@ -10,12 +10,21 @@ import { FotoPerfil } from "@/components/foto-perfil";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { resumenFotoDocente } from "@/lib/datos/fotos";
 import { parametrosNomina } from "@/lib/datos/costo-docente";
-import { listarUsuarios, usuarioPorId } from "@/lib/datos/usuarios";
+import {
+  ROLES_SECUNDARIOS_PERMITIDOS, listarUsuarios, rolesSecundariosDe, usuarioPorId,
+  type RolSecundario,
+} from "@/lib/datos/usuarios";
 import {
   NOMBRE_ROL, debeCambiarPassword, motivoParaNoDesactivar,
 } from "@/lib/dominio/usuarios";
 import { fechaMedia } from "@/lib/formato";
+import { asignarRolAdicionalAccion, quitarRolAdicionalAccion } from "../acciones";
 import { Administrar } from "./cliente";
+
+const NOMBRE_ADICIONAL: Record<RolSecundario, string> = {
+  administradora: "Administradora",
+  asistente: "Asistente",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +47,11 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
   );
 
   const pendiente = debeCambiarPassword(u.passwordCambiadaEn);
+
+  const rolesExtra = rolesSecundariosDe(u.id);
+  const disponibles = ROLES_SECUNDARIOS_PERMITIDOS.filter(
+    (c) => c !== u.rol && !rolesExtra.some((r) => r.clave === c),
+  );
   const foto = u.docenteId !== null
     ? resumenFotoDocente(u.docenteId)
     : { tieneFoto: false, version: null };
@@ -92,6 +106,54 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
             </dd>
           </div>
         </dl>
+
+        <section id="roles-adicionales" className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+          <h2 className="font-display text-lg font-semibold">Roles adicionales</h2>
+          <p className="mt-1 text-sm text-vs-tinta-2">
+            Además de su rol principal ({NOMBRE_ROL[u.rol]}), esta cuenta puede tener otro rol.
+            Los permisos de todos sus roles se suman.
+          </p>
+
+          {rolesExtra.length === 0 ? (
+            <p className="mt-3 text-sm text-vs-tinta-3">Ninguno.</p>
+          ) : (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {rolesExtra.map((r) => (
+                <li key={r.clave}
+                    className="flex items-center gap-3 rounded-lg bg-vs-crema px-3 py-1.5 text-sm">
+                  <span className="font-medium">{r.nombre}</span>
+                  <form action={quitarRolAdicionalAccion}>
+                    <input type="hidden" name="usuarioId" value={u.id} />
+                    <input type="hidden" name="rol" value={r.clave} />
+                    <button type="submit" className="text-xs text-vs-tinta-3 hover:underline">
+                      Quitar
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {disponibles.length > 0 && (
+            <form action={asignarRolAdicionalAccion} className="mt-4 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="usuarioId" value={u.id} />
+              <label htmlFor="rol-adicional" className="text-xs font-medium text-vs-tinta-2">
+                Agregar rol
+                <select id="rol-adicional" name="rol" required defaultValue=""
+                        className="mt-1 block rounded-lg border border-vs-linea bg-white px-3 py-1.5 text-sm">
+                  <option value="" disabled>Elige…</option>
+                  {disponibles.map((c) => (
+                    <option key={c} value={c}>{NOMBRE_ADICIONAL[c]}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit"
+                      className="rounded-lg bg-vs-naranja px-3.5 py-1.5 text-sm font-semibold text-vs-tinta hover:bg-vs-naranja-claro">
+                Agregar
+              </button>
+            </form>
+          )}
+        </section>
 
         {u.docenteId !== null && (
           <>

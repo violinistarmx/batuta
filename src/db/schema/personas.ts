@@ -3,7 +3,7 @@ import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "driz
 
 export const roles = sqliteTable("roles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  clave: text("clave", { enum: ["director", "docente", "asistente"] }).notNull(),
+  clave: text("clave", { enum: ["director", "docente", "asistente", "administradora"] }).notNull(),
   nombre: text("nombre").notNull(),
 }, (t) => [uniqueIndex("ux_roles_clave").on(t.clave)]);
 
@@ -37,6 +37,18 @@ export const usuarios = sqliteTable("usuarios", {
   passwordCambiadaEn: integer("password_cambiada_en", { mode: "timestamp" }),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (t) => [uniqueIndex("ux_usuarios_email").on(t.email)]);
+
+/**
+ * Roles adicionales de una cuenta. El rol principal sigue en `usuarios.rol_id`;
+ * aquí solo van los secundarios. Los permisos efectivos son la unión de todos.
+ *
+ * Ejemplo: una maestra (principal: docente) que además administra alumnos
+ * (secundario: administradora).
+ */
+export const usuariosRoles = sqliteTable("usuarios_roles", {
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id, { onDelete: "cascade" }),
+  rolId: integer("rol_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.usuarioId, t.rolId] })]);
 
 /** Un docente existe aunque no use el sistema: usuario_id es nulable a proposito. */
 export const docentes = sqliteTable("docentes", {

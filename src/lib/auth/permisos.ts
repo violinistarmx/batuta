@@ -1,11 +1,11 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { db } from "@/db";
-import { docentes, permisos, roles, rolesPermisos, usuarios } from "@/db/schema/index";
+import { docentes, permisos, rolesPermisos, usuarios, usuariosRoles } from "@/db/schema/index";
 import { debeCambiarPassword } from "@/lib/dominio/usuarios";
 import { sesionActual, type Sesion } from "./sesion";
 
@@ -19,15 +19,34 @@ import { sesionActual, type Sesion } from "./sesion";
  * `exigirPermiso`, una pantalla nueva sin guardia simplemente no compila con datos.
  */
 
-/** Cacheado por petición: varias llamadas en el mismo render no repiten la consulta. */
+/** Ids de todos los roles de la cuenta: el principal más los secundarios. */
+function idsDeRoles(usuarioId: number): number[] {
+  const principal = db
+    .select({ id: usuarios.rolId })
+    .from(usuarios)
+    .where(eq(usuarios.id, usuarioId))
+    .get();
+  const secundarios = db
+    .select({ id: usuariosRoles.rolId })
+    .from(usuariosRoles)
+    .where(eq(usuariosRoles.usuarioId, usuarioId))
+    .all();
+  return [...new Set([principal?.id, ...secundarios.map((s) => s.id)])]
+    .filter((id): id is number => id !== undefined);
+}
+
+/**
+ * Permisos efectivos: la unión de los permisos de todos los roles de la cuenta.
+ * Cacheado por petición: varias llamadas en el mismo render no repiten la consulta.
+ */
 export const permisosDe = cache((usuarioId: number): ReadonlySet<string> => {
+  const ids = idsDeRoles(usuarioId);
+  if (ids.length === 0) return new Set();
   const filas = db
     .select({ clave: permisos.clave })
-    .from(usuarios)
-    .innerJoin(roles, eq(roles.id, usuarios.rolId))
-    .innerJoin(rolesPermisos, eq(rolesPermisos.rolId, roles.id))
+    .from(rolesPermisos)
     .innerJoin(permisos, eq(permisos.id, rolesPermisos.permisoId))
-    .where(eq(usuarios.id, usuarioId))
+    .where(inArray(rolesPermisos.rolId, ids))
     .all();
   return new Set(filas.map((f) => f.clave));
 });
@@ -100,7 +119,9 @@ export type Alcance =
   | { tipo: "propio"; docenteId: number | null };
 
 export const alcanceDe = cache((sesion: Sesion): Alcance => {
-  if (sesion.rol !== "docente") return { tipo: "todo" };
+  // Basta un rol que no sea docente para ver a todos los alumnos. Una maestra que
+  // además es administradora administra a todos, no solo a sus propios alumnos.
+  if (sesion.roles.some((r) => r !== "docente")) return { tipo: "todo" };
   const fila = db
     .select({ id: docentes.id })
     .from(docentes)

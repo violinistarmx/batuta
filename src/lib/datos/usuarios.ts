@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { docentes, roles, sesiones, usuarios } from "@/db/schema/index";
+import { docentes, roles, sesiones, usuarios, usuariosRoles } from "@/db/schema/index";
 import { evaluarPassword, hashearPassword, verificarPassword } from "@/lib/auth/password";
 import {
   motivoParaNoCambiarRol, motivoParaNoDesactivar, normalizarCorreo,
@@ -174,6 +174,11 @@ export function cambiarRol(id: number, rolNuevo: Rol, actorId: number): void {
   db.transaction((tx) => {
     tx.update(usuarios).set({ rolId: rol.id }).where(eq(usuarios.id, id)).run();
 
+    // Si el rol nuevo ya era secundario, deja de serlo: no puede estar dos veces.
+    tx.delete(usuariosRoles)
+      .where(and(eq(usuariosRoles.usuarioId, id), eq(usuariosRoles.rolId, rol.id)))
+      .run();
+
     // Quien pasa a ser maestro necesita ficha. Un docente sin ella entra, abre la
     // agenda y no ve un solo alumno —su alcance filtra por una ficha que no
     // existe— sin que nada en pantalla explique por qué.
@@ -188,6 +193,54 @@ export function cambiarRol(id: number, rolNuevo: Rol, actorId: number): void {
       }
     }
   });
+}
+
+// -------------------------------------------------- roles secundarios ---
+
+/**
+ * Roles que una cuenta puede tener además de su principal.
+ *
+ * Solo `administradora` y `asistente`. Quedan fuera:
+ * - `docente`: necesita su ficha de maestro (nómina y clases), y darla como
+ *   adicional dejaría una cuenta sin ficha.
+ * - `director`: su regla de «siempre queda un director» se calcula sobre el rol
+ *   principal; un director secundario la rompería sin que nadie lo note.
+ */
+export const ROLES_SECUNDARIOS_PERMITIDOS = ["administradora", "asistente"] as const;
+export type RolSecundario = (typeof ROLES_SECUNDARIOS_PERMITIDOS)[number];
+
+export function rolesSecundariosDe(usuarioId: number): { clave: string; nombre: string }[] {
+  return db
+    .select({ clave: roles.clave, nombre: roles.nombre })
+    .from(usuariosRoles)
+    .innerJoin(roles, eq(roles.id, usuariosRoles.rolId))
+    .where(eq(usuariosRoles.usuarioId, usuarioId))
+    .all();
+}
+
+export function asignarRolSecundario(usuarioId: number, rolClave: string): void {
+  if (!(ROLES_SECUNDARIOS_PERMITIDOS as readonly string[]).includes(rolClave)) {
+    throw new Error("Ese rol no puede asignarse como adicional.");
+  }
+  const cuenta = db.select({ rolId: usuarios.rolId }).from(usuarios)
+    .where(eq(usuarios.id, usuarioId)).get();
+  if (!cuenta) throw new Error("Esa cuenta no existe.");
+
+  const rol = db.select({ id: roles.id }).from(roles)
+    .where(eq(roles.clave, rolClave as RolSecundario)).get();
+  if (!rol) throw new Error("Ese rol no existe.");
+  if (rol.id === cuenta.rolId) throw new Error("Ese ya es el rol principal de la cuenta.");
+
+  db.insert(usuariosRoles).values({ usuarioId, rolId: rol.id }).onConflictDoNothing().run();
+}
+
+export function quitarRolSecundario(usuarioId: number, rolClave: string): void {
+  const rol = db.select({ id: roles.id }).from(roles)
+    .where(eq(roles.clave, rolClave as RolSecundario)).get();
+  if (!rol) throw new Error("Ese rol no existe.");
+  db.delete(usuariosRoles)
+    .where(and(eq(usuariosRoles.usuarioId, usuarioId), eq(usuariosRoles.rolId, rol.id)))
+    .run();
 }
 
 /**

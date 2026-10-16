@@ -10,7 +10,8 @@ import { exigirPermiso } from "@/lib/auth/permisos";
 import { generarPasswordInicial } from "@/lib/auth/password";
 import { registrar } from "@/lib/bitacora";
 import {
-  cambiarRol, crearUsuario, desactivar, reactivar, restablecerPassword,
+  asignarRolSecundario, cambiarRol, crearUsuario, desactivar, quitarRolSecundario,
+  reactivar, restablecerPassword,
 } from "@/lib/datos/usuarios";
 import { NOMBRE_ROL } from "@/lib/dominio/usuarios";
 
@@ -29,6 +30,48 @@ export type EstadoCuentas = {
   ok?: string;
   credencial?: { id: number; nombre: string; email: string; rol: string; password: string };
 };
+
+// ----------------------------------------------------- roles adicionales ---
+
+const RolAdicional = z.object({
+  usuarioId: z.coerce.number().int().positive(),
+  rol: z.string().trim().min(1),
+});
+
+/** Un formulario sin estado: los errores de negocio se muestran como error de página. */
+export async function asignarRolAdicionalAccion(datos: FormData): Promise<void> {
+  const sesion = await exigirPermiso("usuarios.gestionar");
+  const d = RolAdicional.parse({ usuarioId: datos.get("usuarioId"), rol: datos.get("rol") });
+
+  asignarRolSecundario(d.usuarioId, d.rol);
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "usuario.rol_asignar",
+    entidad: "usuarios",
+    entidadId: d.usuarioId,
+    cambios: { rol: d.rol },
+  });
+
+  revalidatePath(`/usuarios/${d.usuarioId}`);
+}
+
+export async function quitarRolAdicionalAccion(datos: FormData): Promise<void> {
+  const sesion = await exigirPermiso("usuarios.gestionar");
+  const d = RolAdicional.parse({ usuarioId: datos.get("usuarioId"), rol: datos.get("rol") });
+
+  quitarRolSecundario(d.usuarioId, d.rol);
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "usuario.rol_quitar",
+    entidad: "usuarios",
+    entidadId: d.usuarioId,
+    cambios: { rol: d.rol },
+  });
+
+  revalidatePath(`/usuarios/${d.usuarioId}`);
+}
 
 // -------------------------------------------------------------- alta ---
 

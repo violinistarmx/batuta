@@ -14,6 +14,7 @@ import { bitacora } from "@/db/schema/index";
 export type Accion =
   | "sesion.iniciar" | "sesion.cerrar" | "sesion.rechazada" | "sesion.revocar"
   | "usuario.crear" | "usuario.editar" | "usuario.desactivar"
+  | "usuario.rol_asignar" | "usuario.rol_quitar"
   | "alumno.crear" | "alumno.editar" | "alumno.eliminar" | "alumno.consultar_qr"
   | "salud.leer" | "salud.editar"
   | "inscripcion.crear" | "inscripcion.cambiar_programa" | "inscripcion.baja"
