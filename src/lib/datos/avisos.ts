@@ -7,7 +7,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 
 import { db } from "@/db";
 import { avisos, avisosAdjuntos, roles, usuarios } from "@/db/schema/index";
-import { guardar } from "@/lib/almacen";
+import { guardar, type ArchivoGuardado } from "@/lib/almacen";
 import type { TipoPermitido } from "@/lib/dominio/archivos";
 
 /** Cuántos avisos no ha leído esta persona. Alimenta la campana y el banner. */
@@ -112,7 +112,7 @@ export async function enviarAviso(input: {
 }): Promise<string> {
   const grupo = randomUUID();
 
-  const guardados = [];
+  const guardados: { nombre: string; tipo: TipoPermitido; archivo: ArchivoGuardado }[] = [];
   for (const a of input.archivos) {
     const archivo = await guardar(a.contenido, a.tipo);
     guardados.push({ nombre: a.nombre, tipo: a.tipo, archivo });
