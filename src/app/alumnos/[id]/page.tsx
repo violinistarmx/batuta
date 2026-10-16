@@ -12,6 +12,9 @@ import {
 import { inscripcionesDe } from "@/lib/datos/inscripciones";
 import { cargosDeAlumno, cargosDeAlumnoCancelados, pagosDeAlumno } from "@/lib/datos/finanzas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
+import {
+  destinatarioWhatsApp, enlaceWhatsApp, textoRecordatorioRenovacion,
+} from "@/lib/dominio/recordatorios";
 import { hoyEnMexico } from "@/lib/zona";
 import { Cobrar } from "./cobrar";
 import { BotonReactivar } from "./cargos/boton-reactivar";
@@ -75,20 +78,16 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
 
   // ── WhatsApp de recordatorio de adeudo ─────────────────────────────────────
   // Prefiere el tutor responsable de pago; si no, el teléfono del alumno.
-  const tutorPago = tutores.find((t) => t.esResponsablePago) ?? tutores[0];
-  const waNumero = (tutorPago?.whatsapp ?? tutorPago?.telefono ?? alumno.telefono ?? "")
-    .replace(/\D/g, "");  // solo dígitos
-  const waNombre = tutorPago ? tutorPago.nombre.split(" ")[0] : alumno.nombre.split(" ")[0];
+  const destino = destinatarioWhatsApp(tutores, alumno);
 
   function waRecordatorioPago(): string | null {
-    if (!waNumero || cobranza.porCobrarCentavos === 0) return null;
-    const num = waNumero.length === 10 ? `52${waNumero}` : waNumero;
+    if (!destino || cobranza.porCobrarCentavos === 0) return null;
     const cargosTexto = cargos
       .filter((c) => adeudoDe(c) > 0)
       .map((c) => `• ${c.descripcion}: ${pesos(adeudoDe(c))}`)
       .join("\n");
     const msg = [
-      `Hola ${waNombre} 👋, te saluda VioliniStar Academia de Música.`,
+      `Hola ${destino.primerNombre} 👋, te saluda VioliniStar Academia de Música.`,
       ``,
       `Te recordamos que ${alumno.nombre} tiene el siguiente saldo pendiente:`,
       cargosTexto,
@@ -97,10 +96,19 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
       ``,
       `Puedes ponerte al corriente en cualquiera de nuestras sedes o mediante transferencia. ¡Gracias! 🎻`,
     ].join("\n");
-    return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+    return enlaceWhatsApp(destino.numero, msg);
   }
 
   const waLinkPago = waRecordatorioPago();
+
+  // Recordatorio de renovación: el texto depende del alumno, no de la inscripción.
+  // Se muestra en cada inscripción cuyas clases ya se consumieron (ver el mapa abajo).
+  const waLinkRenovacion = destino
+    ? enlaceWhatsApp(
+        destino.numero,
+        textoRecordatorioRenovacion({ id: alumno.id, alumno: alumno.nombre }),
+      )
+    : null;
 
   return (
     <>
@@ -328,9 +336,12 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
             </p>
           ) : (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {inscripciones.map((i) => (
+              {inscripciones.map((i) => {
+                // Clases consumidas: el período sigue abierto pero ya no tiene saldo.
+                const periodoAgotado = i.estado === "activa" && i.cicloId !== null && i.saldo <= 0;
+                return (
+                <div key={i.id} className="flex flex-col gap-2">
                 <Link
-                  key={i.id}
                   href={`/inscripciones/${i.id}`}
                   className="rounded-xl border border-vs-linea bg-white p-4 no-underline
                              transition hover:border-vs-naranja-700"
@@ -358,7 +369,20 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                     <p className="mt-1 text-xs text-vs-tinta-3">Cierra el {i.terminaEl}</p>
                   )}
                 </Link>
-              ))}
+
+                {periodoAgotado && puedeCobrar && waLinkRenovacion && (
+                  <a
+                    href={waLinkRenovacion}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[12px] font-semibold text-green-800 no-underline transition hover:bg-green-100"
+                  >
+                    Felicitar y pedir renovación por WhatsApp
+                  </a>
+                )}
+                </div>
+                );
+              })}
             </div>
           )}
         </section>

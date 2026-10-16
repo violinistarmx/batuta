@@ -3,9 +3,13 @@ import { notFound } from "next/navigation";
 
 import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
+import { alumnoPorId, tutoresDe } from "@/lib/datos/alumnos";
 import { aulasActivas, clasePorId } from "@/lib/datos/clases";
 import { planeacionDeClase, tareasDeClase } from "@/lib/datos/expediente";
 import { etiquetaDeEstado } from "@/lib/dominio/asistencia";
+import {
+  destinatarioWhatsApp, enlaceWhatsApp, textoRecordatorioClase,
+} from "@/lib/dominio/recordatorios";
 import { fechaLarga } from "@/lib/formato";
 import { fechaCivil, hoyEnMexico, horaCivil } from "@/lib/zona";
 import { Asistencia, Posponer } from "./acciones-cliente";
@@ -34,6 +38,23 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
   const ahora = new Date();
 
   const terminal = clase.estado === "reprogramada" || clase.estado === "cancelada";
+
+  // Recordatorio al alumno o tutor: solo tiene sentido mientras la clase no ha ocurrido.
+  let enlaceRecordatorio: string | null = null;
+  if (clase.estado === "programada") {
+    const alumnoDatos = alumnoPorId(clase.alumnoId, alcanceDe(sesion));
+    const destino = alumnoDatos
+      ? destinatarioWhatsApp(tutoresDe(clase.alumnoId), alumnoDatos)
+      : null;
+    if (destino) {
+      const texto = textoRecordatorioClase({
+        id: clase.id,
+        fecha: fechaLarga(clase.iniciaEn),
+        horario: `${horaCivil(clase.iniciaEn)} a ${horaCivil(clase.terminaEn)} hrs`,
+      });
+      enlaceRecordatorio = enlaceWhatsApp(destino.numero, texto);
+    }
+  }
 
   return (
     <>
@@ -68,6 +89,24 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
             </div>
           ))}
         </dl>
+
+        {clase.estado === "programada" && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-vs-linea bg-white px-4 py-3 text-sm">
+            <span className="text-vs-tinta-3">Recordatorio de clase</span>
+            {enlaceRecordatorio ? (
+              <a
+                href={enlaceRecordatorio}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[12px] font-semibold text-green-800 no-underline transition hover:bg-green-100"
+              >
+                Enviar por WhatsApp
+              </a>
+            ) : (
+              <span className="text-vs-tinta-3">Sin teléfono registrado para enviar</span>
+            )}
+          </div>
+        )}
 
         {clase.origen === "recuperacion" && (
           <p className="mt-4 rounded-lg border border-vs-linea bg-vs-crema px-4 py-2.5 text-sm">
