@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { bitacora, configuracion, usuarios } from "@/db/schema/index";
+import { Bienvenida } from "@/components/bienvenida";
 import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirSesionUsable, tienePermiso } from "@/lib/auth/permisos";
 import { alertasDe, clasesDeHoy, indicadores, ultimoRespaldo } from "@/lib/datos/tablero";
@@ -32,10 +33,15 @@ const ESTADO_CLASE: Record<string, string> = {
   reprogramada: "Reprogramada",
 };
 
-export default async function Inicio() {
+export default async function Inicio({
+  searchParams,
+}: {
+  searchParams: Promise<{ bienvenida?: string }>;
+}) {
   // Sin sesión, esta pantalla no existe. El guardián vive aquí y no en un
   // middleware: así una pantalla nueva sin guardia no obtiene datos.
   const sesion = await exigirSesionUsable();
+  const { bienvenida } = await searchParams;
   const alcance = alcanceDe(sesion);
   const verFinanzas = tienePermiso(sesion, "finanzas.leer");
 
@@ -83,6 +89,9 @@ export default async function Inicio() {
 
   return (
     <>
+      {bienvenida === "1" && (
+        <Bienvenida saludo={`${saludo(ahora)}, ${sesion.nombre.split(" ")[0]}`} />
+      )}
       <Encabezado sesion={sesion} activo="tablero" />
       <main className="mx-auto max-w-5xl px-5 py-8">
         <header className="flex items-end justify-between gap-4">

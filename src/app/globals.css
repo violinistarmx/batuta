@@ -105,8 +105,49 @@
   .confirmar[open]::backdrop { opacity: 0; }
 }
 
+/*
+ * Intro de inicio de sesión (components/bienvenida.tsx). Dura 2.9 s: el logo
+ * entra, el saludo aparece debajo y todo se desvanece al final. Si el usuario
+ * reduce movimiento, el logo y el saludo aparecen sin desplazamiento.
+ */
+.bienvenida {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--color-vs-crema);
+  cursor: pointer;
+  animation: bienvenida-salida 2900ms var(--ease-out) both;
+}
+.bienvenida-contenido {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+.bienvenida-logo {
+  animation: bienvenida-logo 700ms var(--ease-out) both;
+}
+.bienvenida-saludo {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-vs-tinta-2);
+  animation: entrar 500ms var(--ease-out) 450ms both;
+}
+@keyframes bienvenida-logo {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes bienvenida-salida {
+  0%, 82% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .entrar { animation: none; }
+  .bienvenida-logo,
+  .bienvenida-saludo { animation: none; }
   button:not(:disabled):active { transform: none; }
   .confirmar,
   .confirmar::backdrop { transition: none; }

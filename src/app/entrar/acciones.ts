@@ -85,5 +85,6 @@ export async function entrar(
   limpiarIntentosDe(email);
   registrar({ usuarioId: usuario.id, accion: "sesion.iniciar", entidad: "usuarios", entidadId: usuario.id, ip });
 
-  redirect("/");
+  // La intro de bienvenida se muestra solo cuando el inicio de sesión acaba de ocurrir.
+  redirect("/?bienvenida=1");
 }
