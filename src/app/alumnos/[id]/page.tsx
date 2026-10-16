@@ -79,6 +79,9 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   // ── WhatsApp de recordatorio de adeudo ─────────────────────────────────────
   // Prefiere el tutor responsable de pago; si no, el teléfono del alumno.
   const destino = destinatarioWhatsApp(tutores, alumno);
+  // Capturado aquí: dentro de la función declarada abajo, TypeScript no conserva
+  // el estrechamiento de `alumno` tras notFound().
+  const nombreAlumno = alumno.nombre;
 
   function waRecordatorioPago(): string | null {
     if (!destino || cobranza.porCobrarCentavos === 0) return null;
@@ -89,7 +92,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
     const msg = [
       `Hola ${destino.primerNombre} 👋, te saluda VioliniStar Academia de Música.`,
       ``,
-      `Te recordamos que ${alumno.nombre} tiene el siguiente saldo pendiente:`,
+      `Te recordamos que ${nombreAlumno} tiene el siguiente saldo pendiente:`,
       cargosTexto,
       ``,
       `*Total: ${pesos(cobranza.porCobrarCentavos)}*`,
