@@ -1,7 +1,7 @@
 "use client";
 
-import type React from "react";
 import { useActionState } from "react";
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 import type { EstadoGasto } from "./acciones";
 
 const CATEGORIAS = [
@@ -142,7 +142,7 @@ export function BtnEliminar({
   accion: (prev: EstadoGasto, datos: FormData) => Promise<EstadoGasto>;
   gastoId: number;
 }) {
-  const [estado, enviar, pendiente] = useActionState(accion, {});
+  const [estado, enviar] = useActionState(accion, {});
 
   return (
     <form action={enviar}>
@@ -150,17 +150,16 @@ export function BtnEliminar({
       {estado.error && (
         <p className="mb-2 text-xs text-red-600">{estado.error}</p>
       )}
-      <button
-        type="submit"
-        disabled={pendiente}
-        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-          if (!confirm("¿Eliminar este gasto? La acción no se puede deshacer.")) e.preventDefault();
-        }}
+      <ConfirmarAccion
+        etiqueta="Eliminar"
+        pendiente="Eliminando…"
+        titulo="¿Eliminar este gasto?"
+        descripcion="Se quitará del registro y de los totales del periodo. La acción no se puede deshacer."
+        confirmar="Sí, eliminar"
+        peligro
         className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700
                    transition hover:bg-red-50 disabled:opacity-60"
-      >
-        {pendiente ? "Eliminando…" : "Eliminar"}
-      </button>
+      />
     </form>
   );
 }

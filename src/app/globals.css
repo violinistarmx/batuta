@@ -60,9 +60,56 @@
   animation-delay: calc(var(--i, 0) * 60ms);
 }
 
+/*
+ * Modal de confirmación (<dialog>, ver components/confirmar-accion.tsx).
+ * Entra con una escala de 0.95 y opacidad; sale igual, más rápido que entra.
+ * `@starting-style` da el punto de partida de la entrada, y
+ * `transition-behavior: allow-discrete` deja animar también al cerrar.
+ */
+.confirmar {
+  width: min(26rem, calc(100% - 2rem));
+  margin: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--color-vs-linea);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--color-vs-tinta);
+  box-shadow: 0 18px 40px -12px rgb(34 26 14 / 0.25);
+  opacity: 0;
+  transform: scale(0.95);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out),
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+.confirmar[open] {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .confirmar[open] { opacity: 0; transform: scale(0.95); }
+}
+.confirmar::backdrop {
+  background: rgb(34 26 14 / 0.4);
+  opacity: 0;
+  transition:
+    opacity 200ms var(--ease-out),
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+.confirmar[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  .confirmar[open]::backdrop { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .entrar { animation: none; }
   button:not(:disabled):active { transform: none; }
+  .confirmar,
+  .confirmar::backdrop { transition: none; }
 }
 
 body {
