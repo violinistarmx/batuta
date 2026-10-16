@@ -60,69 +60,87 @@ export function destinatarioWhatsApp(
   return { numero, primerNombre: nombre.split(" ")[0] ?? nombre };
 }
 
+// ------------------------------------------------------- formato de fecha ---
+
+/** «15:00» → «3:00 p. m.». Recibe la hora civil que ya devuelve `horaCivil`. */
+export function horaParaRecordatorio(hhmm: string): string {
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  const periodo = h >= 12 ? "p. m." : "a. m.";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${periodo}`;
+}
+
+/** Fecha sin año, en hora de México: «sábado 17 de octubre». */
+export function fechaParaRecordatorio(instante: Date): string {
+  return new Intl.DateTimeFormat("es-MX", {
+    weekday: "long", day: "numeric", month: "long", timeZone: "America/Mexico_City",
+  }).format(instante).replace(",", "");
+}
+
 // ------------------------------------------------------------- clase ---------
 
 export type DatosRecordatorioClase = {
   /** id de la clase: decide la variante. */
   id: number;
-  /** Fecha legible, p. ej. «viernes, 16 de octubre de 2026». */
+  /** Primer nombre del alumno, como aparece en el saludo. */
+  alumno: string;
+  /** Instrumento en minúsculas: «violín», «piano». */
+  instrumento: string;
+  /** Fecha ya formateada: «sábado 17 de octubre». */
   fecha: string;
-  /** Horario legible, p. ej. «16:00 a 17:00 hrs». */
-  horario: string;
+  /** Horas ya formateadas: «3:00 p. m.» y «5:00 p. m.». */
+  horaInicio: string;
+  horaFin: string;
 };
 
 export function textoRecordatorioClase(d: DatosRecordatorioClase): string {
-  const { fecha: F, horario: H } = d;
+  const N = d.alumno;
+  const I = d.instrumento;
+  const F = d.fecha;
+  const H1 = d.horaInicio;
+  const H2 = d.horaFin;
   const variantes = [
     [
-      "Hola 👋",
+      `Hola, ${N} 😊✨`,
+      "Esperamos que se encuentre muy bien. Le escribimos para recordarle que " +
+        `${N} tiene programada su clase de ${I} el ${F}, de ${H1} a ${H2}`,
       "",
-      "Te recordamos que tenemos tu clase programada:",
+      "Lo esperamos con mucho gusto en VioliniStar 🤩",
       "",
-      `📅 Fecha: ${F}`,
-      `⏰ Horario: ${H}`,
+      "En caso de que por algún motivo no pueda asistir, le agradeceríamos mucho que nos lo notificara con anticipación. 🙏🏻",
       "",
-      "Por favor confirma tu asistencia para organizar nuestro cronograma.",
-      "Tu presencia es importante para mantener la continuidad de tu aprendizaje.",
-      "",
-      "¡Esperamos confirmación! ✓",
+      "¡Muchas gracias! Quedamos atentos. 🎶✨",
     ],
     [
-      "¡Hola!",
+      `¡Hola, ${N}! 👋✨`,
+      "Esperamos que tenga un excelente día. Le recordamos que su clase de " +
+        `${I} está programada para el ${F}, de ${H1} a ${H2}`,
       "",
-      "Tenemos todo listo para tu clase. Solo queremos confirmar que nos acompañes en:",
+      `Será un gusto recibir a ${N} en VioliniStar 🤩`,
       "",
-      `📅 Fecha: ${F}`,
-      `⏰ Horario: ${H}`,
+      "Si surge algún imprevisto y no puede asistir, por favor avísenos con tiempo para poder reagendar. 🙏🏻",
       "",
-      "Si por alguna razón no puedes asistir, avísanos con anticipación para poder reagendar. ¡Nos encanta verte progresar! 💪",
-      "",
-      "Por favor, confirma aquí ✓",
+      "¡Gracias por su confianza! Quedamos atentos. 🎶✨",
     ],
     [
-      "¡Hola! 🎵",
+      `Buen día, ${N} 🎶`,
+      `Le compartimos un recordatorio de la clase de ${I} de ${N}: será el ${F}, de ${H1} a ${H2} 📅`,
       "",
-      "¡Nos vemos en clase! Aquí van los detalles:",
+      "Nos encantará tenerle en clase en VioliniStar 🤩",
       "",
-      `📅 Fecha: ${F}`,
-      `⏰ Horario: ${H}`,
+      "Si por alguna razón no le es posible asistir, le agradeceríamos avisarnos con anticipación. 🙏🏻",
       "",
-      "¿Listo para continuar con tu progreso musical? Si algo cambia en tu agenda, cuéntanos rápido para ajustarlo. ¡No queremos que te pierdas de la diversión! 🚀",
-      "",
-      "Confirma que sí vienes 👇",
+      "¡Muchas gracias por su atención! Quedamos muy atentos. ✨",
     ],
     [
-      "Hola,",
+      `Hola, ${N} 👋😊`,
+      "Esperamos que se encuentre muy bien. Pasamos a recordarle que " +
+        `${N} tiene clase de ${I} el ${F}, de ${H1} a ${H2}`,
       "",
-      "Confirma tu asistencia a esta clase:",
+      "Lo esperamos con gusto en VioliniStar 🎵🤩",
+      "Si no puede asistir, le pedimos que nos lo notifique con la mayor anticipación posible 🙏🏻",
       "",
-      `📅 Fecha: ${F}`,
-      `⏰ Horario: ${H}`,
-      "",
-      "Si no puedes asistir, avísanos cuanto antes. De lo contrario, asumiremos que vendrás.",
-      "",
-      "✓ Confirmo",
-      "✗ No puedo asistir",
+      "¡Muchas gracias! Quedamos atentos 🎶✨",
     ],
   ];
   return variantes[variantePara(d.id)]!.join("\n");

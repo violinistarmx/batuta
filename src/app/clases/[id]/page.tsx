@@ -8,7 +8,8 @@ import { aulasActivas, clasePorId } from "@/lib/datos/clases";
 import { planeacionDeClase, tareasDeClase } from "@/lib/datos/expediente";
 import { etiquetaDeEstado } from "@/lib/dominio/asistencia";
 import {
-  destinatarioWhatsApp, enlaceWhatsApp, textoRecordatorioClase,
+  destinatarioWhatsApp, enlaceWhatsApp, fechaParaRecordatorio, horaParaRecordatorio,
+  textoRecordatorioClase,
 } from "@/lib/dominio/recordatorios";
 import { fechaLarga } from "@/lib/formato";
 import { fechaCivil, hoyEnMexico, horaCivil } from "@/lib/zona";
@@ -49,8 +50,11 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
     if (destino) {
       const texto = textoRecordatorioClase({
         id: clase.id,
-        fecha: fechaLarga(clase.iniciaEn),
-        horario: `${horaCivil(clase.iniciaEn)} a ${horaCivil(clase.terminaEn)} hrs`,
+        alumno: clase.alumno.split(" ")[0] ?? clase.alumno,
+        instrumento: clase.instrumento.toLowerCase(),
+        fecha: fechaParaRecordatorio(clase.iniciaEn),
+        horaInicio: horaParaRecordatorio(horaCivil(clase.iniciaEn)),
+        horaFin: horaParaRecordatorio(horaCivil(clase.terminaEn)),
       });
       enlaceRecordatorio = enlaceWhatsApp(destino.numero, texto);
     }
