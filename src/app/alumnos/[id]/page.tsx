@@ -128,12 +128,20 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
           <Link href="/alumnos" className="text-xs text-vs-tinta-3 no-underline hover:underline">
             ← Alumnos
           </Link>
+          <div className="flex items-baseline gap-4">
+            {puedeEditarAlumno && (
+              <Link href={`/alumnos/${alumno.id}/editar`}
+                    className="text-xs font-semibold text-vs-tinta-2 no-underline hover:underline">
+                Editar datos
+              </Link>
+            )}
           {tienePermiso(sesion, "alumnos.descartar") && (
             <Link href={`/alumnos/${alumno.id}/descartar`}
                   className="text-xs text-vs-tinta-3 no-underline hover:text-red-700 hover:underline">
               Descartar alumno
             </Link>
           )}
+          </div>
         </div>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-6">
