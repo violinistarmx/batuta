@@ -134,6 +134,13 @@
       "when": 1791700000000,
       "tag": "0018_tutor_tratamiento",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1791800000000,
+      "tag": "0019_avisos",
+      "breakpoints": true
     }
   ]
 }

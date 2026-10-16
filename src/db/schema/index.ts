@@ -8,3 +8,4 @@ export * from "./prospectos";
 export * from "./comunicacion";
 export * from "./inventario";
 export * from "./recitales";
+export * from "./avisos";

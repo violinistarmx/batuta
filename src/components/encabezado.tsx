@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { Campana } from "@/components/campana";
 import { permisosDe } from "@/lib/auth/permisos";
 import type { Sesion } from "@/lib/auth/sesion";
+import { avisosSinLeer } from "@/lib/datos/avisos";
 
 const TITULO_ROL = { director: "Director", docente: "Maestro", asistente: "Asistente" } as const;
 
@@ -74,6 +76,7 @@ export function Encabezado(
           </span>
         </Link>
         <div className="flex items-center gap-3">
+          <Campana sinLeer={avisosSinLeer(sesion.usuarioId)} />
           <Link href="/perfil"
                 className="text-xs text-vs-tinta-3 no-underline hover:underline">
             {TITULO_ROL[sesion.rol]} {sesion.nombre}

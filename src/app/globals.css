@@ -106,6 +106,23 @@
 }
 
 /*
+ * Campana de avisos (components/campana.tsx). Se sacude una sola vez al cargar
+ * la página si hay avisos sin leer. Pivote cerca de la punta, como una campana real.
+ */
+.campana-sonar {
+  transform-origin: 50% 8%;
+  animation: campana-sonar 900ms var(--ease-out) 350ms both;
+}
+@keyframes campana-sonar {
+  0%   { transform: rotate(0deg); }
+  20%  { transform: rotate(14deg); }
+  40%  { transform: rotate(-12deg); }
+  60%  { transform: rotate(8deg); }
+  80%  { transform: rotate(-4deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/*
  * Intro de inicio de sesión (components/bienvenida.tsx). Dura 2.9 s: el logo
  * entra, el saludo aparece debajo y todo se desvanece al final. Si el usuario
  * reduce movimiento, el logo y el saludo aparecen sin desplazamiento.
@@ -147,7 +164,8 @@
 @media (prefers-reduced-motion: reduce) {
   .entrar { animation: none; }
   .bienvenida-logo,
-  .bienvenida-saludo { animation: none; }
+  .bienvenida-saludo,
+  .campana-sonar { animation: none; }
   button:not(:disabled):active { transform: none; }
   .confirmar,
   .confirmar::backdrop { transition: none; }

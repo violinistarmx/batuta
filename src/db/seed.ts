@@ -333,6 +333,7 @@ const PERMISOS = [
   ["prospectos.convertir", "Convertir prospecto en alumno"],
   ["comunicacion.redactar", "Preparar mensajes"],
   ["comunicacion.aprobar", "Aprobar y enviar mensajes"],
+  ["avisos.enviar", "Enviar avisos internos a los maestros"],
   ["documentos.leer", "Descargar documentos del expediente"],
   ["inventario.gestionar", "Gestionar inventario y préstamos"],
   ["recitales.leer", "Ver recitales y su programa"],
@@ -367,6 +368,7 @@ const PERMISOS_ADMINISTRADORA = [
   "alumnos.leer", "alumnos.crear", "alumnos.editar",
   "inscripciones.leer", "inscripciones.crear",
   "clases.leer", "clases.crear",
+  "avisos.enviar",
 ];
 
 const PERMISOS_ASISTENTE = [

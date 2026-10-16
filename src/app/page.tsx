@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { bitacora, configuracion, usuarios } from "@/db/schema/index";
 import { Bienvenida } from "@/components/bienvenida";
 import { Encabezado } from "@/components/encabezado";
+import { avisosSinLeer } from "@/lib/datos/avisos";
 import { alcanceDe, exigirSesionUsable, tienePermiso } from "@/lib/auth/permisos";
 import { alertasDe, clasesDeHoy, indicadores, ultimoRespaldo } from "@/lib/datos/tablero";
 import { contarPorSeveridad, type Severidad } from "@/lib/dominio/alertas";
@@ -44,6 +45,7 @@ export default async function Inicio({
   const { bienvenida } = await searchParams;
   const alcance = alcanceDe(sesion);
   const verFinanzas = tienePermiso(sesion, "finanzas.leer");
+  const avisosPendientes = avisosSinLeer(sesion.usuarioId);
 
   const cfg = Object.fromEntries(
     db.select().from(configuracion).all().map((c) => [c.clave, c.valor]),
@@ -94,6 +96,21 @@ export default async function Inicio({
       )}
       <Encabezado sesion={sesion} activo="tablero" />
       <main className="mx-auto max-w-5xl px-5 py-8">
+        {avisosPendientes > 0 && (
+          <Link
+            href="/avisos"
+            className="entrar mb-6 flex items-center justify-between gap-3 rounded-xl border border-vs-naranja
+                       bg-vs-amarillo-suave/40 px-4 py-3 text-sm no-underline transition hover:bg-vs-amarillo-suave"
+          >
+            <span>
+              <strong className="font-semibold">
+                {avisosPendientes === 1 ? "Tienes un aviso nuevo" : `Tienes ${avisosPendientes} avisos nuevos`}
+              </strong>{" "}
+              <span className="text-vs-tinta-2">de la dirección.</span>
+            </span>
+            <span className="shrink-0 text-xs font-semibold text-vs-naranja-700">Leer →</span>
+          </Link>
+        )}
         <header className="flex items-end justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-vs-tinta-3">
