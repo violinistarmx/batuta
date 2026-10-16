@@ -20,6 +20,8 @@ import { Cobrar } from "./cobrar";
 import { BotonReactivar } from "./cargos/boton-reactivar";
 import { edad, esMenorDeEdad, fechaLarga, pesos } from "@/lib/formato";
 import { qrComoSvg } from "@/lib/qr";
+import { Suspense } from "react";
+import { AvisoTras } from "@/components/aviso";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +117,9 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
 
   return (
     <>
+      <Suspense fallback={null}>
+        <AvisoTras />
+      </Suspense>
       <Encabezado sesion={sesion} activo="alumnos" />
       <main className="mx-auto max-w-5xl px-5 py-8">
         <div className="flex items-baseline justify-between">

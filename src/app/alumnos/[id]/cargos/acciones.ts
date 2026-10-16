@@ -70,7 +70,7 @@ export async function crearCargoAccion(
   });
 
   revalidatePath(`/alumnos/${d.alumnoId}`);
-  redirect(`/alumnos/${d.alumnoId}`);
+  redirect(`/alumnos/${d.alumnoId}?aviso=cargo-creado`);
   return {};
 }
 

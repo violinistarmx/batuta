@@ -8,6 +8,8 @@ import { registrar } from "@/lib/bitacora";
 import { reciboPorId, renglonesDeRecibo } from "@/lib/datos/finanzas";
 import { pesosExactos } from "@/lib/formato";
 import { fechaCivil } from "@/lib/zona";
+import { Suspense } from "react";
+import { AvisoTras } from "@/components/aviso";
 import { Imprimir } from "./imprimir";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +61,9 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
 
   return (
     <>
+      <Suspense fallback={null}>
+        <AvisoTras />
+      </Suspense>
       {/* La barra no se imprime: solo existe para volver y para disparar la impresión. */}
       <Imprimir volverA={`/alumnos/${r.alumnoId}`} folio={r.folio} reciboId={r.id} />
 

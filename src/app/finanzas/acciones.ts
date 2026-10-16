@@ -92,7 +92,7 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
     },
   });
 
-  redirect(`/recibos/${r.reciboId}`);
+  redirect(`/recibos/${r.reciboId}?aviso=pago-registrado`);
   return {};
 }
 
