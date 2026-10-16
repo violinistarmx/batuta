@@ -45,7 +45,10 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # La base y el almacen viven en volumenes: el contenedor es desechable, los datos no.
-RUN mkdir -p /app/data /app/almacen && chown -R batuta:batuta /app/data /app/almacen
+# .next/cache: Next escribe ahi la cache de imagenes; como las copias de arriba las
+# crea root, hay que entregarle la carpeta a `batuta` o falla con EACCES.
+RUN mkdir -p /app/data /app/almacen /app/.next/cache \
+    && chown -R batuta:batuta /app/data /app/almacen /app/.next
 
 # Sin USER: el entrypoint arranca como root para ajustar la propiedad del
 # volumen montado y despues baja a `batuta` con gosu. Si se fija USER aqui,
