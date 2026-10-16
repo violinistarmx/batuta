@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import {
-  cortesDeNomina, nominaPendientePorDocente, partidasPendientesDe,
+  cortesDeNomina, nominaPendientePorDocente, partidasPendientesDe, rangoNomina,
 } from "@/lib/datos/finanzas";
 import { parametrosNomina } from "@/lib/datos/costo-docente";
 import { pesos } from "@/lib/formato";
@@ -24,7 +24,11 @@ const METODO: Record<string, string> = {
 /** 0.75 → "75 %". Lo muestra tal cual, sin decimales innecesarios. */
 const porcentaje = (factor: number) => `${Number((factor * 100).toFixed(2))} %`;
 
-export default async function Nomina() {
+type Busqueda = { desde?: string; hasta?: string; creadas?: string; omitidas?: string };
+
+const esFecha = (s: string | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+export default async function Nomina({ searchParams }: { searchParams: Promise<Busqueda> }) {
   // Un docente entra con `nomina.leer_propia`; el alcance lo limita a lo suyo.
   const sesion = await exigirPermiso(
     // El director tiene ambos; el maestro solo el propio.
@@ -35,7 +39,14 @@ export default async function Nomina() {
 
   const hoy = hoyEnMexico();
   const inicioMes = `${hoy.slice(0, 7)}-01`;
-  const pendientes = nominaPendientePorDocente(alcance);
+
+  // El periodo que se ve es el que viene en la URL; por defecto, el mes hasta hoy.
+  const busqueda = await searchParams;
+  const desdeSel = esFecha(busqueda.desde) ? busqueda.desde : inicioMes;
+  const hastaSel = esFecha(busqueda.hasta) && busqueda.hasta >= desdeSel ? busqueda.hasta : hoy;
+  const rango = rangoNomina(desdeSel, hastaSel);
+
+  const pendientes = nominaPendientePorDocente(alcance, rango);
   const total = pendientes.reduce((s, p) => s + p.totalCentavos, 0);
   const cortes = cortesDeNomina(alcance);
   const param = parametrosNomina();
@@ -70,14 +81,23 @@ export default async function Nomina() {
           <section className="mt-6 rounded-xl border border-vs-linea bg-white p-5">
             <h2 className="font-display text-lg font-semibold">Calcular el corte</h2>
             <div className="mt-3">
-              <Calcular desde={inicioMes} hasta={hoy} />
+              <Calcular desde={desdeSel} hasta={hastaSel} />
             </div>
+            {busqueda.creadas !== undefined && (
+              <p role="status" className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
+                {Number(busqueda.creadas)} clase(s) agregadas al corte del {desdeSel} al {hastaSel}.{" "}
+                {Number(busqueda.omitidas ?? 0)} omitidas: ya estaban consideradas o no generan pago.
+              </p>
+            )}
           </section>
         )}
 
         <section className="mt-7">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold">Pendiente de pago</h2>
+            <h2 className="font-display text-xl font-semibold">
+              Pendiente de pago
+              <span className="ml-2 text-sm font-normal text-vs-tinta-3">del {desdeSel} al {hastaSel}</span>
+            </h2>
             {pendientes.length > 0 && (
               <p id="nomina-total" className="font-display text-xl font-semibold tabular-nums">{pesos(total)}</p>
             )}
@@ -92,7 +112,7 @@ export default async function Nomina() {
           ) : (
             <div className="mt-4 flex flex-col gap-5">
               {pendientes.map((d) => {
-                const partidas = partidasPendientesDe(d.docenteId);
+                const partidas = partidasPendientesDe(d.docenteId, rango);
                 return (
                   <div key={d.docenteId} className="overflow-hidden rounded-xl border border-vs-linea bg-white">
                     <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-vs-linea bg-vs-crema px-5 py-3">
@@ -145,8 +165,8 @@ export default async function Nomina() {
                         <PagarDocente
                           docenteId={d.docenteId}
                           docente={d.docente}
-                          desde={inicioMes}
-                          hasta={hoy}
+                          desde={desdeSel}
+                          hasta={hastaSel}
                           total={pesos(d.totalCentavos)}
                         />
                       </div>

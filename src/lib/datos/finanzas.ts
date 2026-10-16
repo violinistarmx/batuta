@@ -640,7 +640,19 @@ export function generarNomina(
   return { creadas, omitidas };
 }
 
-export function nominaPendientePorDocente(alcance: Alcance) {
+/** Periodo de un corte, con los instantes de inicio y fin de los días elegidos. */
+export type RangoNomina = { desde: Date; hasta: Date };
+
+export function rangoNomina(desdeEl: string, hastaEl: string): RangoNomina {
+  return { desde: instanteEnMexico(desdeEl, "00:00"), hasta: instanteEnMexico(hastaEl, "23:59") };
+}
+
+/**
+ * Pendientes de pago, solo de las clases dentro del periodo elegido. Sin el rango,
+ * la pantalla mostraba todo lo pendiente desde siempre aunque el corte fuera de
+ * otra semana.
+ */
+export function nominaPendientePorDocente(alcance: Alcance, rango: RangoNomina) {
   const filtro = alcance.tipo === "propio"
     ? (alcance.docenteId === null ? sql`0 = 1` : eq(nominaPartidas.docenteId, alcance.docenteId))
     : undefined;
@@ -657,13 +669,19 @@ export function nominaPendientePorDocente(alcance: Alcance) {
     })
     .from(nominaPartidas)
     .innerJoin(docentes, eq(docentes.id, nominaPartidas.docenteId))
-    .where(filtro ? and(base, filtro) : base)
+    .innerJoin(clases, eq(clases.id, nominaPartidas.claseId))
+    .where(and(
+      base,
+      filtro,
+      gte(clases.iniciaEn, rango.desde),
+      lte(clases.iniciaEn, rango.hasta),
+    ))
     .groupBy(docentes.id, docentes.nombre)
     .orderBy(asc(docentes.nombre))
     .all();
 }
 
-export function partidasPendientesDe(docenteId: number) {
+export function partidasPendientesDe(docenteId: number, rango: RangoNomina) {
   return db
     .select({
       id: nominaPartidas.id,
@@ -679,7 +697,12 @@ export function partidasPendientesDe(docenteId: number) {
     .innerJoin(clases, eq(clases.id, nominaPartidas.claseId))
     .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
     .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
-    .where(and(eq(nominaPartidas.docenteId, docenteId), isNull(nominaPartidas.nominaId)))
+    .where(and(
+      eq(nominaPartidas.docenteId, docenteId),
+      isNull(nominaPartidas.nominaId),
+      gte(clases.iniciaEn, rango.desde),
+      lte(clases.iniciaEn, rango.hasta),
+    ))
     .orderBy(asc(clases.iniciaEn))
     .all();
 }
@@ -690,13 +713,24 @@ export function pagarNomina(
   d: { desdeEl: string; hastaEl: string; pagadoEl: string; metodo: "efectivo" | "transferencia" | "deposito" | "otro"; nota: string | null },
   usuarioId: number,
 ): { nominaId: number; totalCentavos: number; clases: number } {
+  const rango = rangoNomina(d.desdeEl, d.hastaEl);
+
   return db.transaction((tx) => {
+    // Solo se paga lo del periodo elegido: lo de otras semanas sigue pendiente.
     const partidas = tx.select({ id: nominaPartidas.id, importe: nominaPartidas.importeCentavos })
       .from(nominaPartidas)
-      .where(and(eq(nominaPartidas.docenteId, docenteId), isNull(nominaPartidas.nominaId)))
+      .innerJoin(clases, eq(clases.id, nominaPartidas.claseId))
+      .where(and(
+        eq(nominaPartidas.docenteId, docenteId),
+        isNull(nominaPartidas.nominaId),
+        gte(clases.iniciaEn, rango.desde),
+        lte(clases.iniciaEn, rango.hasta),
+      ))
       .all();
 
-    if (partidas.length === 0) throw new Error("Este maestro no tiene clases pendientes de pago.");
+    if (partidas.length === 0) {
+      throw new Error("Este maestro no tiene clases pendientes de pago en ese periodo.");
+    }
 
     const total = partidas.reduce((s, p) => s + p.importe, 0);
 

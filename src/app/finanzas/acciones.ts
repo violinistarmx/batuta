@@ -200,11 +200,9 @@ export async function calcularNomina(
   });
 
   revalidatePath("/finanzas/nomina");
-  return {
-    ok: r.creadas === 0
-      ? `Sin clases nuevas por pagar en ese rango (${r.omitidas} ya estaban consideradas o no generan pago).`
-      : `${r.creadas} clase(s) agregadas al corte. ${r.omitidas} omitidas por ya estar consideradas o no generar pago.`,
-  };
+  // La pantalla se abre en el mismo periodo que se calculó: lo que se ve y lo que se
+  // paga son las clases de esas fechas, no todo lo pendiente.
+  redirect(`/finanzas/nomina?desde=${desde}&hasta=${hasta}&creadas=${r.creadas}&omitidas=${r.omitidas}`);
 }
 
 const PagoNomina = z.object({
