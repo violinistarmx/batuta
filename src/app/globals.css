@@ -27,6 +27,44 @@
   --font-display: Newsreader, Georgia, serif;
 }
 
+/**
+ * Movimiento de la interfaz. Curvas y duraciones de Emil Kowalski (design
+ * engineering): salida rápida para lo que aparece, menos de 300 ms para la UI.
+ * Nada de ease-in en entradas. Si el usuario pide reducir movimiento, todo esto
+ * se apaga (ver la regla al final).
+ */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duracion-pulsar: 120ms;
+  --duracion-entrada: 260ms;
+}
+
+@layer base {
+  /* Feedback al presionar: el botón responde al dedo. Va en la capa base para
+     que las clases de transición de Tailwind sigan mandando sobre el botón. */
+  button:not(:disabled) {
+    transition: transform var(--duracion-pulsar) var(--ease-out);
+  }
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+}
+
+/* Entrada corta de tarjetas y secciones. --i escalona la aparición. */
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.entrar {
+  animation: entrar var(--duracion-entrada) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrar { animation: none; }
+  button:not(:disabled):active { transform: none; }
+}
+
 body {
   background: var(--color-vs-crema);
   color: var(--color-vs-tinta);

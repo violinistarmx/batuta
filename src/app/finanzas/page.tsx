@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import { Encabezado } from "@/components/encabezado";
@@ -12,6 +13,9 @@ import { pesos } from "@/lib/formato";
 import { hoyEnMexico } from "@/lib/zona";
 
 export const dynamic = "force-dynamic";
+
+/** Retardo escalonado de la entrada de cada bloque (clase `.entrar` en globals.css). */
+const retardo = (i: number) => ({ "--i": i }) as CSSProperties;
 
 export default async function Finanzas({
   searchParams,
@@ -123,7 +127,7 @@ export default async function Finanzas({
           </a>
         </div>
 
-        <dl className="mt-6 grid gap-px overflow-hidden rounded-lg border border-vs-linea bg-vs-linea sm:grid-cols-2 lg:grid-cols-4">
+        <dl style={retardo(0)} className="entrar mt-6 grid gap-px overflow-hidden rounded-lg border border-vs-linea bg-vs-linea sm:grid-cols-2 lg:grid-cols-4">
           {tarjetas.map((x) => (
             <div key={x.t} className="bg-white px-4 py-3.5">
               <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">{x.t}</dt>
@@ -137,7 +141,7 @@ export default async function Finanzas({
           ))}
         </dl>
 
-        <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+        <section style={retardo(1)} className="entrar mt-5 rounded-xl border border-vs-linea bg-white p-5">
           <h2 className="font-display text-lg font-semibold">Resultado administrativo</h2>
           <p id="resultado-admin" className="mt-2 font-display text-4xl font-semibold tabular-nums">
             {pesos(res.resultadoCentavos)}
@@ -155,7 +159,7 @@ export default async function Finanzas({
 
         {/* Gráfica comparativa ingresos vs egresos */}
         {puedeGastos && egresosHist.length > 0 ? (
-          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+          <section style={retardo(2)} className="entrar mt-5 rounded-xl border border-vs-linea bg-white p-5">
             <h2 className="font-display text-lg font-semibold">Ingresos vs Egresos</h2>
             <p className="mt-1 text-sm text-vs-tinta-2">
               Dinero cobrado y gastos registrados por mes, últimos doce.
@@ -171,7 +175,7 @@ export default async function Finanzas({
             </div>
           </section>
         ) : (
-          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+          <section style={retardo(3)} className="entrar mt-5 rounded-xl border border-vs-linea bg-white p-5">
             <h2 className="font-display text-lg font-semibold">Ingresos por mes</h2>
             <p className="mt-1 text-sm text-vs-tinta-2">
               Dinero cobrado cada mes, últimos doce. Un mes sin cobros aparece en cero y no
@@ -191,7 +195,7 @@ export default async function Finanzas({
 
         {/* Distribución de gastos por categoría */}
         {puedeGastos && categoriaGastos.length > 0 && (
-          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+          <section style={retardo(4)} className="entrar mt-5 rounded-xl border border-vs-linea bg-white p-5">
             <h2 className="font-display text-lg font-semibold">Distribución de gastos</h2>
             <p className="mt-1 text-sm text-vs-tinta-2">Por categoría en el periodo seleccionado.</p>
             <div className="mt-4 flex flex-wrap items-center gap-6">
@@ -216,7 +220,7 @@ export default async function Finanzas({
 
         {/* -------------------------------------------- gastos del periodo */}
         {puedeGastos && (
-          <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
+          <section style={retardo(5)} className="entrar mt-5 rounded-xl border border-vs-linea bg-white p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="font-display text-lg font-semibold">Gastos del periodo</h2>
               <Link href="/finanzas/gastos" className="text-sm no-underline hover:underline">
