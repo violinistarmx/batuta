@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { configuracion } from "@/db/schema/index";
+import { configuracion, nominaPartidas } from "@/db/schema/index";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
@@ -203,6 +203,72 @@ export async function calcularNomina(
   // La pantalla se abre en el mismo periodo que se calculó: lo que se ve y lo que se
   // paga son las clases de esas fechas, no todo lo pendiente.
   redirect(`/finanzas/nomina?desde=${desde}&hasta=${hasta}&creadas=${r.creadas}&omitidas=${r.omitidas}`);
+}
+
+const AjustePartida = z.object({
+  partidaId: z.coerce.number().int().positive(),
+  porcentaje: z.string().trim()
+    .regex(/^\d{1,3}(\.\d{1,2})?$/, "Escribe un porcentaje entre 0 y 100.")
+    .transform(Number)
+    .refine((n) => n >= 0 && n <= 100, "El porcentaje va de 0 a 100."),
+});
+
+/**
+ * Cambia cuánto cobra el docente en una partida todavía no pagada. Solo lo puede
+ * hacer quien tiene `nomina.leer` (el director). Con «Anular» el factor queda en 0 y
+ * el importe en $0. Una partida ya pagada no se toca: ese dinero ya salió.
+ */
+export async function ajustarFactorPartidaAccion(
+  _previo: EstadoNomina,
+  datos: FormData,
+): Promise<EstadoNomina> {
+  const sesion = await exigirPermiso("nomina.leer");
+
+  const anular = datos.get("anular") === "1";
+  const parsed = AjustePartida.safeParse({
+    partidaId: datos.get("partidaId"),
+    porcentaje: anular ? "0" : String(datos.get("porcentaje") ?? ""),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa el porcentaje." };
+
+  const { partidaId, porcentaje } = parsed.data;
+  const factor = porcentaje / 100;
+
+  let cambio: { antes: { factor: string; importe: number }; despues: { factor: string; importe: number } };
+  try {
+    cambio = db.transaction((tx) => {
+      const p = tx.select().from(nominaPartidas).where(eq(nominaPartidas.id, partidaId)).get();
+      if (!p) throw new Error("Esa partida ya no existe.");
+      if (p.nominaId !== null) throw new Error("Esa clase ya está pagada: no se puede cambiar.");
+
+      const importe = Math.round((p.minutos / 60) * p.tarifaHoraCentavos * factor);
+      tx.update(nominaPartidas)
+        .set({ factor: String(factor), importeCentavos: importe })
+        .where(eq(nominaPartidas.id, partidaId))
+        .run();
+
+      return {
+        antes: { factor: p.factor, importe: p.importeCentavos },
+        despues: { factor: String(factor), importe },
+      };
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo cambiar la partida." };
+  }
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "nomina.ajustar",
+    entidad: "nomina_partidas",
+    entidadId: partidaId,
+    cambios: {
+      factor: [cambio.antes.factor, cambio.despues.factor],
+      importe_centavos: [cambio.antes.importe, cambio.despues.importe],
+    },
+  });
+
+  revalidatePath("/finanzas/nomina");
+  return { ok: anular ? "Clase anulada: no genera costo." : `Porcentaje cambiado a ${porcentaje} %.` };
 }
 
 const PagoNomina = z.object({

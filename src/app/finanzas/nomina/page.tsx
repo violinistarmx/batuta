@@ -9,6 +9,7 @@ import { parametrosNomina } from "@/lib/datos/costo-docente";
 import { pesos } from "@/lib/formato";
 import { fechaCivil, hoyEnMexico, horaCivil } from "@/lib/zona";
 import { Calcular, PagarDocente } from "./cliente";
+import { AjustarFactor } from "./ajustar-factor";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,7 @@ export default async function Nomina({ searchParams }: { searchParams: Promise<B
                           <th className="px-5 py-2 text-right font-semibold">Min.</th>
                           <th className="px-5 py-2 text-right font-semibold">Factor</th>
                           <th className="px-5 py-2 text-right font-semibold">Importe</th>
+                          {puedePagar && <th className="px-5 py-2 text-right font-semibold">Ajustar</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -155,6 +157,11 @@ export default async function Nomina({ searchParams }: { searchParams: Promise<B
                             <td className="px-5 py-2 text-right tabular-nums font-medium">
                               {pesos(p.importeCentavos)}
                             </td>
+                            {puedePagar && (
+                              <td className="px-5 py-2">
+                                <AjustarFactor partidaId={p.id} factorActual={Number(p.factor)} />
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>

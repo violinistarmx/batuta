@@ -24,7 +24,7 @@ export type Accion =
   | "clase.corregir"
   | "pago.registrar" | "pago.modificar" | "pago.editar" | "cargo.generar" | "cargo.editar" | "cargo.cancelar"
   | "gasto.registrar" | "gasto.editar" | "gasto.eliminar"
-  | "nomina.calcular" | "nomina.pagar"
+  | "nomina.calcular" | "nomina.pagar" | "nomina.ajustar"
   | "recibo.emitir" | "recibo.imprimir"
   | "documento.subir" | "documento.descargar" | "documento.eliminar"
   | "prospecto.crear" | "prospecto.seguimiento" | "prospecto.etapa" | "prospecto.convertir"
