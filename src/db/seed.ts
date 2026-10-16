@@ -361,11 +361,12 @@ const PERMISOS_DOCENTE = [
 ];
 
 // El asistente arranca con lo operativo. El director ajusta desde configuración.
-// Rol secundario: administra alumnos e inscripciones. Sin alumnos.descartar
-// (borra expedientes) ni usuarios, finanzas o configuración.
+// Rol secundario: administra alumnos, inscripciones y agenda de clases. Sin
+// alumnos.descartar (borra expedientes) ni usuarios, finanzas o configuración.
 const PERMISOS_ADMINISTRADORA = [
   "alumnos.leer", "alumnos.crear", "alumnos.editar",
   "inscripciones.leer", "inscripciones.crear",
+  "clases.leer", "clases.crear",
 ];
 
 const PERMISOS_ASISTENTE = [
