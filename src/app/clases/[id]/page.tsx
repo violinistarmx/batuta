@@ -8,10 +8,10 @@ import { aulasActivas, clasePorId } from "@/lib/datos/clases";
 import { planeacionDeClase, tareasDeClase } from "@/lib/datos/expediente";
 import { etiquetaDeEstado } from "@/lib/dominio/asistencia";
 import {
-  destinatarioWhatsApp, enlaceWhatsApp, fechaParaRecordatorio, horaParaRecordatorio,
+  destinatarioClase, enlaceWhatsApp, fechaParaRecordatorio, horaParaRecordatorio,
   textoRecordatorioClase,
 } from "@/lib/dominio/recordatorios";
-import { fechaLarga } from "@/lib/formato";
+import { esMenorDeEdad, fechaLarga } from "@/lib/formato";
 import { fechaCivil, hoyEnMexico, horaCivil } from "@/lib/zona";
 import { Asistencia, Posponer } from "./acciones-cliente";
 import { Corregir } from "./corregir";
@@ -44,8 +44,11 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
   let enlaceRecordatorio: string | null = null;
   if (clase.estado === "programada") {
     const alumnoDatos = alumnoPorId(clase.alumnoId, alcanceDe(sesion));
+    // Adulto solo si la fecha de nacimiento consta y es de 18 o más. Sin fecha se
+    // trata como menor: el mensaje va al tutor, que es lo prudente.
+    const esAdulto = !!alumnoDatos?.fechaNacimiento && !esMenorDeEdad(alumnoDatos.fechaNacimiento);
     const destino = alumnoDatos
-      ? destinatarioWhatsApp(tutoresDe(clase.alumnoId), alumnoDatos)
+      ? destinatarioClase(tutoresDe(clase.alumnoId), alumnoDatos, esAdulto)
       : null;
     if (destino) {
       const texto = textoRecordatorioClase({
@@ -55,6 +58,8 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
         fecha: fechaParaRecordatorio(clase.iniciaEn),
         horaInicio: horaParaRecordatorio(horaCivil(clase.iniciaEn)),
         horaFin: horaParaRecordatorio(horaCivil(clase.terminaEn)),
+        saludo: destino.saludo,
+        paraTutor: destino.paraTutor,
       });
       enlaceRecordatorio = enlaceWhatsApp(destino.numero, texto);
     }

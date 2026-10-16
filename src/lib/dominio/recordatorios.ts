@@ -2,7 +2,7 @@
  * Mensajes de WhatsApp que la academia envía a tutores y alumnos.
  *
  * Los textos son de la dirección: cada variante conserva la voz aprobada y solo
- * se rellenan los datos del sistema (fecha, horario, nombre). Hay cuatro variantes
+ * se rellenan los datos del sistema (fecha, horario, nombres). Hay cuatro variantes
  * por tipo para que dos recordatorios seguidos no suenen idénticos.
  *
  * La variante se elige con el id del registro, no con azar: al recargar la página
@@ -43,6 +43,8 @@ type TutorContacto = {
   esResponsablePago: boolean;
 };
 
+const primerNombre = (nombre: string) => nombre.split(" ")[0] ?? nombre;
+
 /**
  * A quién escribirle: primero el tutor responsable de pago (su WhatsApp, o su
  * teléfono si no tiene WhatsApp distinto); si no hay tutor, el teléfono del alumno.
@@ -57,7 +59,33 @@ export function destinatarioWhatsApp(
     : numeroWhatsApp(alumno.telefono);
   if (!numero) return null;
   const nombre = tutor ? tutor.nombre : alumno.nombre;
-  return { numero, primerNombre: nombre.split(" ")[0] ?? nombre };
+  return { numero, primerNombre: primerNombre(nombre) };
+}
+
+/**
+ * Destinatario de un recordatorio de clase.
+ *
+ * - Alumno adulto: se le escribe a él, directo, de usted.
+ * - Alumno menor, o sin fecha de nacimiento: se le escribe al tutor responsable de
+ *   pago, lo saluda por su nombre y se nombra al alumno. Sin tutor, se usa el
+ *   teléfono del alumno y se le saluda a él.
+ */
+export function destinatarioClase(
+  tutores: readonly TutorContacto[],
+  alumno: { nombre: string; telefono: string | null },
+  esAdulto: boolean,
+): { numero: string; saludo: string; paraTutor: boolean } | null {
+  if (esAdulto) {
+    const numero = numeroWhatsApp(alumno.telefono);
+    return numero ? { numero, saludo: primerNombre(alumno.nombre), paraTutor: false } : null;
+  }
+  const tutor = tutores.find((t) => t.esResponsablePago) ?? tutores[0];
+  const numero = tutor
+    ? numeroWhatsApp(tutor.whatsapp ?? tutor.telefono)
+    : numeroWhatsApp(alumno.telefono);
+  if (!numero) return null;
+  const saludo = tutor ? primerNombre(tutor.nombre) : primerNombre(alumno.nombre);
+  return { numero, saludo, paraTutor: true };
 }
 
 // ------------------------------------------------------- formato de fecha ---
@@ -82,7 +110,7 @@ export function fechaParaRecordatorio(instante: Date): string {
 export type DatosRecordatorioClase = {
   /** id de la clase: decide la variante. */
   id: number;
-  /** Primer nombre del alumno, como aparece en el saludo. */
+  /** Primer nombre del alumno (quien toma la clase). */
   alumno: string;
   /** Instrumento en minúsculas: «violín», «piano». */
   instrumento: string;
@@ -91,19 +119,31 @@ export type DatosRecordatorioClase = {
   /** Horas ya formateadas: «3:00 p. m.» y «5:00 p. m.». */
   horaInicio: string;
   horaFin: string;
+  /** Nombre con el que se saluda: el tutor, o el propio alumno si es adulto. */
+  saludo: string;
+  /**
+   * true: se escribe al tutor y el alumno se nombra en tercera persona.
+   * false: el alumno es adulto y se le escribe de usted.
+   */
+  paraTutor: boolean;
 };
 
 export function textoRecordatorioClase(d: DatosRecordatorioClase): string {
+  const D = d.saludo;
   const N = d.alumno;
   const I = d.instrumento;
   const F = d.fecha;
   const H1 = d.horaInicio;
   const H2 = d.horaFin;
+  // Quien toma la clase: el nombre del hijo, o «usted» si el alumno es adulto.
+  const sujeto = d.paraTutor ? N : "usted";
+  // Para el tutor se aclara de quién es la clase; para el adulto ya queda claro.
+  const complemento = d.paraTutor ? ` de ${N}` : "";
   const variantes = [
     [
-      `Hola, ${N} 😊✨`,
+      `Hola, ${D} 😊✨`,
       "Esperamos que se encuentre muy bien. Le escribimos para recordarle que " +
-        `${N} tiene programada su clase de ${I} el ${F}, de ${H1} a ${H2}`,
+        `${sujeto} tiene programada su clase de ${I} el ${F}, de ${H1} a ${H2}`,
       "",
       "Lo esperamos con mucho gusto en VioliniStar 🤩",
       "",
@@ -112,9 +152,9 @@ export function textoRecordatorioClase(d: DatosRecordatorioClase): string {
       "¡Muchas gracias! Quedamos atentos. 🎶✨",
     ],
     [
-      `¡Hola, ${N}! 👋✨`,
-      "Esperamos que tenga un excelente día. Le recordamos que su clase de " +
-        `${I} está programada para el ${F}, de ${H1} a ${H2}`,
+      `¡Hola, ${D}! 👋✨`,
+      "Esperamos que tenga un excelente día. Le recordamos que la clase de " +
+        `${I}${complemento} está programada para el ${F}, de ${H1} a ${H2}`,
       "",
       `Será un gusto recibir a ${N} en VioliniStar 🤩`,
       "",
@@ -123,8 +163,8 @@ export function textoRecordatorioClase(d: DatosRecordatorioClase): string {
       "¡Gracias por su confianza! Quedamos atentos. 🎶✨",
     ],
     [
-      `Buen día, ${N} 🎶`,
-      `Le compartimos un recordatorio de la clase de ${I} de ${N}: será el ${F}, de ${H1} a ${H2} 📅`,
+      `Buen día, ${D} 🎶`,
+      `Le compartimos un recordatorio de la clase de ${I}${complemento}: será el ${F}, de ${H1} a ${H2} 📅`,
       "",
       "Nos encantará tenerle en clase en VioliniStar 🤩",
       "",
@@ -133,9 +173,9 @@ export function textoRecordatorioClase(d: DatosRecordatorioClase): string {
       "¡Muchas gracias por su atención! Quedamos muy atentos. ✨",
     ],
     [
-      `Hola, ${N} 👋😊`,
+      `Hola, ${D} 👋😊`,
       "Esperamos que se encuentre muy bien. Pasamos a recordarle que " +
-        `${N} tiene clase de ${I} el ${F}, de ${H1} a ${H2}`,
+        `${sujeto} tiene clase de ${I} el ${F}, de ${H1} a ${H2}`,
       "",
       "Lo esperamos con gusto en VioliniStar 🎵🤩",
       "Si no puede asistir, le pedimos que nos lo notifique con la mayor anticipación posible 🙏🏻",
