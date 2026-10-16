@@ -106,7 +106,7 @@ export function ocupacionDocente(r: Rango): FilaOcupacion[] {
       minutos: sql<number>`coalesce(sum(clases.minutos), 0)`,
       alumnos: sql<number>`count(DISTINCT inscripciones.alumno_id)`,
       costoCentavos: sql<number>`coalesce(sum(${costoDeClaseSql(
-        param.tarifaHoraCentavos, param.factorFaltaSinAviso,
+        param.tarifaHoraCentavos, param.factorFaltaSinAviso, param.factorFaltaJustificada,
       )}), 0)`,
     })
     .from(clases)
@@ -163,7 +163,9 @@ export function dineroPorPrograma(r: Rango): FilaPrograma[] {
       // fragmento de costo los referencia así y dos formas de nombrarlos serían
       // dos formas de equivocarse.
       costoDocenteCentavos: sql<number>`coalesce((
-        SELECT sum(${costoDeClaseSql(param.tarifaHoraCentavos, param.factorFaltaSinAviso)})
+        SELECT sum(${costoDeClaseSql(
+          param.tarifaHoraCentavos, param.factorFaltaSinAviso, param.factorFaltaJustificada,
+        )})
         FROM clases
         JOIN docentes ON docentes.id = clases.docente_id
         JOIN inscripciones i4 ON i4.id = clases.inscripcion_id

@@ -227,6 +227,10 @@ const CONFIG: {
   { clave: "factor_falta_sin_aviso", valor: "0.75", tipo: "decimal",
     descripcion: "Proporción que cobra el docente cuando el alumno falta sin avisar.",
     fuente: "Dirección" },
+  { clave: "factor_falta_justificada", valor: "0", tipo: "decimal",
+    descripcion: "Proporción que cobra el docente cuando la falta es justificada y se " +
+      "recupera. 0 = sin costo para la academia.",
+    fuente: "Dirección" },
   { clave: "horas_aviso_posposicion", valor: "24", tipo: "entero",
     descripcion: "Anticipación mínima para posponer sin consumir la clase.",
     fuente: "Contrato cláusula 4ª" },

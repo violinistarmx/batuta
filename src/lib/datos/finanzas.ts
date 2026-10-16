@@ -584,6 +584,7 @@ export function generarNomina(
   hasta: Date,
   tarifaHoraCentavos: number,
   factorFaltaSinAviso: number,
+  factorFaltaJustificada: number,
 ): { creadas: number; omitidas: number } {
   const candidatas = db
     .select({
@@ -617,7 +618,7 @@ export function generarNomina(
       const tarifaEfectiva = c.tarifaPropia ?? c.tarifaPrograma ?? tarifaHoraCentavos;
       const importe = importeDocenteCentavos(
         c.minutos, estado,
-        { tarifaHoraCentavos, factorFaltaSinAviso },
+        { tarifaHoraCentavos, factorFaltaSinAviso, factorFaltaJustificada },
         tarifaEfectiva,
       );
 
@@ -627,7 +628,9 @@ export function generarNomina(
         minutos: c.minutos,
         estadoClase: estado,
         tarifaHoraCentavos: tarifaEfectiva,
-        factor: estado === "asistio" ? "1" : String(factorFaltaSinAviso),
+        factor: estado === "asistio" ? "1"
+          : estado === "falta_justificada" ? String(factorFaltaJustificada)
+          : String(factorFaltaSinAviso),
         importeCentavos: importe,
       }).run();
       creadas++;
@@ -785,7 +788,7 @@ export function resultadoAdministrativo(desde: string, hasta: string) {
   const nominaDevengada = db
     .select({
       t: sql<number>`coalesce(sum(${costoDeClaseSql(
-        param.tarifaHoraCentavos, param.factorFaltaSinAviso,
+        param.tarifaHoraCentavos, param.factorFaltaSinAviso, param.factorFaltaJustificada,
       )}), 0)`,
     })
     .from(clases)

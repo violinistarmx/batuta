@@ -5,6 +5,7 @@ import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import {
   cortesDeNomina, nominaPendientePorDocente, partidasPendientesDe,
 } from "@/lib/datos/finanzas";
+import { parametrosNomina } from "@/lib/datos/costo-docente";
 import { pesos } from "@/lib/formato";
 import { fechaCivil, hoyEnMexico, horaCivil } from "@/lib/zona";
 import { Calcular, PagarDocente } from "./cliente";
@@ -20,6 +21,9 @@ const METODO: Record<string, string> = {
   deposito: "Depósito", otro: "Otro",
 };
 
+/** 0.75 → "75 %". Lo muestra tal cual, sin decimales innecesarios. */
+const porcentaje = (factor: number) => `${Number((factor * 100).toFixed(2))} %`;
+
 export default async function Nomina() {
   // Un docente entra con `nomina.leer_propia`; el alcance lo limita a lo suyo.
   const sesion = await exigirPermiso(
@@ -34,6 +38,7 @@ export default async function Nomina() {
   const pendientes = nominaPendientePorDocente(alcance);
   const total = pendientes.reduce((s, p) => s + p.totalCentavos, 0);
   const cortes = cortesDeNomina(alcance);
+  const param = parametrosNomina();
 
   return (
     <>
@@ -50,9 +55,16 @@ export default async function Nomina() {
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-vs-tinta-2">
           $120 por hora impartida: una clase de una hora paga $120 y una de dos, $240. Cuando el
-          alumno falta sin avisar, el maestro cobra el 75 % porque reservó el horario y se
-          presentó.
+          alumno falta sin avisar, el maestro cobra el {porcentaje(param.factorFaltaSinAviso)} porque
+          reservó el horario y se presentó. Una falta justificada que se recupera con tiempo cobra
+          el {porcentaje(param.factorFaltaJustificada)}: no genera gasto para la academia.
         </p>
+        {puedePagar && (
+          <p className="mt-2 text-xs text-vs-tinta-3">
+            Para cambiar estos porcentajes:{" "}
+            <Link href="/ajustes" className="underline">Ajustes → Decisiones de dirección</Link>.
+          </p>
+        )}
 
         {puedePagar && (
           <section className="mt-6 rounded-xl border border-vs-linea bg-white p-5">

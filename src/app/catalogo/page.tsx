@@ -53,6 +53,7 @@ export default async function Catalogo() {
     ["Arrastre al mes siguiente", `${cfg.arrastre_max_clases} clases`, "Cláusula 4ª"],
     ["Pago docente por hora", pesos(tarifaHora), "Dirección"],
     ["Falta sin aviso", `${Number(cfg.factor_falta_sin_aviso) * 100} %`, "Dirección"],
+    ["Falta justificada", `${Number(cfg.factor_falta_justificada ?? 0) * 100} %`, "Dirección"],
     ["Costo de inscripción", pesos(Number(cfg.costo_inscripcion_centavos)), "Cláusula 2ª"],
     ["Credencial oficial", `${cfg.dias_entrega_credencial} días`, "Cláusula 10ª"],
     ["Aviso de baja", `${cfg.horas_aviso_baja} h`, "Cláusula 12ª"],
@@ -112,6 +113,7 @@ export default async function Catalogo() {
                     {
                       tarifaHoraCentavos: tarifaHora,
                       factorFaltaSinAviso: Number(cfg.factor_falta_sin_aviso),
+                      factorFaltaJustificada: Number(cfg.factor_falta_justificada ?? 0),
                     },
                   );
                   const { margenPorcentaje } = margenDelCiclo(p.precio, costo);

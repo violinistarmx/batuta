@@ -19,7 +19,11 @@ import { configuracion } from "@/db/schema/index";
  *
  * La consulta que lo use debe tener `clases` y `docentes` en el FROM o en un JOIN.
  */
-export function costoDeClaseSql(tarifaHoraCentavos: number, factorFaltaSinAviso: number) {
+export function costoDeClaseSql(
+  tarifaHoraCentavos: number,
+  factorFaltaSinAviso: number,
+  factorFaltaJustificada: number,
+) {
   // Jerarquía: tarifa propia del docente > tarifa del programa > tarifa global
   // La consulta que lo use debe tener `docentes` y `programas` en los JOINs.
   const tarifa = sql`coalesce(docentes.tarifa_hora_centavos, programas.tarifa_docente_hora_centavos, ${tarifaHoraCentavos})`;
@@ -29,14 +33,18 @@ export function costoDeClaseSql(tarifaHoraCentavos: number, factorFaltaSinAviso:
     CASE clases.estado
       WHEN 'asistio' THEN CAST(round(${completo}) AS INTEGER)
       WHEN 'falta' THEN CAST(round(${completo} * ${factorFaltaSinAviso}) AS INTEGER)
-      WHEN 'falta_justificada' THEN CAST(round(${completo} * ${factorFaltaSinAviso}) AS INTEGER)
+      WHEN 'falta_justificada' THEN CAST(round(${completo} * ${factorFaltaJustificada}) AS INTEGER)
       ELSE 0
     END
   )`;
 }
 
 /** Tarifa y factor vigentes. Ninguna regla de negocio vive en el código. */
-export function parametrosNomina(): { tarifaHoraCentavos: number; factorFaltaSinAviso: number } {
+export function parametrosNomina(): {
+  tarifaHoraCentavos: number;
+  factorFaltaSinAviso: number;
+  factorFaltaJustificada: number;
+} {
   const leer = (clave: string, omision: number) => {
     const v = db.select({ valor: configuracion.valor }).from(configuracion)
       .where(eq(configuracion.clave, clave)).get()?.valor;
@@ -46,5 +54,7 @@ export function parametrosNomina(): { tarifaHoraCentavos: number; factorFaltaSin
   return {
     tarifaHoraCentavos: leer("tarifa_docente_hora_centavos", 12000),
     factorFaltaSinAviso: leer("factor_falta_sin_aviso", 0.75),
+    // Sin costo por omision: una falta justificada se recupera y no se paga.
+    factorFaltaJustificada: leer("factor_falta_justificada", 0),
   };
 }

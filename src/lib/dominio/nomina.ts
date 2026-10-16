@@ -16,6 +16,11 @@ export type ParametrosNomina = {
    * presento, asi que cobra una parte. Confirmado en 0.75 por la direccion.
    */
   factorFaltaSinAviso: number;
+  /**
+   * Factor cuando la falta es justificada y se coordina con el docente. La clase se
+   * recupera con tiempo, no genera costo para la academia: por defecto 0.
+   */
+  factorFaltaJustificada: number;
 };
 
 /**
@@ -39,9 +44,13 @@ export function importeDocenteCentavos(
       return Math.round(completo);
 
     case "falta":
-    case "falta_justificada":
       // El maestro reservo el horario y se presento.
       return Math.round(completo * p.factorFaltaSinAviso);
+
+    case "falta_justificada":
+      // Se coordina con el docente y se recupera: no es un gasto de la academia
+      // salvo que la direccion decida otro factor.
+      return Math.round(completo * p.factorFaltaJustificada);
 
     case "cancelada":
     case "reprogramada":

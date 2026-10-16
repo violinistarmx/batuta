@@ -189,6 +189,7 @@ export async function calcularNomina(
     instanteEnMexico(hasta, "23:59"),
     Number(c.tarifa_docente_hora_centavos ?? 12000),
     Number(c.factor_falta_sin_aviso ?? 0.75),
+    Number(c.factor_falta_justificada ?? 0),
   );
 
   registrar({

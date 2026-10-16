@@ -17,7 +17,11 @@ import {
 } from "./nomina.ts";
 
 const CICLO: ParametrosCiclo = { horasAvisoPosposicion: 24, maxPosposicionesPorCiclo: 2 };
-const NOMINA: ParametrosNomina = { tarifaHoraCentavos: 12_000, factorFaltaSinAviso: 0.75 };
+const NOMINA: ParametrosNomina = {
+  tarifaHoraCentavos: 12_000,
+  factorFaltaSinAviso: 0.75,
+  factorFaltaJustificada: 0,
+};
 
 describe("saldo de clases", () => {
   test("asistir consume un credito", () => {
@@ -120,6 +124,17 @@ describe("nomina docente", () => {
   test("falta sin aviso paga el 75 %", () => {
     assert.equal(importeDocenteCentavos(60, "falta", NOMINA), 9_000);
     assert.equal(importeDocenteCentavos(120, "falta", NOMINA), 18_000);
+  });
+
+  test("falta justificada no genera costo por defecto (se recupera)", () => {
+    assert.equal(importeDocenteCentavos(60, "falta_justificada", NOMINA), 0);
+    assert.equal(importeDocenteCentavos(120, "falta_justificada", NOMINA), 0);
+  });
+
+  test("el factor de falta justificada se puede cambiar sin tocar la falta sin aviso", () => {
+    const con50 = { ...NOMINA, factorFaltaJustificada: 0.5 };
+    assert.equal(importeDocenteCentavos(60, "falta_justificada", con50), 6_000);
+    assert.equal(importeDocenteCentavos(60, "falta", con50), 9_000);
   });
 
   test("clase cancelada o pospuesta no paga", () => {
