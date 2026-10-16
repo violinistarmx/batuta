@@ -17,6 +17,7 @@ import {
 } from "@/lib/dominio/recordatorios";
 import { hoyEnMexico } from "@/lib/zona";
 import { Cobrar } from "./cobrar";
+import { fijarTratamientoTutor } from "./tratamiento-acciones";
 import { BotonReactivar } from "./cargos/boton-reactivar";
 import { edad, esMenorDeEdad, fechaLarga, pesos } from "@/lib/formato";
 import { qrComoSvg } from "@/lib/qr";
@@ -42,6 +43,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const inscripciones = inscripcionesDe(alumno.id, alcanceDe(sesion));
   const puedeInscribir = tienePermiso(sesion, "inscripciones.crear");
   const puedeCobrar = tienePermiso(sesion, "pagos.registrar");
+  const puedeEditarAlumno = tienePermiso(sesion, "alumnos.editar");
   const puedeDescontar = tienePermiso(sesion, "configuracion.gestionar");
   const verFinanzas = tienePermiso(sesion, "finanzas.leer") || puedeCobrar;
   const cargos = verFinanzas ? cargosDeAlumno(alumno.id) : [];
@@ -92,7 +94,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
       .map((c) => `• ${c.descripcion}: ${pesos(adeudoDe(c))}`)
       .join("\n");
     const msg = [
-      `Hola ${destino.primerNombre} 👋, te saluda VioliniStar Academia de Música.`,
+      `Hola ${destino.saludo} 👋, te saluda VioliniStar Academia de Música.`,
       ``,
       `Te recordamos que ${nombreAlumno} tiene el siguiente saldo pendiente:`,
       cargosTexto,
@@ -111,7 +113,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const waLinkRenovacion = destino
     ? enlaceWhatsApp(
         destino.numero,
-        textoRecordatorioRenovacion({ id: alumno.id, alumno: alumno.nombre }),
+        textoRecordatorioRenovacion({ id: alumno.id, alumno: alumno.nombre, saludo: destino.saludo }),
       )
     : null;
 
@@ -224,6 +226,23 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                       {[t.telefono, t.whatsapp !== t.telefono ? t.whatsapp : null, t.email]
                         .filter(Boolean).join(" · ") || "Sin contacto"}
                     </p>
+                    {puedeEditarAlumno && (
+                      <form action={fijarTratamientoTutor}
+                            className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-vs-tinta-3">
+                        <input type="hidden" name="alumnoId" value={alumno.id} />
+                        <input type="hidden" name="tutorId" value={t.id} />
+                        <label className="flex items-center gap-1.5">
+                          Se saluda como
+                          <select name="tratamiento" defaultValue={t.tratamiento ?? ""}
+                                  className="rounded border border-vs-linea bg-white px-1.5 py-0.5 text-xs text-vs-tinta">
+                            <option value="">Solo el nombre</option>
+                            <option value="Sr.">Sr.</option>
+                            <option value="Sra.">Sra.</option>
+                          </select>
+                        </label>
+                        <button type="submit" className="underline hover:no-underline">Guardar</button>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>

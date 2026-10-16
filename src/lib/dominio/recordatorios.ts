@@ -38,6 +38,7 @@ export function enlaceWhatsApp(numero: string, texto: string): string {
 
 type TutorContacto = {
   nombre: string;
+  tratamiento: string | null;
   telefono: string | null;
   whatsapp: string | null;
   esResponsablePago: boolean;
@@ -46,20 +47,29 @@ type TutorContacto = {
 const primerNombre = (nombre: string) => nombre.split(" ")[0] ?? nombre;
 
 /**
+ * Cómo se saluda a un tutor: «Sra. Minerva» si tiene tratamiento, «Minerva» si no.
+ * Solo el tutor lleva tratamiento; al alumno adulto se le saluda por su nombre.
+ */
+export function saludoDeTutor(t: { nombre: string; tratamiento: string | null }): string {
+  const nombre = primerNombre(t.nombre);
+  return t.tratamiento ? `${t.tratamiento} ${nombre}` : nombre;
+}
+
+/**
  * A quién escribirle: primero el tutor responsable de pago (su WhatsApp, o su
  * teléfono si no tiene WhatsApp distinto); si no hay tutor, el teléfono del alumno.
  */
 export function destinatarioWhatsApp(
   tutores: readonly TutorContacto[],
   alumno: { nombre: string; telefono: string | null },
-): { numero: string; primerNombre: string } | null {
+): { numero: string; saludo: string } | null {
   const tutor = tutores.find((t) => t.esResponsablePago) ?? tutores[0];
   const numero = tutor
     ? numeroWhatsApp(tutor.whatsapp ?? tutor.telefono)
     : numeroWhatsApp(alumno.telefono);
   if (!numero) return null;
-  const nombre = tutor ? tutor.nombre : alumno.nombre;
-  return { numero, primerNombre: primerNombre(nombre) };
+  const saludo = tutor ? saludoDeTutor(tutor) : primerNombre(alumno.nombre);
+  return { numero, saludo };
 }
 
 /**
@@ -67,8 +77,8 @@ export function destinatarioWhatsApp(
  *
  * - Alumno adulto: se le escribe a él, directo, de usted.
  * - Alumno menor, o sin fecha de nacimiento: se le escribe al tutor responsable de
- *   pago, lo saluda por su nombre y se nombra al alumno. Sin tutor, se usa el
- *   teléfono del alumno y se le saluda a él.
+ *   pago, lo saluda con su tratamiento y nombre, y se nombra al alumno. Sin tutor,
+ *   se usa el teléfono del alumno y se le saluda a él.
  */
 export function destinatarioClase(
   tutores: readonly TutorContacto[],
@@ -84,7 +94,7 @@ export function destinatarioClase(
     ? numeroWhatsApp(tutor.whatsapp ?? tutor.telefono)
     : numeroWhatsApp(alumno.telefono);
   if (!numero) return null;
-  const saludo = tutor ? primerNombre(tutor.nombre) : primerNombre(alumno.nombre);
+  const saludo = tutor ? saludoDeTutor(tutor) : primerNombre(alumno.nombre);
   return { numero, saludo, paraTutor: true };
 }
 
@@ -119,7 +129,7 @@ export type DatosRecordatorioClase = {
   /** Horas ya formateadas: «3:00 p. m.» y «5:00 p. m.». */
   horaInicio: string;
   horaFin: string;
-  /** Nombre con el que se saluda: el tutor, o el propio alumno si es adulto. */
+  /** Nombre con el que se saluda: el tutor (con tratamiento), o el propio alumno si es adulto. */
   saludo: string;
   /**
    * true: se escribe al tutor y el alumno se nombra en tercera persona.
@@ -193,12 +203,15 @@ export type DatosRecordatorioRenovacion = {
   id: number;
   /** Nombre completo del alumno: la primera variante lo menciona. */
   alumno: string;
+  /** Saludo al tutor (p. ej. «Sra. Minerva»). Sin él, el mensaje no saluda por nombre. */
+  saludo?: string;
 };
 
 export function textoRecordatorioRenovacion(d: DatosRecordatorioRenovacion): string {
+  const coma = d.saludo ? `, ${d.saludo}` : "";
   const variantes = [
     [
-      "Hola 👋",
+      `Hola${coma} 👋`,
       "",
       `Es un honor compartirte que hemos concluido exitosamente esta mensualidad con grandes y significativos avances en el progreso musical de ${d.alumno} ✨`,
       "",
@@ -209,7 +222,7 @@ export function textoRecordatorioRenovacion(d: DatosRecordatorioRenovacion): str
       "¡Te esperamos! 🎵",
     ],
     [
-      "¡Hola!",
+      `¡Hola${coma}!`,
       "",
       "Queremos decirte que estamos muy contentos con tu dedicación. Hemos visto grandes y significativos avances durante esta mensualidad, y eso es resultado de tu compromiso y esfuerzo. 💪",
       "",
@@ -218,7 +231,7 @@ export function textoRecordatorioRenovacion(d: DatosRecordatorioRenovacion): str
       "Para continuar este bonito proceso juntos, te esperamos confirmando tu renovación de programa ¡Seguimos adelante! 🌟",
     ],
     [
-      "¡Felicidades! 🎉",
+      `¡Felicidades${coma}! 🎉`,
       "",
       "Concluimos esta mensualidad con unos avances INCREÍBLES.",
       "¡Has hecho un trabajo extraordinario! 🚀✨",
@@ -231,7 +244,7 @@ export function textoRecordatorioRenovacion(d: DatosRecordatorioRenovacion): str
       "¡Esperamos confirmarte en nuestras clases! 💪",
     ],
     [
-      "¡Hola! 🎻",
+      `¡Hola${coma}! 🎻`,
       "",
       "Llegamos al final de esta mensualidad y la verdad es que estamos muy orgullosos de ti, los avances que hemos visto son grandes y significativos, de verdad.",
       "",

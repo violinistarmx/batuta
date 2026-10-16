@@ -125,6 +125,11 @@ export const alumnos = sqliteTable("alumnos", {
 export const tutores = sqliteTable("tutores", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nombre: text("nombre").notNull(),
+  /**
+   * Cómo se le saluda en los mensajes: "Sr." o "Sra.". Nulo = sin especificar, y el
+   * saludo usa solo el nombre. No se adivina del nombre: se captura.
+   */
+  tratamiento: text("tratamiento", { enum: ["Sr.", "Sra."] }),
   telefono: text("telefono"),
   whatsapp: text("whatsapp"),
   email: text("email"),

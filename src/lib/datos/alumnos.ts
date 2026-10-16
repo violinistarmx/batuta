@@ -270,6 +270,7 @@ export function tutoresDe(alumnoId: number) {
     .select({
       id: tutores.id,
       nombre: tutores.nombre,
+      tratamiento: tutores.tratamiento,
       telefono: tutores.telefono,
       whatsapp: tutores.whatsapp,
       email: tutores.email,

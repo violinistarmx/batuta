@@ -16,6 +16,7 @@ export type Accion =
   | "usuario.crear" | "usuario.editar" | "usuario.desactivar"
   | "usuario.rol_asignar" | "usuario.rol_quitar"
   | "alumno.crear" | "alumno.editar" | "alumno.eliminar" | "alumno.consultar_qr"
+  | "tutor.editar"
   | "salud.leer" | "salud.editar"
   | "inscripcion.crear" | "inscripcion.cambiar_programa" | "inscripcion.baja"
   | "ciclo.renovar" | "ciclo.cerrar"
