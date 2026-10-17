@@ -159,7 +159,11 @@ export default async function Nomina({ searchParams }: { searchParams: Promise<B
                             </td>
                             {puedePagar && (
                               <td className="px-5 py-2">
-                                <AjustarFactor partidaId={p.id} factorActual={Number(p.factor)} />
+                                <AjustarFactor
+                                  partidaId={p.id}
+                                  importeActual={p.importeCentavos}
+                                  valorCompleto={Math.round((p.minutos / 60) * p.tarifaHoraCentavos)}
+                                />
                               </td>
                             )}
                           </tr>

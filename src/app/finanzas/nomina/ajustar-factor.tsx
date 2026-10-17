@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { ajustarFactorPartidaAccion, type EstadoNomina } from "../acciones";
 
-const campo = "w-16 rounded-lg border border-vs-linea bg-white px-2 py-1 text-right text-sm tabular-nums " +
+const campo = "w-24 rounded-lg border border-vs-linea bg-white px-2 py-1 text-right text-sm tabular-nums " +
   "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vs-naranja-700";
 
 function Boton({ texto, pendiente, anular }: { texto: string; pendiente: string; anular?: boolean }) {
@@ -26,28 +26,38 @@ function Boton({ texto, pendiente, anular }: { texto: string; pendiente: string;
 }
 
 /**
- * Cambia el porcentaje de una clase todavía no pagada. Solo la ve quien tiene
- * `nomina.leer`; el servidor vuelve a verificarlo.
+ * Cambia el importe que se le paga al docente en una clase todavía no pagada. Se
+ * captura en pesos; el servidor calcula el porcentaje a partir de ese monto. Solo
+ * la ve quien tiene `nomina.leer`, y el servidor vuelve a verificarlo.
  */
-export function AjustarFactor({ partidaId, factorActual }: { partidaId: number; factorActual: number }) {
+export function AjustarFactor({
+  partidaId, importeActual, valorCompleto,
+}: {
+  partidaId: number;
+  /** Importe que se paga hoy, en centavos. */
+  importeActual: number;
+  /** Lo que vale la clase completa, en centavos: el máximo que se puede pagar. */
+  valorCompleto: number;
+}) {
   const [estado, accion] = useActionState<EstadoNomina, FormData>(ajustarFactorPartidaAccion, {});
 
   return (
     <form action={accion} className="flex flex-wrap items-center justify-end gap-2">
       <input type="hidden" name="partidaId" value={partidaId} />
-      <label className="sr-only" htmlFor={`factor-${partidaId}`}>Porcentaje que cobra el docente</label>
+      <label className="sr-only" htmlFor={`importe-${partidaId}`}>Importe a pagar en pesos</label>
+      <span className="text-xs text-vs-tinta-3">$</span>
       <input
-        id={`factor-${partidaId}`}
-        name="porcentaje"
+        id={`importe-${partidaId}`}
+        name="importe"
         type="number"
         inputMode="decimal"
         min={0}
-        max={100}
-        step="any"
-        defaultValue={Number((factorActual * 100).toFixed(2))}
+        max={valorCompleto / 100}
+        step="0.01"
+        defaultValue={(importeActual / 100).toFixed(2)}
+        title={`Máximo $${(valorCompleto / 100).toFixed(2)}, lo que vale la clase completa`}
         className={campo}
       />
-      <span className="text-xs text-vs-tinta-3">%</span>
       <Boton texto="Guardar" pendiente="…" />
       <Boton texto="Anular" pendiente="…" anular />
       {estado.error && <span role="alert" className="basis-full text-right text-xs text-red-700">{estado.error}</span>}

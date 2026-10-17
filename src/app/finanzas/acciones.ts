@@ -11,6 +11,7 @@ import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
 import { actualizarPago, anularPago, generarNomina, pagarNomina, reciboPorId, registrarPago } from "@/lib/datos/finanzas";
+import { pesos } from "@/lib/formato";
 import { hoyEnMexico, instanteEnMexico } from "@/lib/zona";
 
 function cfg() {
@@ -205,18 +206,19 @@ export async function calcularNomina(
   redirect(`/finanzas/nomina?desde=${desde}&hasta=${hasta}&creadas=${r.creadas}&omitidas=${r.omitidas}`);
 }
 
-const AjustePartida = z.object({
+const AjusteImporte = z.object({
   partidaId: z.coerce.number().int().positive(),
-  porcentaje: z.string().trim()
-    .regex(/^\d{1,3}(\.\d{1,2})?$/, "Escribe un porcentaje entre 0 y 100.")
-    .transform(Number)
-    .refine((n) => n >= 0 && n <= 100, "El porcentaje va de 0 a 100."),
+  importe: z.string().trim()
+    .regex(/^\d{1,6}(\.\d{1,2})?$/, "Escribe un importe en pesos, por ejemplo 90 o 90.50.")
+    .transform((s) => Math.round(Number(s) * 100)),
 });
 
 /**
- * Cambia cuánto cobra el docente en una partida todavía no pagada. Solo lo puede
- * hacer quien tiene `nomina.leer` (el director). Con «Anular» el factor queda en 0 y
- * el importe en $0. Una partida ya pagada no se toca: ese dinero ya salió.
+ * Cambia cuánto se le paga al docente en una clase todavía no pagada. Se captura el
+ * importe en pesos; el porcentaje se calcula a partir de él y nunca se escribe a
+ * mano. Solo lo puede hacer quien tiene `nomina.leer` (el director). El importe no
+ * puede pasar de lo que vale la clase completa. «Anular» lo deja en $0. Una partida
+ * ya pagada no se toca: ese dinero ya salió.
  */
 export async function ajustarFactorPartidaAccion(
   _previo: EstadoNomina,
@@ -225,14 +227,13 @@ export async function ajustarFactorPartidaAccion(
   const sesion = await exigirPermiso("nomina.leer");
 
   const anular = datos.get("anular") === "1";
-  const parsed = AjustePartida.safeParse({
+  const parsed = AjusteImporte.safeParse({
     partidaId: datos.get("partidaId"),
-    porcentaje: anular ? "0" : String(datos.get("porcentaje") ?? ""),
+    importe: anular ? "0" : String(datos.get("importe") ?? ""),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa el porcentaje." };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa el importe." };
 
-  const { partidaId, porcentaje } = parsed.data;
-  const factor = porcentaje / 100;
+  const { partidaId, importe: importeCentavos } = parsed.data;
 
   let cambio: { antes: { factor: string; importe: number }; despues: { factor: string; importe: number } };
   try {
@@ -241,15 +242,22 @@ export async function ajustarFactorPartidaAccion(
       if (!p) throw new Error("Esa partida ya no existe.");
       if (p.nominaId !== null) throw new Error("Esa clase ya está pagada: no se puede cambiar.");
 
-      const importe = Math.round((p.minutos / 60) * p.tarifaHoraCentavos * factor);
+      const completo = Math.round((p.minutos / 60) * p.tarifaHoraCentavos);
+      if (importeCentavos > completo) {
+        throw new Error(`El importe no puede pasar de ${pesos(completo)}: es lo que vale la clase completa.`);
+      }
+
+      // El porcentaje se deriva del importe: así no puede quedar un factor que no
+      // corresponda al monto que realmente se paga.
+      const factor = completo === 0 ? 0 : importeCentavos / completo;
       tx.update(nominaPartidas)
-        .set({ factor: String(factor), importeCentavos: importe })
+        .set({ factor: factor.toFixed(4), importeCentavos })
         .where(eq(nominaPartidas.id, partidaId))
         .run();
 
       return {
         antes: { factor: p.factor, importe: p.importeCentavos },
-        despues: { factor: String(factor), importe },
+        despues: { factor: factor.toFixed(4), importe: importeCentavos },
       };
     });
   } catch (e) {
@@ -268,7 +276,7 @@ export async function ajustarFactorPartidaAccion(
   });
 
   revalidatePath("/finanzas/nomina");
-  return { ok: anular ? "Clase anulada: no genera costo." : `Porcentaje cambiado a ${porcentaje} %.` };
+  return { ok: anular ? "Clase anulada: no genera costo." : `Importe cambiado a ${pesos(importeCentavos)}.` };
 }
 
 const PagoNomina = z.object({

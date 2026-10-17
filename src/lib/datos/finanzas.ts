@@ -690,6 +690,7 @@ export function partidasPendientesDe(docenteId: number, rango: RangoNomina) {
       estadoClase: nominaPartidas.estadoClase,
       factor: nominaPartidas.factor,
       importeCentavos: nominaPartidas.importeCentavos,
+      tarifaHoraCentavos: nominaPartidas.tarifaHoraCentavos,
       iniciaEn: clases.iniciaEn,
       alumno: alumnos.nombre,
     })
