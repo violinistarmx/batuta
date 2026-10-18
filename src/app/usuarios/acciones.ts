@@ -14,6 +14,8 @@ import {
   reactivar, restablecerPassword,
 } from "@/lib/datos/usuarios";
 import { NOMBRE_ROL } from "@/lib/dominio/usuarios";
+import { cambiarTarifa } from "@/lib/datos/tarifas";
+import { hoyEnMexico } from "@/lib/zona";
 
 const ROLES = ["director", "docente", "asistente"] as const;
 
@@ -244,24 +246,30 @@ export async function actualizarTarifaDocente(
 
   const { docenteId, tarifaHora } = parsed.data;
 
-  const doc = db.select({ id: docentes.id, tarifaAnterior: docentes.tarifaHoraCentavos })
+  const doc = db.select({ id: docentes.id })
     .from(docentes).where(eq(docentes.id, docenteId)).get();
   if (!doc) return { error: "No se encontró la ficha del maestro." };
 
-  db.update(docentes)
-    .set({ tarifaHoraCentavos: tarifaHora })
-    .where(eq(docentes.id, docenteId))
-    .run();
+  // La tarifa vive en tarifas_docente con vigencia: el cambio vale desde hoy y lo
+  // ya impartido conserva la tarifa de su día.
+  const desde = hoyEnMexico();
+  let anterior: number | null;
+  try {
+    ({ anterior } = cambiarTarifa(docenteId, tarifaHora, desde, sesion.usuarioId));
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo cambiar la tarifa." };
+  }
 
   registrar({
     usuarioId: sesion.usuarioId,
     accion: "usuario.editar",
-    entidad: "docentes",
+    entidad: "tarifas_docente",
     entidadId: docenteId,
-    cambios: { tarifaHoraCentavos: [doc.tarifaAnterior, tarifaHora] },
+    cambios: { tarifaHoraCentavos: [anterior, tarifaHora], vigenteDesde: [null, desde] },
   });
 
   revalidatePath(`/usuarios`);
+  revalidatePath(`/finanzas/tarifas`);
 
   return {
     ok: tarifaHora === null

@@ -351,6 +351,9 @@ export function convertirProspecto(
     actualizadoEn: new Date(),
   }).where(eq(prospectos.id, d.prospectoId)).run();
 
+  // El canal de origen pasa al alumno: con él se calcula el costo de adquisición.
+  db.update(alumnos).set({ origen: p.origen }).where(eq(alumnos.id, creado.id)).run();
+
   return { alumnoId: creado.id, codigo: creado.codigo };
 }
 

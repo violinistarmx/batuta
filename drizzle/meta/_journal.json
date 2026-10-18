@@ -148,6 +148,13 @@
       "when": 1791900000000,
       "tag": "0020_avisos_adjuntos",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1792000000000,
+      "tag": "0021_finanzas_dashboard",
+      "breakpoints": true
     }
   ]
 }

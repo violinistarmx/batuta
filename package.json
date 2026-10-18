@@ -11,6 +11,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
+    "seed:finanzas": "tsx scripts/seed-finanzas.ts",
     "preparar": "npm run db:migrate && npm run db:seed",
     "db:reset": "rm -f data/batuta.db* && npm run db:migrate && npm run db:seed",
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",

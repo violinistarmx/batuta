@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { eq } from "drizzle-orm";
-
-import { db } from "@/db";
-import { docentes } from "@/db/schema/index";
 import { Encabezado } from "@/components/encabezado";
 import { FotoPerfil } from "@/components/foto-perfil";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { resumenFotoDocente } from "@/lib/datos/fotos";
 import { parametrosNomina } from "@/lib/datos/costo-docente";
+import { tarifaVigenteDe } from "@/lib/datos/tarifas";
 import {
   ROLES_SECUNDARIOS_PERMITIDOS, listarUsuarios, rolesSecundariosDe, usuarioPorId,
   type RolSecundario,
@@ -56,10 +53,7 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
     ? resumenFotoDocente(u.docenteId)
     : { tieneFoto: false, version: null };
 
-  const tarifaDocente = u.docenteId !== null
-    ? db.select({ tarifaHoraCentavos: docentes.tarifaHoraCentavos })
-        .from(docentes).where(eq(docentes.id, u.docenteId)).get()?.tarifaHoraCentavos ?? null
-    : null;
+  const tarifaDocente = u.docenteId !== null ? tarifaVigenteDe(u.docenteId) : null;
   const { tarifaHoraCentavos: tarifaGlobal } = parametrosNomina();
 
   return (
