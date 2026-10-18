@@ -8,6 +8,7 @@ import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
 import { actualizarCargo, cancelarCargo, cargoPorId, crearCargoManual, reactivarCargo } from "@/lib/datos/finanzas";
+import { crearCargoProducto } from "@/lib/datos/vales";
 
 // ------------------------------------------------------------------ crear ----
 
@@ -71,6 +72,85 @@ export async function crearCargoAccion(
 
   revalidatePath(`/alumnos/${d.alumnoId}`);
   redirect(`/alumnos/${d.alumnoId}?aviso=cargo-creado`);
+  return {};
+}
+
+// ---------------------------------------------------------- crear (producto) ---
+
+const CargoProducto = z.object({
+  alumnoId: z.coerce.number().int().positive(),
+  /** Vacío = concepto libre, fuera del catálogo. */
+  productoId: z.string().trim().transform((s) => (s === "" ? null : Number(s)))
+    .refine((n) => n === null || (Number.isInteger(n) && n > 0), "Elige un producto."),
+  sedeId: z.coerce.number().int().positive("Elige la sede donde se vende."),
+  descripcion: z.string().trim().max(300),
+  monto: z.string().trim().transform((s) => (s === "" ? null : Number(s)))
+    .refine((n) => n === null || (Number.isFinite(n) && n > 0 && n <= 1_000_000), "El monto debe ser mayor que cero."),
+  venceEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha de vencimiento."),
+});
+
+export type EstadoCargoProducto = { error?: string };
+
+/**
+ * Cargo de un producto (catálogo o concepto libre) con su vale de entrega. Se cobra y se
+ * aplica con los pagos como cualquier otro cargo; el costo del producto, si lo hay, se
+ * congela en el cargo sin pasar por esta pantalla.
+ */
+export async function crearCargoProductoAccion(
+  _previo: EstadoCargoProducto,
+  datos: FormData,
+): Promise<EstadoCargoProducto> {
+  const sesion = await exigirPermiso("pagos.registrar");
+
+  const parsed = CargoProducto.safeParse({
+    alumnoId: datos.get("alumnoId"),
+    productoId: datos.get("productoId") ?? "",
+    sedeId: datos.get("sedeId"),
+    descripcion: datos.get("descripcion") ?? "",
+    monto: datos.get("monto") ?? "",
+    venceEl: datos.get("venceEl"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
+
+  const d = parsed.data;
+  if (!alumnoPorId(d.alumnoId, alcanceDe(sesion))) return { error: "No se encontró el alumno." };
+
+  let r: ReturnType<typeof crearCargoProducto>;
+  try {
+    r = crearCargoProducto({
+      alumnoId: d.alumnoId,
+      sedeId: d.sedeId,
+      productoId: d.productoId,
+      descripcion: d.descripcion,
+      montoCentavos: d.monto === null ? null : Math.round(d.monto * 100),
+      venceEl: d.venceEl,
+    }, sesion.usuarioId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo crear el cargo." };
+  }
+
+  // El costo no se registra aquí: lo leen quienes ven la bitácora, y no todos deben verlo.
+  const cargo = cargoPorId(r.cargoId);
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "cargo.generar",
+    entidad: "cargos",
+    entidadId: r.cargoId,
+    cambios: {
+      concepto: "producto", descripcion: cargo?.descripcion, montoCentavos: cargo?.montoCentavos,
+      productoId: d.productoId, sedeId: d.sedeId,
+    },
+  });
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "vale.crear",
+    entidad: "vales_entrega",
+    entidadId: r.valeId,
+    cambios: { codigo: r.codigo, cargoId: r.cargoId },
+  });
+
+  revalidatePath(`/alumnos/${d.alumnoId}`);
+  redirect(`/alumnos/${d.alumnoId}/cargos/${r.cargoId}?aviso=vale-creado`);
   return {};
 }
 

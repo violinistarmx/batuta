@@ -786,6 +786,95 @@ un enlace al expediente del alumno: es donde hay que ir si se decide cobrar algo
 justo después de reportar un instrumento roto cuando hace falta recordar que **nadie va a
 cobrar nada solo**.
 
+## Navegación: Ajustes y Finanzas con barra lateral
+
+El menú principal se quedó con lo que se usa a diario. **Ajustes** reúne lo que se toca poco y
+**Finanzas** reúne todo lo del dinero, cada uno con una barra lateral de secciones. Se muestra y se
+oculta con **Ctrl + B** (Cmd + B en Mac) o con el botón; el navegador recuerda la elección. En el
+celular es un panel que se abre encima y se cierra al elegir.
+
+Toda la estructura vive en `lib/navegacion.ts` —una lista por barra, pura y con pruebas—: mover,
+renombrar o agregar una sección es editar esa lista. Cada pantalla sigue exigiendo su propio
+permiso; la barra solo decide qué se muestra.
+
+| Barra | Grupo | Secciones |
+|-------|-------|-----------|
+| **Ajustes** | Reglas de la academia | Reglas del contrato · Decisiones de dirección · Metas de finanzas · Datos de la academia |
+| | Equipo | Cuentas (`/usuarios`) |
+| | Academia | Catálogo (`/catalogo`) |
+| | Seguridad | Bitácora (`/bitacora`) |
+| **Finanzas** | Panorama | Resumen (el dashboard) |
+| | Ingresos · lo que entra | Cobranza · Productos |
+| | Egresos · lo que sale | Gastos · Nómina docente · Tarifas de maestros |
+| | Análisis | Reportes (antes en el menú principal) |
+| | Reglas | Metas y reglas (en Ajustes) · Categorías de gasto |
+
+El orden de Finanzas sigue las preguntas en el orden en que se hacen: ¿cómo voy?, ¿qué entra?, ¿qué
+sale?, ¿por qué?, ¿con qué reglas? Lo que se consulta junto vive en el mismo grupo. Arriba de la
+barra van las dos cifras que se miran primero: cobrado en el mes y por cobrar.
+
+Las direcciones no cambiaron (`/usuarios`, `/catalogo`, `/bitacora`) porque Ajustes es un grupo de
+ruta de Next; `/reportes` redirige a `/finanzas/reportes` y `/ajustes` a su primera sección. Quien no
+tiene nada de Ajustes (un maestro, recepción) conserva un acceso directo al catálogo, que es de todos;
+un maestro que solo entra a «Mi nómina» ve esa pantalla sin la barra de dirección.
+
+## Productos y vales de entrega
+
+La academia vende métodos, instrumentos de cuerda, libretas. Un producto es un **cargo más**
+(`concepto = 'producto'`): se cobra y se aplica con `registrarPago` como cualquier otro. Lo que lo
+distingue: no depende de una inscripción, lleva **sede** y, si salió del catálogo, el **costo
+congelado** al venderlo (igual que la tarifa del maestro queda congelada en la nómina). Al crearlo
+se genera su **vale de entrega** (`VE-2026-000123`) con un QR.
+
+### El costo no sale del catálogo
+
+`/finanzas/productos` (permiso `productos.gestionar`, solo dirección) lista el catálogo **sin costo
+ni margen**. Un botón discreto los pide al servidor: no viajan al navegador hasta entonces, duran
+20 segundos en pantalla, se ocultan al cambiar de pestaña y cada consulta queda en la bitácora
+(`producto.ver_costos`). Quien vende ve nombre y precio y nada más; el formulario de venta, el
+vale, el comprobante y la lista de entregas nunca seleccionan esas columnas. El costo tampoco entra
+a la bitácora al crear o editar un producto.
+
+### Escanear no entrega
+
+El QR lleva a `/vales/<token>`. El token es opaco (128 bits), no el código legible, para que nadie
+pueda construir los vales vecinos. La ruta **solo muestra**; sin sesión manda a entrar y regresa al
+vale (el `siguiente` acepta únicamente rutas de vale: `lib/auth/destino.ts`). Entregar es un botón
+con confirmación en dos pasos y el permiso `vales.entregar`.
+
+| Situación | Qué pasa |
+|-----------|----------|
+| Cargo saldado, vale pendiente | Se entrega. Queda fecha y usuario. |
+| Ya entregado | Se rechaza. El `UPDATE` lleva `estado = 'pendiente'`: si dos personas confirman a la vez, solo una gana. |
+| Cargo cancelado | Se rechaza, sin excepción. Si se reactiva el cargo, el vale vuelve a poder entregarse. |
+| Sin pagar o pago parcial | Se rechaza. El director (`vales.autorizar_excepcion`) puede entregar con un motivo; queda en el vale y en la bitácora. |
+| Cancelar un cargo cuyo vale ya se entregó | Se rechaza: el producto ya salió. |
+
+Las reglas viven en `lib/dominio/vales.ts`, sin base de datos, y se prueban solas.
+
+### Cómo se reparte un pago con productos
+
+Sin elegir cargo, el pago salda primero los cargos que **no** son producto (del más viejo al más
+nuevo) y deja los productos al final: un libro con vencimiento anterior no se come la mensualidad.
+Quien cobra puede elegir «Aplicar primero a» un cargo concreto. El monto del cargo **no se
+reescribe** al pagar: lo pagado vive en `aplicaciones` (antes se igualaba al monto del último pago y
+un abono parecía saldar el cargo entero).
+
+### En el dashboard
+
+Los productos suman a «Ingresos cobrados» con su **propia consulta** (`SQL_PRODUCTOS`) y su costo
+entra a los egresos, al margen bruto y al flujo. No entran a la base del costo docente ni al punto
+de equilibrio, que son por alumno. El costo se reconoce **en la proporción en que se saldó el
+cargo** (cobrado más condonado): una condonación no regala el costo, se come el margen. Una venta
+sin costo registrado (concepto libre) no aporta margen y el dashboard lo avisa.
+
+El filtro **Línea** muestra clases y productos, solo clases o solo productos. Un filtro de programa,
+instrumento o maestro deja fuera los productos: no se pueden atribuir. El widget «Productos: ventas
+y margen» da el margen por producto; se agrega desde «Personalizar» si el tablero ya estaba guardado.
+
+`verifica-finanzas.mjs` comprueba que **clases + productos = lo que entró** con las mismas consultas
+del dashboard.
+
 ## Recitales
 
 ### Dos manos a propósito

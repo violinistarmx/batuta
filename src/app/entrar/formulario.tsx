@@ -21,11 +21,12 @@ function Boton() {
   );
 }
 
-export function FormularioAcceso() {
+export function FormularioAcceso({ siguiente }: { siguiente: string | null }) {
   const [estado, accion] = useActionState<EstadoAcceso, FormData>(entrar, {});
 
   return (
     <form action={accion} className="flex flex-col gap-4">
+      {siguiente && <input type="hidden" name="siguiente" value={siguiente} />}
       {estado.error && (
         <p
           id="error-acceso"

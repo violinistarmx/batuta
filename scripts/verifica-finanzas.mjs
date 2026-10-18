@@ -156,6 +156,54 @@ if (dobleReclamo) {
   }
 }
 
+console.log("\n== PRODUCTOS: cada cargo de producto tiene sede y un vale ==");
+const sinSedeOVale = todos(`
+  SELECT c.id FROM cargos c
+  WHERE c.concepto = 'producto'
+    AND (c.sede_id IS NULL OR NOT EXISTS (SELECT 1 FROM vales_entrega v WHERE v.cargo_id = c.id))`);
+sinSedeOVale.length === 0
+  ? ok("todo cargo de producto tiene sede y vale")
+  : bad(`cargos de producto sin sede o sin vale: ${JSON.stringify(sinSedeOVale)}`);
+
+console.log("\n== PRODUCTOS: solo los cargos de producto llevan vale ==");
+const valeAjeno = todos(`
+  SELECT v.id FROM vales_entrega v JOIN cargos c ON c.id = v.cargo_id WHERE c.concepto <> 'producto'`);
+valeAjeno.length === 0 ? ok("ningún vale cuelga de un cargo que no es producto") : bad(`vales ajenos: ${JSON.stringify(valeAjeno)}`);
+
+console.log("\n== PRODUCTOS: reglas de entrega ==");
+const entregaIndebida = todos(`
+  SELECT v.codigo,
+         c.cancelado, c.monto_centavos AS monto,
+         coalesce((SELECT sum(ap.monto_centavos) FROM aplicaciones ap WHERE ap.cargo_id = c.id), 0) AS aplicado,
+         v.excepcion_motivo AS excepcion
+  FROM vales_entrega v JOIN cargos c ON c.id = v.cargo_id
+  WHERE v.estado = 'entregado'
+    AND (c.cancelado = 1 OR (aplicado < monto AND v.excepcion_motivo IS NULL))`);
+entregaIndebida.length === 0
+  ? ok("ningún vale entregado tiene el cargo cancelado o sin saldar sin excepción registrada")
+  : bad(`entregas indebidas: ${JSON.stringify(entregaIndebida)}`);
+const excepcionSinDirector = uno(`
+  SELECT count(*) n FROM vales_entrega
+  WHERE excepcion_motivo IS NOT NULL AND autorizado_por IS NULL`).n;
+excepcionSinDirector === 0 ? ok("toda excepción dice quién la autorizó") : bad(`${excepcionSinDirector} excepción(es) sin autorizador`);
+
+console.log("\n== PRODUCTOS: el dinero de un producto no se cuenta dos veces ==");
+try {
+  const { SQL_INGRESOS, SQL_PRODUCTOS } = await import("../src/lib/finanzas/sql.ts");
+  const rango = { desde: "2000-01-01", hasta: "2999-12-31" };
+  const clases = db.prepare(SQL_INGRESOS).all(rango).reduce((s, r) => s + Number(r.centavos ?? 0), 0);
+  const productosIng = db.prepare(SQL_PRODUCTOS).all(rango).reduce((s, r) => s + Number(r.ingreso ?? 0), 0);
+  const entro = Number(uno("SELECT coalesce(sum(monto_centavos), 0) AS t FROM pagos").t);
+  Math.abs(clases + productosIng - entro) < 1
+    ? ok(`clases + productos = lo que entró (${entro} centavos)`)
+    : bad(`el dashboard cuenta ${clases + productosIng} y entró ${entro}`);
+
+  const costoMal = db.prepare(SQL_PRODUCTOS).all(rango).filter((r) => Number(r.costo) > Number(r.ingreso) * 20);
+  costoMal.length === 0 ? ok("ningún costo reconocido es absurdo frente a lo cobrado") : bad(`costos sospechosos: ${JSON.stringify(costoMal)}`);
+} catch (e) {
+  console.log(`  (se omite la conciliación con las consultas del dashboard: ${e.message})`);
+}
+
 db.close();
 console.log("");
 process.exit(fallas === 0 ? 0 : 1);

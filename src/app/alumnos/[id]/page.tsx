@@ -485,7 +485,14 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                   <tbody>
                     {cargos.map((c) => (
                       <tr key={c.id} className="border-t border-vs-linea">
-                        <td className="px-4 py-2.5">{c.descripcion}</td>
+                        <td className="px-4 py-2.5">
+                          {c.descripcion}
+                          {c.valeCodigo && (
+                            <span className="ml-2 whitespace-nowrap rounded-full bg-vs-crema px-2 py-0.5 font-mono text-[10px] text-vs-tinta-3">
+                              {c.valeCodigo} · {c.valeEstado === "entregado" ? "entregado" : "por entregar"}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-2.5 text-xs text-vs-tinta-3">{c.periodo ?? "—"}</td>
                         <td className="px-4 py-2.5 tabular-nums">{c.venceEl}</td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-vs-tinta-3">
@@ -581,6 +588,9 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                     alumnoId={alumno.id}
                     hoy={hoyMx}
                     adeudoTotal={cobranza.porCobrarCentavos}
+                    cargosAbiertos={cargos
+                      .filter((c) => adeudoDe(c) > 0)
+                      .map((c) => ({ id: c.id, descripcion: c.descripcion, adeudoCentavos: adeudoDe(c) }))}
                     adeudoTexto={
                       cobranza.porCobrarCentavos > 0
                         ? `Se aplicará primero al cargo más antiguo. Adeudo total: ${pesos(cobranza.porCobrarCentavos)}.`

@@ -34,3 +34,29 @@ export async function qrComoSvg(token: string, baseUrl: string): Promise<string>
     color: { dark: "#221A0E", light: "#FFFFFF" },
   });
 }
+
+/**
+ * QR del vale de entrega: la ruta del vale con su token opaco (no el código legible,
+ * que es secuencial y se podría adivinar). Escanearlo no cambia nada: la ruta exige
+ * sesión y la entrega es un botón aparte.
+ */
+export async function qrDeVale(token: string, baseUrl: string, ancho = 160): Promise<string> {
+  return QRCode.toString(`${baseUrl}/vales/${token}`, {
+    type: "svg",
+    errorCorrectionLevel: "Q",
+    margin: 1,
+    width: ancho,
+    color: { dark: "#221A0E", light: "#FFFFFF" },
+  });
+}
+
+/**
+ * Origen público del sistema. `URL_PUBLICA` manda sobre el host de la petición, igual que
+ * en la credencial: con el host de quien mira, el QR apuntaría a una dirección interna.
+ */
+export function urlBase(cabeceras: Headers): string {
+  if (process.env.URL_PUBLICA) return process.env.URL_PUBLICA;
+  const host = cabeceras.get("host") ?? "localhost:3000";
+  const protocolo = process.env.NODE_ENV === "production" ? "https" : "http";
+  return `${protocolo}://${host}`;
+}

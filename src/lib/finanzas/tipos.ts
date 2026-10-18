@@ -42,7 +42,24 @@ export type HechoGasto = {
   centavos: number;
 };
 
-export type HechoCargo = Dimensiones & { mes: string; facturado: number; saldado: number };
+/** `producto`: cargo de un producto, con la sede donde se vendió y sin programa ni maestro. */
+export type HechoCargo = Dimensiones & { mes: string; facturado: number; saldado: number; producto: boolean };
+
+/**
+ * Lo cobrado por productos, con su costo reconocido en la misma proporción en que se cobró.
+ * `productoId` NULL = concepto libre, que se agrupa por su nombre. `sinCosto` es lo cobrado
+ * de ventas sin costo registrado: su margen no se conoce y el dashboard lo avisa.
+ */
+export type HechoProducto = {
+  mes: string;
+  sedeId: number | null;
+  productoId: number | null;
+  nombre: string;
+  ingreso: number;
+  costo: number;
+  sinCosto: number;
+  unidades: number;
+};
 
 export type HechoInscripcion = Dimensiones & {
   id: number;
@@ -69,13 +86,19 @@ export type Hechos = {
   nomina: HechoNomina[];
   gastos: HechoGasto[];
   cargos: HechoCargo[];
+  productos: HechoProducto[];
   inscripciones: HechoInscripcion[];
   catalogos: Catalogos;
 };
 
 // ── Opciones ──────────────────────────────────────────────────────────────────
 
+/** Qué ingresos entran: todo, solo clases (programas) o solo productos. */
+export type Linea = "todo" | "clases" | "productos";
+
 export type Filtros = {
+  /** Con `productos` o con cualquier filtro de programa, instrumento o maestro, lo que se ve cambia. */
+  linea: Linea;
   programaId: number | null;
   instrumentoId: number | null;
   sedeId: number | null;
@@ -85,6 +108,7 @@ export type Filtros = {
 };
 
 export const SIN_FILTROS: Filtros = {
+  linea: "todo",
   programaId: null, instrumentoId: null, sedeId: null, docenteId: null, categoriaId: null,
 };
 
@@ -131,9 +155,13 @@ export type FilaMes = {
   /** Mes posterior a hoy: se dibuja vacío, no en cero. */
   futuro: boolean;
   ingresos: number;
+  /** De los ingresos, lo cobrado por productos. */
+  ingresosProductos: number;
   costoDocente: number;
+  /** Costo de los productos cobrados en el mes. */
+  costoProductos: number;
   gastos: number;
-  /** Costo docente + gastos: todo lo que costó operar el mes. */
+  /** Costo docente + costo de productos + gastos: todo lo que costó operar el mes. */
   egresos: number;
   resultado: number;
   margenNeto: number | null;
@@ -201,6 +229,30 @@ export type FilaCanal = {
   cac: number | null;
 };
 
+export type FilaProducto = {
+  /** NULL = concepto libre. */
+  id: number | null;
+  nombre: string;
+  unidades: number;
+  ingresos: number;
+  costo: number;
+  margen: number;
+  margenPct: number | null;
+  /** Cobrado sin costo registrado: no entra al margen. */
+  sinCosto: number;
+};
+
+export type ResumenProductos = {
+  ingresos: number;
+  costo: number;
+  margen: number;
+  margenPct: number | null;
+  unidades: number;
+  /** Cobrado de ventas sin costo registrado. Si es mayor que cero, el margen sale inflado. */
+  sinCosto: number;
+  filas: FilaProducto[];
+};
+
 export type Dashboard = {
   periodo: { etiqueta: string; anio: number; meses: string[]; modo: Periodo["modo"] };
   comparacion: { etiqueta: string };
@@ -213,6 +265,7 @@ export type Dashboard = {
   categorias: GastoCategoria[];
   matriz: Matriz;
   canales: FilaCanal[];
+  productos: ResumenProductos;
   profitFirst: CuentaProfitFirst[] | null;
   observaciones: string[];
   catalogos: Catalogos;

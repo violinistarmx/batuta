@@ -369,6 +369,9 @@ const PERMISOS = [
   ["avisos.enviar", "Enviar avisos internos a los maestros"],
   ["documentos.leer", "Descargar documentos del expediente"],
   ["inventario.gestionar", "Gestionar inventario y préstamos"],
+  ["productos.gestionar", "Administrar el catálogo de productos y ver sus costos y márgenes"],
+  ["vales.entregar", "Entregar productos con vale y ver las entregas pendientes"],
+  ["vales.autorizar_excepcion", "Autorizar la entrega de un producto sin pago completo"],
   ["recitales.leer", "Ver recitales y su programa"],
   ["recitales.proponer", "Proponer alumnos para un recital"],
   ["recitales.gestionar", "Crear recitales, confirmar participaciones y vender boletos"],
@@ -408,11 +411,16 @@ const PERMISOS_ASISTENTE = [
   "buscar", "alumnos.leer", "alumnos.crear", "alumnos.editar",
   "inscripciones.leer", "inscripciones.crear", "clases.leer", "clases.crear",
   "clases.reprogramar", "asistencia.registrar", "pagos.registrar",
+  // Recepción cobra y le entrega el comprobante al padre: sin esto, tras cobrar caía en un 404.
+  "recibos.emitir",
   "prospectos.leer", "prospectos.crear", "prospectos.editar", "prospectos.convertir",
   "comunicacion.redactar",
   // Quien entrega el instrumento en el mostrador es quien tiene que registrarlo.
   // Sin esto, cada prestamo esperaba a que el director abriera su sesion.
   "inventario.gestionar",
+  // Quien vende el producto en el mostrador es quien lo entrega. El costo y las
+  // excepciones de entrega quedan solo con dirección.
+  "vales.entregar",
   "recitales.leer", "recitales.proponer", "recitales.gestionar",
 ];
 

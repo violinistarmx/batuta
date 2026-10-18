@@ -19,7 +19,7 @@ import {
   GraficaRentabilidad, GraficaRetencion, GraficaTreemap, SinDatos,
 } from "./graficas";
 import { MatrizEgresos } from "./matriz";
-import { Equilibrio, Observaciones, RejillaKpis } from "./piezas";
+import { Equilibrio, Observaciones, PanelProductos, RejillaKpis } from "./piezas";
 
 const Rejilla = WidthProvider(Responsive);
 
@@ -128,6 +128,7 @@ export function Tablero({
       case "matriz":
         return <MatrizEgresos matriz={d.matriz} anio={d.periodo.anio} onMes={verMes}
                               onCategoria={(id) => alternarFiltro("categoriaId", id)} />;
+      case "productos": return <PanelProductos d={d} />;
       case "profit_first":
         return d.profitFirst
           ? <GraficaProfitFirst cuentas={d.profitFirst} tipo={tipo} paleta={paleta} />

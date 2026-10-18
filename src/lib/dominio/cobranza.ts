@@ -64,6 +64,38 @@ export function planearAplicacion(
   return { asignaciones, aFavorCentavos: restante };
 }
 
+export type CargoRepartible = Cargo & { esProducto: boolean };
+
+/**
+ * Reparte un pago por grupos, en este orden:
+ *   1. el cargo (o cargos) que eligió quien cobra, si eligió alguno,
+ *   2. los demás cargos que no son producto,
+ *   3. los productos.
+ * Dentro de cada grupo manda la antigüedad, como en `planearAplicacion`.
+ *
+ * Sin esto, un producto con vencimiento anterior se llevaría el dinero de la
+ * mensualidad (y al revés). Lo que sobra de todos los grupos queda a favor.
+ */
+export function repartirPago(
+  montoRecibido: number,
+  cargosAbiertos: readonly CargoRepartible[],
+  objetivosIds: readonly number[] = [],
+): PlanDeAplicacion {
+  const elegidos = new Set(objetivosIds);
+  const elegido = cargosAbiertos.filter((c) => elegidos.has(c.id));
+  const resto = cargosAbiertos.filter((c) => !elegidos.has(c.id));
+  const grupos = [elegido, resto.filter((c) => !c.esProducto), resto.filter((c) => c.esProducto)];
+
+  const asignaciones: Asignacion[] = [];
+  let restante = montoRecibido;
+  for (const grupo of grupos) {
+    const plan = planearAplicacion(restante, grupo);
+    asignaciones.push(...plan.asignaciones);
+    restante = plan.aFavorCentavos;
+  }
+  return { asignaciones, aFavorCentavos: restante };
+}
+
 /**
  * Folio de recibo: VS-2026-0001.
  *

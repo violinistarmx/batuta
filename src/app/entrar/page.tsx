@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 
+import { destinoSeguro } from "@/lib/auth/destino";
 import { sesionActual } from "@/lib/auth/sesion";
 import { FormularioAcceso } from "./formulario";
 
 export const dynamic = "force-dynamic";
 
-export default async function Entrar() {
-  if (await sesionActual()) redirect("/");
+export default async function Entrar({ searchParams }: { searchParams: Promise<{ siguiente?: string }> }) {
+  const siguiente = destinoSeguro((await searchParams).siguiente);
+  if (await sesionActual()) redirect(siguiente ?? "/");
 
   return (
     <main className="flex min-h-screen items-center justify-center px-5 py-12">
@@ -20,7 +22,7 @@ export default async function Entrar() {
         </div>
 
         <div className="mt-8 rounded-xl border border-vs-linea bg-white p-6 shadow-sm">
-          <FormularioAcceso />
+          <FormularioAcceso siguiente={siguiente} />
         </div>
 
         <p className="mt-6 text-center text-xs text-vs-tinta-3">

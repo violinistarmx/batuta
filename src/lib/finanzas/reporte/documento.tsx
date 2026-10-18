@@ -151,8 +151,8 @@ function Leyenda({ items }: { items: { color: string; nombre: string }[] }) {
 
 /** Barras ingresos vs egresos (costo docente + gastos apilados) y línea de resultado, un solo eje en pesos. */
 function GraficaMensual({ serie, ancho, alto }: { serie: FilaMes[]; ancho: number; alto: number }) {
-  const datos = serie.map((m) => (m.futuro ? { ...m, ingresos: 0, costoDocente: 0, gastos: 0, resultado: 0 } : m));
-  const max = Math.max(1, ...datos.map((m) => Math.max(m.ingresos, m.costoDocente + m.gastos, m.resultado)));
+  const datos = serie.map((m) => (m.futuro ? { ...m, ingresos: 0, costoDocente: 0, costoProductos: 0, gastos: 0, resultado: 0 } : m));
+  const max = Math.max(1, ...datos.map((m) => Math.max(m.ingresos, m.costoDocente + m.costoProductos + m.gastos, m.resultado)));
   const min = Math.min(0, ...datos.map((m) => m.resultado));
   const y = (v: number) => alto - ((v - min) / (max - min)) * alto;
   const banda = ancho / datos.length;
@@ -161,7 +161,8 @@ function GraficaMensual({ serie, ancho, alto }: { serie: FilaMes[]; ancho: numbe
   return (
     <View>
       <Leyenda items={[
-        { color: C.ingresos, nombre: "Ingresos" }, { color: C.costo, nombre: "Costo docente" },
+        { color: C.ingresos, nombre: "Ingresos" },
+        { color: C.costo, nombre: datos.some((m) => m.costoProductos > 0) ? "Costo docente y de productos" : "Costo docente" },
         { color: C.gastos, nombre: "Gastos" }, { color: C.resultado, nombre: "Resultado neto" },
       ]} />
       <Svg width={ancho} height={alto}>
@@ -172,8 +173,8 @@ function GraficaMensual({ serie, ancho, alto }: { serie: FilaMes[]; ancho: numbe
         {datos.map((m, i) => {
           const x = banda * i + banda / 2;
           const yIng = y(m.ingresos);
-          const yCosto = y(m.costoDocente);
-          const yTotal = y(m.costoDocente + m.gastos);
+          const yCosto = y(m.costoDocente + m.costoProductos);
+          const yTotal = y(m.costoDocente + m.costoProductos + m.gastos);
           return (
             <G key={m.mes}>
               <Rect x={x - barra - 1} y={yIng} width={barra} height={Math.max(0, y(0) - yIng)} fill={C.ingresos} rx={2} />
@@ -514,6 +515,39 @@ export function ReporteFinanzas({ d, generado }: { d: Dashboard; generado: strin
                 </View>
               ))}
             </View>
+          </View>
+        )}
+
+        {d.productos.filas.length > 0 && (
+          <View style={{ marginTop: 10 }} wrap={false}>
+            <Text style={s.h3}>
+              Productos · cobrado {pesosExactos(d.productos.ingresos)}, costo {pesosExactos(d.productos.costo)}, margen {pesosExactos(d.productos.margen)} ({pct(d.productos.margenPct)})
+            </Text>
+            <View style={{ borderWidth: 1, borderColor: C.linea, borderRadius: 6 }}>
+              <View style={[s.fila, s.encabezadoTabla]}>
+                {["Producto", "Piezas", "Cobrado", "Costo", "Margen", "Margen %"].map((t, i) => (
+                  <Text key={t} style={[s.celda, { width: i === 0 ? 220 : 66, textAlign: i === 0 ? "left" : "right" }]}>{t}</Text>
+                ))}
+              </View>
+              {d.productos.filas.map((f) => {
+                const sinCosto = f.sinCosto >= f.ingresos && f.ingresos > 0;
+                return (
+                  <View key={f.id ?? f.nombre} style={[s.fila, { borderTopWidth: 0.5, borderTopColor: C.linea }]} wrap={false}>
+                    <Text style={[s.celda, { width: 220, textAlign: "left" }]}>{f.nombre}</Text>
+                    <Text style={[s.celda, { width: 66 }]}>{f.unidades}</Text>
+                    <Text style={[s.celda, { width: 66 }]}>{pesosExactos(f.ingresos)}</Text>
+                    <Text style={[s.celda, { width: 66 }]}>{sinCosto ? "-" : pesosExactos(f.costo)}</Text>
+                    <Text style={[s.celda, { width: 66, color: f.margen < 0 ? C.negativo : C.tinta }]}>{sinCosto ? "-" : pesosExactos(f.margen)}</Text>
+                    <Text style={[s.celda, { width: 66 }]}>{pct(f.margenPct)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            {d.productos.sinCosto > 0 && (
+              <Text style={{ fontSize: 7, color: C.tinta3, marginTop: 3 }}>
+                {pesosExactos(d.productos.sinCosto)} cobrados de ventas sin costo registrado: no entran al margen.
+              </Text>
+            )}
           </View>
         )}
 

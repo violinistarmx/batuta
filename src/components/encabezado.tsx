@@ -5,6 +5,7 @@ import { Campana } from "@/components/campana";
 import { permisosDe } from "@/lib/auth/permisos";
 import type { Sesion } from "@/lib/auth/sesion";
 import { avisosSinLeer } from "@/lib/datos/avisos";
+import { rutaInicialDeAjustes, rutaInicialDeFinanzas } from "@/lib/navegacion";
 
 const TITULO_ROL = { director: "Director", docente: "Maestro", asistente: "Asistente" } as const;
 
@@ -22,12 +23,14 @@ export function Encabezado(
   // El menú se arma con lo que la cuenta realmente alcanza: mostrar un enlace que
   // lleva a un 404 hace parecer roto al sistema.
   const permisos = permisosDe(sesion.usuarioId);
+  const rutaFinanzas = rutaInicialDeFinanzas((p) => permisos.has(p));
+  const rutaAjustes = rutaInicialDeAjustes((p) => permisos.has(p));
   const enlaces = (soloSalir ? [] : [
     { href: "/", texto: "Tablero", clave: "tablero" },
     { href: "/agenda", texto: "Agenda", clave: "agenda" },
     { href: "/alumnos", texto: "Alumnos", clave: "alumnos" },
-    permisos.has("finanzas.leer")
-      ? { href: "/finanzas", texto: "Finanzas", clave: "finanzas" }
+    rutaFinanzas
+      ? { href: rutaFinanzas, texto: "Finanzas", clave: "finanzas" }
       : permisos.has("nomina.leer_propia")
         ? { href: "/finanzas/nomina", texto: "Mi nómina", clave: "finanzas" }
         : null,
@@ -43,19 +46,14 @@ export function Encabezado(
     permisos.has("inventario.gestionar")
       ? { href: "/inventario", texto: "Inventario", clave: "inventario" }
       : null,
-    permisos.has("reportes.leer")
-      ? { href: "/reportes", texto: "Reportes", clave: "reportes" }
+    permisos.has("vales.entregar")
+      ? { href: "/entregas", texto: "Entregas", clave: "entregas" }
       : null,
-    permisos.has("usuarios.gestionar")
-      ? { href: "/usuarios", texto: "Cuentas", clave: "usuarios" }
-      : null,
-    permisos.has("bitacora.leer")
-      ? { href: "/bitacora", texto: "Bitácora", clave: "bitacora" }
-      : null,
-    { href: "/catalogo", texto: "Catálogo", clave: "catalogo" },
-    permisos.has("configuracion.gestionar")
-      ? { href: "/ajustes", texto: "Ajustes", clave: "ajustes" }
-      : null,
+    // Cuentas, bitácora y catálogo viven dentro de Ajustes; reportes, dentro de Finanzas.
+    // Quien no tiene nada de Ajustes conserva un acceso directo al catálogo, que es de todos.
+    rutaAjustes
+      ? { href: rutaAjustes, texto: "Ajustes", clave: "ajustes" }
+      : { href: "/catalogo", texto: "Catálogo", clave: "ajustes" },
   ]).filter((e) => e !== null);
 
   return (

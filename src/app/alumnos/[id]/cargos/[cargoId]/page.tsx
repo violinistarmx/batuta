@@ -1,8 +1,15 @@
+import { headers } from "next/headers";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+
 
 import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { alumnoPorId } from "@/lib/datos/alumnos";
+import { ValeEntrega } from "@/components/vale-entrega";
+import { tienePermiso } from "@/lib/auth/permisos";
 import { cargoPorId } from "@/lib/datos/finanzas";
+import { valeDeCargo } from "@/lib/datos/vales";
+import { qrDeVale, urlBase } from "@/lib/qr";
 import { FormularioEditarCargo } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +32,10 @@ export default async function EditarCargo({
   const cargo = cargoPorId(cId);
   if (!cargo || cargo.alumnoId !== alumnoId) notFound();
 
+  const vale = valeDeCargo(cId);
+  const qr = vale ? await qrDeVale(vale.token, urlBase(await headers())) : null;
+  const puedeEntregar = tienePermiso(sesion, "vales.entregar");
+
   const aplicado = cargo.aplicadoCentavos;
   const saldado = aplicado >= cargo.montoCentavos;
 
@@ -44,6 +55,20 @@ export default async function EditarCargo({
           Modifica la descripción, periodo, monto o fecha de vencimiento del cargo.
         </p>
       </div>
+
+      {vale && qr && (
+        <div className="mb-4">
+          <ValeEntrega vale={vale} qrSvg={qr} />
+          <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-vs-tinta-3">
+            {puedeEntregar && (
+              <Link href={`/vales/${vale.token}`} className="font-medium text-vs-naranja-700 hover:underline">
+                Abrir vale para entregar
+              </Link>
+            )}
+            <span>El vale también sale impreso en el comprobante de pago.</span>
+          </p>
+        </div>
+      )}
 
       {saldado && (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">

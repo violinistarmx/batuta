@@ -103,9 +103,10 @@ export function GraficaMensual({
 }) {
   const [cIng, cCosto, cGastos, cRes] = paleta.series;
   const datos = serie.map((s) => (s.futuro
-    ? { ...s, ingresos: null, costoDocente: null, gastos: null, egresos: null, resultado: null }
+    ? { ...s, ingresos: null, costoDocente: null, costoProductos: null, gastos: null, egresos: null, resultado: null }
     : s));
   const max = Math.max(...serie.filter((s) => !s.futuro).map((s) => s.ingresos), 0);
+  const hayProductos = serie.some((s) => !s.futuro && s.costoProductos > 0);
   const etiquetar = (mes: string, valor: number) => mes === mesSeleccionado || (valor === max && max > 0);
 
   const tooltip = (p: PropsTooltip<FilaMes>) => {
@@ -117,6 +118,7 @@ export function GraficaMensual({
         renglones={[
           { color: cIng, nombre: "Ingresos", valor: pesosExactos(f.ingresos), fuerte: true },
           { color: cCosto, nombre: "Costo docente", valor: pesosExactos(f.costoDocente) },
+          ...(f.costoProductos > 0 ? [{ color: cCosto, nombre: "Costo de productos", valor: pesosExactos(f.costoProductos) }] : []),
           { color: cGastos, nombre: "Gastos", valor: pesosExactos(f.gastos) },
           { color: cRes, nombre: "Resultado", valor: pesosExactos(f.resultado), fuerte: true },
         ]}
@@ -144,6 +146,7 @@ export function GraficaMensual({
       <Leyenda items={[
         { color: cIng, nombre: "Ingresos" },
         { color: cCosto, nombre: tipo === "barras" ? "Costo docente" : "Egresos" },
+        ...(tipo === "barras" && hayProductos ? [{ color: cCosto, nombre: "Costo de productos (tono claro)" }] : []),
         ...(tipo === "barras" ? [{ color: cGastos, nombre: "Gastos" }] : []),
         { color: cRes, nombre: "Resultado neto", linea: true },
       ]} />
@@ -194,6 +197,9 @@ export function GraficaMensual({
                   <Cell key={d.mes} fillOpacity={mesSeleccionado && d.mes !== mesSeleccionado ? 0.45 : 1} />
                 ))}
               </Bar>
+              {hayProductos && (
+                <Bar dataKey="costoProductos" stackId="egresos" fill={cCosto} fillOpacity={0.5} maxBarSize={22} className="cursor-pointer" />
+              )}
               <Bar dataKey="gastos" stackId="egresos" fill="url(#g-gastos)" radius={[4, 4, 0, 0]} maxBarSize={22} className="cursor-pointer">
                 {datos.map((d) => (
                   <Cell key={d.mes} fillOpacity={mesSeleccionado && d.mes !== mesSeleccionado ? 0.45 : 1} />

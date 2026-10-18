@@ -4,7 +4,7 @@
  * recargar y descargar el PDF con exactamente lo que se está viendo.
  */
 
-import type { Comparacion, Filtros, Periodo } from "./tipos";
+import type { Comparacion, Filtros, Linea, Periodo } from "./tipos";
 
 export type Busqueda = Record<string, string | string[] | undefined>;
 
@@ -17,6 +17,11 @@ function id(v: string | string[] | undefined): number | null {
   if (!s || !/^\d+$/.test(s)) return null;
   const n = Number(s);
   return n > 0 ? n : null;
+}
+
+function linea(v: string | string[] | undefined): Linea {
+  const s = uno(v);
+  return s === "clases" || s === "productos" ? s : "todo";
 }
 
 /** Por defecto: el mes actual, contra el mes anterior, sin filtros. */
@@ -34,6 +39,7 @@ export function leerSeleccion(b: Busqueda, hoy: string): Seleccion {
     periodo,
     comparacion: uno(b.comparar) === "anio_pasado" ? "anio_pasado" : "anterior",
     filtros: {
+      linea: linea(b.linea),
       programaId: id(b.programa),
       instrumentoId: id(b.instrumento),
       sedeId: id(b.sede),
@@ -58,6 +64,7 @@ export function escribirSeleccion(s: Seleccion, cambios: Partial<{
     p.set("mes", periodo.mes);
   }
   if (comparacion === "anio_pasado") p.set("comparar", "anio_pasado");
+  if (f.linea !== "todo") p.set("linea", f.linea);
   if (f.programaId !== null) p.set("programa", String(f.programaId));
   if (f.instrumentoId !== null) p.set("instrumento", String(f.instrumentoId));
   if (f.sedeId !== null) p.set("sede", String(f.sedeId));

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
-  adeudoDe, estadoDeCargo, formatearFolio, planearAplicacion, resumirCobranza, type Cargo,
+  adeudoDe, estadoDeCargo, formatearFolio, planearAplicacion, repartirPago, resumirCobranza, type Cargo,
 } from "./cobranza.ts";
 
 const cargo = (id: number, monto: number, aplicado: number, venceEl: string): Cargo =>
@@ -146,5 +146,51 @@ describe("resumen de cobranza", () => {
     assert.deepEqual(resumirCobranza([], hoy), {
       porCobrarCentavos: 0, vencidoCentavos: 0, cobradoCentavos: 0,
     });
+  });
+});
+
+describe("repartir un pago con productos", () => {
+  const c = (id: number, monto: number, venceEl: string, esProducto = false) =>
+    ({ ...cargo(id, monto, 0, venceEl), esProducto });
+  const mensualidad = c(1, 75_000, "2026-10-05");
+  const libreta = c(2, 6_000, "2026-09-20", true);
+
+  test("sin objetivo, el producto más viejo no se lleva el dinero de la mensualidad", () => {
+    const plan = repartirPago(75_000, [libreta, mensualidad]);
+    assert.deepEqual(plan.asignaciones, [{ cargoId: 1, montoCentavos: 75_000 }]);
+    assert.equal(plan.aFavorCentavos, 0);
+  });
+
+  test("lo que sobra de las mensualidades sí alcanza los productos", () => {
+    const plan = repartirPago(81_000, [libreta, mensualidad]);
+    assert.deepEqual(plan.asignaciones, [
+      { cargoId: 1, montoCentavos: 75_000 },
+      { cargoId: 2, montoCentavos: 6_000 },
+    ]);
+  });
+
+  test("con objetivo, el cargo elegido va primero aunque sea el más nuevo", () => {
+    const plan = repartirPago(6_000, [libreta, mensualidad], [2]);
+    assert.deepEqual(plan.asignaciones, [{ cargoId: 2, montoCentavos: 6_000 }]);
+  });
+
+  test("el excedente del objetivo sigue por el orden normal y luego queda a favor", () => {
+    const plan = repartirPago(100_000, [libreta, mensualidad], [2]);
+    assert.deepEqual(plan.asignaciones, [
+      { cargoId: 2, montoCentavos: 6_000 },
+      { cargoId: 1, montoCentavos: 75_000 },
+    ]);
+    assert.equal(plan.aFavorCentavos, 19_000);
+  });
+
+  test("un objetivo ya saldado no recibe nada y no rompe el reparto", () => {
+    const saldada = { ...libreta, aplicadoCentavos: 6_000 };
+    const plan = repartirPago(10_000, [saldada, mensualidad], [2]);
+    assert.deepEqual(plan.asignaciones, [{ cargoId: 1, montoCentavos: 10_000 }]);
+  });
+
+  test("sin productos se comporta igual que planearAplicacion", () => {
+    const cargos = [c(1, 5_000, "2026-09-05"), c(2, 5_000, "2026-10-05")];
+    assert.deepEqual(repartirPago(7_000, cargos), planearAplicacion(7_000, cargos));
   });
 });

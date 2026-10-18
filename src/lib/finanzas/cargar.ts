@@ -8,7 +8,7 @@
 
 import {
   SQL_CARGOS, SQL_CATALOGOS, SQL_CLASES, SQL_GASTOS, SQL_INGRESOS, SQL_INSCRIPCIONES,
-  SQL_NOMINA_PAGADA,
+  SQL_NOMINA_PAGADA, SQL_PRODUCTOS,
 } from "./sql.ts";
 import type { Dimensiones, Hechos } from "./tipos";
 import type { EstadoClase } from "../dominio/creditos";
@@ -72,6 +72,17 @@ export function cargarHechos(cx: Conexion, desde: string, hasta: string): Hechos
     cargos: todas(SQL_CARGOS).map((r) => ({
       ...dims(r), mes: String(r.mes),
       facturado: Number(r.facturado ?? 0), saldado: Number(r.saldado ?? 0),
+      producto: Number(r.producto) === 1,
+    })),
+    productos: todas(SQL_PRODUCTOS).map((r) => ({
+      mes: String(r.mes),
+      sedeId: num(r.sedeId),
+      productoId: num(r.productoId),
+      nombre: String(r.nombre ?? "Sin nombre"),
+      ingreso: Number(r.ingreso ?? 0),
+      costo: Number(r.costo ?? 0),
+      sinCosto: Number(r.sinCosto ?? 0),
+      unidades: Number(r.unidades ?? 0),
     })),
     inscripciones: todas(SQL_INSCRIPCIONES, false).map((r) => ({
       ...dims(r),

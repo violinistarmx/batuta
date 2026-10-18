@@ -10,6 +10,7 @@ import { usuarios } from "@/db/schema/index";
 import { evaluarIntentos, limpiarIntentosDe, registrarIntento } from "@/lib/auth/limite";
 import { HASH_SENUELO, verificarPassword } from "@/lib/auth/password";
 import { iniciarSesion } from "@/lib/auth/sesion";
+import { destinoSeguro } from "@/lib/auth/destino";
 import { registrar } from "@/lib/bitacora";
 
 const Credenciales = z.object({
@@ -84,6 +85,10 @@ export async function entrar(
   registrarIntento(email, ip, true);
   limpiarIntentosDe(email);
   registrar({ usuarioId: usuario.id, accion: "sesion.iniciar", entidad: "usuarios", entidadId: usuario.id, ip });
+
+  // Quien escaneó el QR de un vale sin sesión regresa a ese vale; los demás, a la bienvenida.
+  const destino = destinoSeguro(datos.get("siguiente"));
+  if (destino) redirect(destino);
 
   // La intro de bienvenida se muestra solo cuando el inicio de sesión acaba de ocurrir.
   redirect("/?bienvenida=1");

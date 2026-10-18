@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { categoriasDeGasto } from "@/lib/datos/gastos";
 import { guardarCategoriaAccion } from "../acciones";
@@ -14,7 +13,6 @@ export default async function CategoriasDeGasto() {
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="finanzas" />
       <main className="mx-auto max-w-3xl px-5 py-8">
         <p className="text-[11px] uppercase tracking-[0.16em] text-vs-tinta-3">
           <Link href="/finanzas" className="no-underline hover:underline">Finanzas</Link>

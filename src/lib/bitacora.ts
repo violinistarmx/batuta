@@ -30,6 +30,8 @@ export type Accion =
   | "documento.subir" | "documento.descargar" | "documento.eliminar"
   | "prospecto.crear" | "prospecto.seguimiento" | "prospecto.etapa" | "prospecto.convertir"
   | "mensaje.redactar" | "mensaje.aprobar" | "mensaje.rechazar" | "mensaje.enviar"
+  | "producto.crear" | "producto.editar" | "producto.ver_costos"
+  | "vale.crear" | "vale.entregar"
   | "inventario.alta" | "inventario.prestar" | "inventario.devolver"
   | "recital.crear" | "recital.estado" | "recital.proponer"
   | "recital.confirmar" | "recital.rechazar" | "recital.vender"

@@ -6,7 +6,7 @@
 
 export type IdWidget =
   | "kpis" | "equilibrio" | "observaciones" | "mensual" | "categorias" | "treemap"
-  | "programas" | "flujo" | "retencion" | "cac" | "instrumentos" | "matriz" | "profit_first";
+  | "programas" | "flujo" | "retencion" | "cac" | "instrumentos" | "matriz" | "profit_first" | "productos";
 
 export type TipoGrafica = "barras" | "lineas" | "area" | "dona" | "tabla" | "treemap";
 
@@ -21,7 +21,7 @@ export type DefinicionWidget = {
 };
 
 export const WIDGETS: DefinicionWidget[] = [
-  { id: "kpis", titulo: "Indicadores clave", tipos: [], minW: 6, minH: 4 },
+  { id: "kpis", titulo: "Indicadores clave", tipos: [], minW: 6, minH: 12 },
   { id: "mensual", titulo: "Ingresos vs egresos por mes", tipos: ["barras", "lineas", "area"], minW: 4, minH: 6 },
   { id: "equilibrio", titulo: "Punto de equilibrio", tipos: [], minW: 3, minH: 3 },
   { id: "observaciones", titulo: "Observaciones", tipos: [], minW: 3, minH: 4 },
@@ -32,8 +32,9 @@ export const WIDGETS: DefinicionWidget[] = [
   { id: "retencion", titulo: "Retención mensual", tipos: ["lineas", "barras"], minW: 4, minH: 5 },
   { id: "cac", titulo: "Costo de adquisición por canal", tipos: ["barras", "tabla"], minW: 4, minH: 5 },
   { id: "instrumentos", titulo: "Margen por instrumento (6 meses)", tipos: ["lineas", "barras", "tabla"], minW: 4, minH: 5 },
-  { id: "matriz", titulo: "Matriz mensual de egresos", tipos: [], minW: 6, minH: 8 },
+  { id: "matriz", titulo: "Matriz mensual de egresos", tipos: [], minW: 6, minH: 10 },
   { id: "profit_first", titulo: "Profit First", tipos: ["barras", "tabla"], minW: 4, minH: 5 },
+  { id: "productos", titulo: "Productos: ventas y margen", tipos: [], minW: 6, minH: 6 },
 ];
 
 export type Paleta = {
@@ -70,19 +71,20 @@ export const DISENO_INICIAL: Diseno = {
   paleta: "violinistar",
   tipos: {},
   posiciones: [
-    { i: "kpis", x: 0, y: 0, w: 12, h: 6 },
-    { i: "mensual", x: 0, y: 6, w: 8, h: 9 },
-    { i: "equilibrio", x: 8, y: 6, w: 4, h: 4 },
-    { i: "observaciones", x: 8, y: 10, w: 4, h: 5 },
-    { i: "categorias", x: 0, y: 15, w: 4, h: 8 },
-    { i: "treemap", x: 4, y: 15, w: 4, h: 8 },
-    { i: "programas", x: 8, y: 15, w: 4, h: 8 },
-    { i: "flujo", x: 0, y: 23, w: 6, h: 7 },
-    { i: "retencion", x: 6, y: 23, w: 6, h: 7 },
-    { i: "cac", x: 0, y: 30, w: 6, h: 7 },
-    { i: "instrumentos", x: 6, y: 30, w: 6, h: 7 },
-    { i: "matriz", x: 0, y: 37, w: 12, h: 12 },
-    { i: "profit_first", x: 0, y: 49, w: 12, h: 6 },
+    { i: "kpis", x: 0, y: 0, w: 12, h: 14 },
+    { i: "mensual", x: 0, y: 14, w: 8, h: 9 },
+    { i: "equilibrio", x: 8, y: 14, w: 4, h: 4 },
+    { i: "observaciones", x: 8, y: 18, w: 4, h: 5 },
+    { i: "categorias", x: 0, y: 23, w: 4, h: 8 },
+    { i: "treemap", x: 4, y: 23, w: 4, h: 8 },
+    { i: "programas", x: 8, y: 23, w: 4, h: 8 },
+    { i: "flujo", x: 0, y: 31, w: 6, h: 7 },
+    { i: "retencion", x: 6, y: 31, w: 6, h: 7 },
+    { i: "cac", x: 0, y: 38, w: 6, h: 7 },
+    { i: "instrumentos", x: 6, y: 38, w: 6, h: 7 },
+    { i: "matriz", x: 0, y: 45, w: 12, h: 12 },
+    { i: "profit_first", x: 0, y: 57, w: 12, h: 6 },
+    { i: "productos", x: 0, y: 63, w: 12, h: 9 },
   ],
 };
 
@@ -106,7 +108,10 @@ export function validarDiseno(crudo: unknown): Diseno {
     const def = typeof q.i === "string" ? definicion(q.i) : undefined;
     if (!def || vistas.has(def.id)) continue;
     const w = entero(q.w, def.minW, COLUMNAS);
-    const h = entero(q.h, def.minH, 40);
+    // Una altura menor a la mínima (diseños guardados antes de subirla) se sube, no se descarta:
+    // descartar quitaría el widget entero del dashboard.
+    const hCruda = entero(q.h, 1, 40);
+    const h = hCruda === null ? null : Math.max(hCruda, def.minH);
     const x = entero(q.x, 0, COLUMNAS - 1);
     const y = entero(q.y, 0, 500);
     if (w === null || h === null || x === null || y === null) continue;

@@ -25,10 +25,12 @@ function Boton() {
 }
 
 export function Cobrar({
-  alumnoId, hoy, adeudoTotal, adeudoTexto, puedeDescontar,
+  alumnoId, hoy, adeudoTotal, adeudoTexto, puedeDescontar, cargosAbiertos = [],
 }: {
   alumnoId: number; hoy: string; adeudoTotal: number; adeudoTexto: string;
   puedeDescontar?: boolean;
+  /** Cargos con adeudo, para elegir a cuál va el dinero primero. */
+  cargosAbiertos?: { id: number; descripcion: string; adeudoCentavos: number }[];
 }) {
   const [estado, accion] = useActionState<EstadoPago, FormData>(cobrar, {});
   const [monto, setMonto] = useState(adeudoTotal > 0 ? (adeudoTotal / 100).toFixed(2) : "");
@@ -94,6 +96,22 @@ export function Cobrar({
           <input id="referencia" name="referencia" placeholder="Folio o últimos dígitos" className={campo} />
         </div>
       </div>
+
+      {cargosAbiertos.length > 1 && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="cargoObjetivoId" className="text-xs font-medium text-vs-tinta-2">
+            Aplicar primero a
+          </label>
+          <select id="cargoObjetivoId" name="cargoObjetivoId" defaultValue="" className={campo}>
+            <option value="">Reparto automático (mensualidades y demás cargos primero, productos al final)</option>
+            {cargosAbiertos.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.descripcion} — debe {(c.adeudoCentavos / 100).toLocaleString("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 0 })}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="descripcion" className="text-xs font-medium text-vs-tinta-2">
