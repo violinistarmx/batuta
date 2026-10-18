@@ -63,9 +63,9 @@ function Caja({ titulo, renglones, pie }: { titulo: string; renglones: Renglon[]
   );
 }
 
-type PropsTooltip<T> = { active?: boolean; payload?: { payload: T }[] };
+type PropsTooltip<T> = { active?: boolean; payload?: readonly { payload?: T }[] };
 function primero<T>(p: PropsTooltip<T>): T | null {
-  return p.active && p.payload && p.payload.length > 0 ? p.payload[0]!.payload : null;
+  return (p.active && p.payload && p.payload.length > 0 ? p.payload[0]!.payload : null) ?? null;
 }
 
 function Leyenda({ items }: { items: { color: string; nombre: string; linea?: boolean }[] }) {
@@ -345,7 +345,7 @@ export function GraficaTreemap({
   type Nodo = { x: number; y: number; width: number; height: number; name: string; color?: string; depth: number; size?: number; categoria?: string };
   const Contenido = (props: unknown) => {
     const n = props as Nodo;
-    if (n.depth !== 2) return null;
+    if (n.depth !== 2) return <g />;
     const cabe = n.width > 56 && n.height > 26;
     return (
       <g>
