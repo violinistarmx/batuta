@@ -69,12 +69,42 @@ export const preciosVigencia = sqliteTable("precios_vigencia", {
   uniqueIndex("ux_precio_vigente").on(t.programaId).where(sql`vigente_hasta IS NULL`),
 ]);
 
+/** Sedes de la academia: Mineral de la Reforma, Hueypoxtla y Real del Monte. */
+export const sedes = sqliteTable("sedes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nombre: text("nombre").notNull(),
+  orden: integer("orden").notNull().default(0),
+  activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+}, (t) => [uniqueIndex("ux_sedes_nombre").on(t.nombre)]);
+
 /** Clausula 5a: la academia opera con dos cubiculos. Es el limite duro de la agenda. */
 export const aulas = sqliteTable("aulas", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nombre: text("nombre").notNull(),
   activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+  /** La sede de una clase sale de su aula. Una clase en línea no tiene sede. */
+  sedeId: integer("sede_id").references(() => sedes.id),
 }, (t) => [uniqueIndex("ux_aulas_nombre").on(t.nombre)]);
+
+/** Categorías de gasto, editables por el director. */
+export const categoriasGasto = sqliteTable("categorias_gasto", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nombre: text("nombre").notNull(),
+  /** Color de la categoría en gráficas y chips, en hexadecimal. */
+  color: text("color").notNull(),
+  /** Tipo que se propone al capturar un gasto de esta categoría. */
+  tipoSugerido: text("tipo_sugerido", { enum: ["fijo", "variable"] }).notNull().default("variable"),
+  orden: integer("orden").notNull().default(0),
+  activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+  /**
+   * Clave fija de las categorías que el sistema reconoce aunque se renombren:
+   * 'publicidad' alimenta el CAC. NULL en las demás.
+   */
+  clave: text("clave"),
+}, (t) => [
+  uniqueIndex("ux_categorias_gasto_nombre").on(t.nombre),
+  uniqueIndex("ux_categorias_gasto_clave").on(t.clave).where(sql`clave IS NOT NULL`),
+]);
 
 export const niveles = sqliteTable("niveles", {
   id: integer("id").primaryKey({ autoIncrement: true }),

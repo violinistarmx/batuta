@@ -68,12 +68,13 @@ export async function GET(req: NextRequest) {
         "Egreso",
         esc(g.fecha),
         esc(g.concepto),
-        esc(ETIQUETA_CATEGORIA[g.categoria as keyof typeof ETIQUETA_CATEGORIA] ?? g.categoria),
+        esc(g.categoriaNombre ?? ETIQUETA_CATEGORIA[g.categoria as keyof typeof ETIQUETA_CATEGORIA] ?? g.categoria),
         "",
         "",
         "",
         centavos(g.montoCentavos),
-        "",
+        esc([g.subcategoria, g.tipo === "fijo" ? "Fijo" : "Variable", g.sede, g.programa]
+          .filter(Boolean).join(" · ")),
       ].join(","));
     }
   }

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { aulas, configuracion, instrumentos, preciosVigencia, programas } from "@/db/schema/index";
+import { aulas, configuracion, instrumentos, preciosVigencia, programas, sedes } from "@/db/schema/index";
 import { Encabezado } from "@/components/encabezado";
 import { exigirSesionUsable, permisosDe, tienePermiso } from "@/lib/auth/permisos";
 import { importeDocenteCentavos, margenDelCiclo } from "@/lib/dominio/nomina";
 import { pesos } from "@/lib/formato";
+import { NuevaAula, SedeDeAula } from "./aulas";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,8 @@ export default async function Catalogo() {
 
   const listaInstrumentos = db.select().from(instrumentos).all().sort((a, b) => a.orden - b.orden);
   const listaAulas = db.select().from(aulas).all();
+  const listaSedes = db.select({ id: sedes.id, nombre: sedes.nombre }).from(sedes)
+    .where(eq(sedes.activo, true)).orderBy(sedes.orden).all();
 
   const parametrosClave = [
     ["Aviso mínimo para posponer", `${cfg.horas_aviso_posposicion} h`, "Cláusula 4ª"],
@@ -208,13 +211,26 @@ export default async function Catalogo() {
             <h2 className="font-display text-xl font-semibold">Cubículos</h2>
             <ul className="mt-3 flex flex-wrap gap-2">
               {listaAulas.map((a) => (
-                <li key={a.id} className="rounded border border-vs-linea bg-white px-2.5 py-1 text-sm">
-                  {a.nombre}
+                <li key={a.id}>
+                  {puedeEditarCatalogo ? (
+                    <SedeDeAula aulaId={a.id} nombre={a.nombre} sedeId={a.sedeId} sedes={listaSedes} />
+                  ) : (
+                    <span className="block rounded border border-vs-linea bg-white px-2.5 py-1 text-sm">
+                      {a.nombre}
+                      {a.sedeId !== null && (
+                        <span className="ml-1.5 text-xs text-vs-tinta-3">
+                          · {listaSedes.find((x) => x.id === a.sedeId)?.nombre}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
+            {puedeEditarCatalogo && <NuevaAula sedes={listaSedes} />}
             <p className="mt-2.5 text-xs text-vs-tinta-3">
               Límite de clases presenciales simultáneas. Una clase en línea no ocupa cubículo.
+              La sede de cada clase sale de su cubículo: es la que usa el dashboard de finanzas.
             </p>
           </div>
         </section>

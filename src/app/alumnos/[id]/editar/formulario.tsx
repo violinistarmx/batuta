@@ -19,7 +19,14 @@ type Alumno = {
   id: number; nombre: string; fechaNacimiento: string | null; sexo: string | null;
   telefono: string | null; email: string | null; direccion: string | null; colonia: string | null;
   objetivoMusical: string | null; experienciaPrevia: string | null; observaciones: string | null;
+  origen: string | null;
 };
+
+const ORIGENES = [
+  ["instagram", "Instagram"], ["facebook", "Facebook"], ["tiktok", "TikTok"],
+  ["recomendacion", "Recomendación"], ["whatsapp", "WhatsApp"], ["google", "Google"],
+  ["paso_por_la_calle", "Pasó por la calle"], ["evento", "Evento"], ["otro", "Otro"],
+] as const;
 
 type Salud = {
   condicionSalud: string | null; trastornoAprendizaje: string | null;
@@ -126,6 +133,12 @@ export function FormularioEdicion({
         </Campo>
         <Campo id="observaciones" label="Observaciones" ancho="sm:col-span-2">
           <textarea id="observaciones" name="observaciones" rows={2} defaultValue={alumno.observaciones ?? ""} className={campo} />
+        </Campo>
+        <Campo id="origen" label="¿Cómo nos conoció?">
+          <select id="origen" name="origen" defaultValue={alumno.origen ?? ""} className={campo}>
+            <option value="">Sin dato</option>
+            {ORIGENES.map(([v, e]) => <option key={v} value={v}>{e}</option>)}
+          </select>
         </Campo>
       </Seccion>
 

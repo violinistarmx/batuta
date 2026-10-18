@@ -114,6 +114,11 @@ export const alumnos = sqliteTable("alumnos", {
   fotoBytes: integer("foto_bytes"),
   fotoHash: text("foto_hash"),
   fotoActualizadaEn: integer("foto_actualizada_en", { mode: "timestamp" }),
+  /**
+   * Canal por el que llegó (instagram, recomendacion, whatsapp…). Opcional. Se llena
+   * solo al convertir un prospecto; sirve para el costo de adquisición por canal.
+   */
+  origen: text("origen"),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (t) => [
   uniqueIndex("ux_alumnos_codigo").on(t.codigo),

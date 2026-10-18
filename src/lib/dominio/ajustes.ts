@@ -20,11 +20,12 @@ export type Parametro = {
   actualizadoEn: Date;
 };
 
-export type Grupo = "contrato" | "direccion" | "institucional";
+export type Grupo = "contrato" | "direccion" | "finanzas" | "institucional";
 
 export const NOMBRE_GRUPO: Record<Grupo, string> = {
   contrato: "Reglas del contrato",
   direccion: "Decisiones de dirección",
+  finanzas: "Metas de finanzas",
   institucional: "Datos de la academia",
 };
 
@@ -36,12 +37,17 @@ export const EXPLICACION_GRUPO: Record<Grupo, string> = {
   direccion:
     "Decisiones internas. Se pueden ajustar cuando haga falta; lo ya registrado no " +
     "se recalcula solo.",
+  finanzas:
+    "Las metas contra las que el dashboard de finanzas pinta el semáforo, y el " +
+    "reparto Profit First. Van como proporción: 0.45 es 45 %.",
   institucional:
     "Lo que aparece impreso en recibos, notas de remisión y credenciales.",
 };
 
 export function grupoDe(p: { clave: string; fuente: string | null }): Grupo {
   if (p.clave.startsWith("academia_") || p.clave.startsWith("recibo_")) return "institucional";
+  if (p.clave.startsWith("meta_") || p.clave.startsWith("semaforo_")
+      || p.clave.startsWith("profit_first_")) return "finanzas";
   if ((p.fuente ?? "").toLowerCase().startsWith("contrato")) return "contrato";
   return "direccion";
 }

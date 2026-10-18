@@ -6,18 +6,30 @@ import { exigirPermiso } from "@/lib/auth/permisos";
 import { gastoPorId } from "@/lib/datos/gastos";
 import { editarGastoAccion, eliminarGastoAccion } from "../acciones";
 import { BtnEliminar, FormularioGasto } from "../cliente";
+import { opcionesFormulario, volverSeguro } from "../opciones";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditarGasto({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{ id?: string; volver?: string }>;
 }) {
   const sesion = await exigirPermiso("gastos.gestionar");
-  const { id: idParam } = await searchParams;
-  const gasto = gastoPorId(Number(idParam));
+  const sp = await searchParams;
+  const gasto = gastoPorId(Number(sp.id));
   if (!gasto) notFound();
+  const volver = volverSeguro(sp.volver);
+  const opciones = opcionesFormulario();
+
+  // Si la categoría del gasto está desactivada, se ofrece igual para no perderla al guardar.
+  if (gasto.categoriaId !== null && !opciones.categorias.some((c) => c.id === gasto.categoriaId)) {
+    const { categoriasDeGasto } = await import("@/lib/datos/gastos");
+    const propia = categoriasDeGasto().find((c) => c.id === gasto.categoriaId);
+    if (propia) opciones.categorias.push({
+      id: propia.id, nombre: `${propia.nombre} (inactiva)`, color: propia.color, tipoSugerido: propia.tipoSugerido,
+    });
+  }
 
   return (
     <>
@@ -31,14 +43,20 @@ export default async function EditarGasto({
         </p>
         <div className="mt-2 flex items-start justify-between gap-4">
           <h1 className="font-display text-3xl font-semibold tracking-tight">Editar gasto</h1>
-          <BtnEliminar accion={eliminarGastoAccion} gastoId={gasto.id} />
+          <BtnEliminar accion={eliminarGastoAccion} gastoId={gasto.id} volver={volver} />
         </div>
 
         <FormularioGasto
           accion={editarGastoAccion}
+          {...opciones}
+          volver={volver}
           inicial={{
             id: gasto.id,
-            categoria: gasto.categoria,
+            categoriaId: gasto.categoriaId,
+            subcategoria: gasto.subcategoria,
+            tipo: gasto.tipo,
+            sedeId: gasto.sedeId,
+            programaId: gasto.programaId,
             concepto: gasto.concepto,
             montoCentavos: gasto.montoCentavos,
             fecha: gasto.fecha,

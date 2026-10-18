@@ -7,7 +7,7 @@ import {
   alumnos, aplicaciones, cargos, ciclos, clases, docentes, gastos, inscripciones,
   nominaPagos, nominaPartidas, pagos, programas, recibos, secuencias,
 } from "@/db/schema/index";
-import { costoDeClaseSql, parametrosNomina } from "@/lib/datos/costo-docente";
+import { TARIFA_VIGENTE_DE_CLASE, costoDeClaseSql, parametrosNomina } from "@/lib/datos/costo-docente";
 import { formatearFolio, planearAplicacion, type Cargo } from "@/lib/dominio/cobranza";
 import { conceptoEgresoNomina } from "@/lib/dominio/egresos";
 import { generaPartida, importeDocenteCentavos } from "@/lib/dominio/nomina";
@@ -593,7 +593,8 @@ export function generarNomina(
       docenteId: clases.docenteId,
       minutos: clases.minutos,
       estado: clases.estado,
-      tarifaPropia: docentes.tarifaHoraCentavos,
+      // Tarifa del maestro vigente el día de la clase (tarifas_docente).
+      tarifaPropia: TARIFA_VIGENTE_DE_CLASE,
       tarifaPrograma: programas.tarifaDocenteHoraCentavos,
     })
     .from(clases)

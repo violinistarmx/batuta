@@ -69,6 +69,12 @@ const ACCIONES: Record<string, Descripcion> = {
   "cargo.generar": { texto: "Generó cargos", grupo: "dinero" },
   "nomina.calcular": { texto: "Calculó un corte de nómina", grupo: "dinero" },
   "nomina.pagar": { texto: "Marcó un corte como pagado", grupo: "dinero" },
+  "nomina.ajustar": { texto: "Ajustó el importe de una clase en nómina", grupo: "dinero", delicado: true },
+  "tarifa.cambiar": { texto: "Cambió la tarifa de un maestro", grupo: "dinero", delicado: true },
+  "gasto.registrar": { texto: "Registró un gasto", grupo: "dinero" },
+  "gasto.editar": { texto: "Editó un gasto", grupo: "dinero" },
+  "gasto.eliminar": { texto: "Eliminó un gasto", grupo: "dinero", delicado: true },
+  "gasto.categoria": { texto: "Creó o editó una categoría de gasto", grupo: "dinero" },
   "recibo.emitir": { texto: "Emitió un recibo", grupo: "dinero" },
   "recibo.imprimir": { texto: "Imprimió un recibo", grupo: "dinero" },
 

@@ -19,14 +19,36 @@ import { configuracion } from "@/db/schema/index";
  *
  * La consulta que lo use debe tener `clases` y `docentes` en el FROM o en un JOIN.
  */
+/**
+ * Tarifa propia del maestro de la clase vigente el día de la clase. NULL si no tiene
+ * tarifa propia ese día.
+ *
+ * El día civil se obtiene con `localtime`, que usa la zona del proceso: el contenedor
+ * fija TZ=America/Mexico_City (Dockerfile). No se escribe el desfase a mano, por la
+ * misma razón que explica lib/formato.ts.
+ *
+ * `tarifas_docente` es la fuente única: la usan la nómina y el dashboard, así que lo
+ * que se paga y lo que se reporta salen del mismo número. La consulta que lo use debe
+ * tener `clases` en el FROM o en un JOIN.
+ */
+export const DIA_DE_CLASE = sql`date(clases.inicia_en, 'unixepoch', 'localtime')`;
+
+export const TARIFA_VIGENTE_DE_CLASE = sql<number | null>`(
+  SELECT td.tarifa_hora_centavos FROM tarifas_docente td
+  WHERE td.docente_id = clases.docente_id
+    AND td.vigente_desde <= ${DIA_DE_CLASE}
+    AND (td.vigente_hasta IS NULL OR td.vigente_hasta >= ${DIA_DE_CLASE})
+  ORDER BY td.vigente_desde DESC LIMIT 1
+)`;
+
 export function costoDeClaseSql(
   tarifaHoraCentavos: number,
   factorFaltaSinAviso: number,
   factorFaltaJustificada: number,
 ) {
-  // Jerarquía: tarifa propia del docente > tarifa del programa > tarifa global
-  // La consulta que lo use debe tener `docentes` y `programas` en los JOINs.
-  const tarifa = sql`coalesce(docentes.tarifa_hora_centavos, programas.tarifa_docente_hora_centavos, ${tarifaHoraCentavos})`;
+  // Jerarquía: tarifa del maestro vigente ese día > tarifa del programa > tarifa global.
+  // La consulta que lo use debe tener `clases` y `programas` en los JOINs.
+  const tarifa = sql`coalesce(${TARIFA_VIGENTE_DE_CLASE}, programas.tarifa_docente_hora_centavos, ${tarifaHoraCentavos})`;
   const completo = sql`clases.minutos / 60.0 * ${tarifa}`;
   return sql<number>`coalesce(
     (SELECT np.importe_centavos FROM nomina_partidas np WHERE np.clase_id = clases.id),

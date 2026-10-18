@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { alumnos, docentes, usuarios } from "./personas";
 import { ciclos, clases, inscripciones } from "./academico";
+import { categoriasGasto, programas, sedes } from "./catalogo";
 
 /**
  * Todo importe en CENTAVOS. $750.00 se guarda como 75000.
@@ -144,6 +145,45 @@ export const gastos = sqliteTable("gastos", {
   concepto: text("concepto").notNull(),
   montoCentavos: integer("monto_centavos").notNull(),
   fecha: text("fecha").notNull(),
+  /** Categoría editable. `categoria` (texto fijo) queda solo por compatibilidad. */
+  categoriaId: integer("categoria_id").references(() => categoriasGasto.id),
+  subcategoria: text("subcategoria"),
+  /** Fijo o variable: alimenta el punto de equilibrio. */
+  tipo: text("tipo", { enum: ["fijo", "variable"] }).notNull().default("variable"),
+  /** NULL = gasto general de la academia, sin sede. */
+  sedeId: integer("sede_id").references(() => sedes.id),
+  /** NULL = no se atribuye a un programa. */
+  programaId: integer("programa_id").references(() => programas.id),
   registradoPor: integer("registrado_por").references(() => usuarios.id),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-}, (t) => [index("ix_gastos_fecha").on(t.fecha)]);
+}, (t) => [
+  index("ix_gastos_fecha").on(t.fecha),
+  index("ix_gastos_categoria").on(t.categoriaId, t.fecha),
+]);
+
+/**
+ * Tarifa por hora de cada maestro, con vigencia. Fuente única: la usan la nómina y
+ * el dashboard. Cambiar la tarifa cierra la vigente y abre otra; el pasado no cambia.
+ */
+export const tarifasDocente = sqliteTable("tarifas_docente", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  docenteId: integer("docente_id").notNull().references(() => docentes.id),
+  tarifaHoraCentavos: integer("tarifa_hora_centavos").notNull(),
+  vigenteDesde: text("vigente_desde").notNull(),
+  vigenteHasta: text("vigente_hasta"),
+  creadoPor: integer("creado_por").references(() => usuarios.id),
+  creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (t) => [
+  index("ix_tarifas_docente").on(t.docenteId, t.vigenteDesde),
+  uniqueIndex("ux_tarifa_docente_abierta").on(t.docenteId).where(sql`vigente_hasta IS NULL`),
+]);
+
+/**
+ * Diseño del dashboard de finanzas de cada usuario: qué gráficas ve, dónde, de qué
+ * tamaño, de qué tipo y con qué paleta. JSON validado en lib/finanzas/diseno.ts.
+ */
+export const panelesFinanzas = sqliteTable("paneles_finanzas", {
+  usuarioId: integer("usuario_id").primaryKey().references(() => usuarios.id, { onDelete: "cascade" }),
+  diseno: text("diseno").notNull(),
+  actualizadoEn: integer("actualizado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
