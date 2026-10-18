@@ -44,7 +44,9 @@ export async function GET(req: NextRequest) {
   // ── Ingresos (pagos) ────────────────────────────────────────────────────────
   const ingresos = pagosDelPeriodo(desde, hasta);
   for (const p of ingresos) {
-    const monto = p.montoCentavos - p.descuentoCentavos;
+    // `montoCentavos` ya es el dinero que entró; el descuento es una condonación
+    // que salda el cargo sin dinero. Restarlo contaba de menos el ingreso.
+    const monto = p.montoCentavos;
     rows.push([
       "Ingreso",
       esc(p.recibidoEl),
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
       esc(p.referencia),
       centavos(monto),
       "",
-      p.descuentoCentavos > 0 ? esc(`Descuento: $${centavos(p.descuentoCentavos)}`) : "",
+      p.descuentoCentavos > 0 ? esc(`Además se condonaron $${centavos(p.descuentoCentavos)} (no es dinero recibido)`) : "",
     ].join(","));
   }
 
