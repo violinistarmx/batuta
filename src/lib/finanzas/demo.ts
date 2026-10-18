@@ -222,7 +222,9 @@ export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenD
       for (const x of inscs) {
         if (x.fin === null && x.inicio < ini && r() < 0.04) {
           x.fin = sumarDias(ini, entero(r, 0, Math.max(0, Number(fin.slice(8)) - 1)));
-          cx.prepare("UPDATE inscripciones SET fecha_fin = ?, estado = 'finalizada' WHERE id = ?").run(x.fin, x.id);
+          // El aviso se dio 72 h antes de la fecha de efecto (cláusula 12ª).
+          const aviso = Math.floor(Date.parse(`${x.fin}T12:00:00Z`) / 1000) - 3 * 86_400;
+          cx.prepare("UPDATE inscripciones SET fecha_fin = ?, aviso_baja_en = ?, estado = 'finalizada' WHERE id = ?").run(x.fin, aviso, x.id);
         }
       }
       // Altas: de 3 a 6 alumnos nuevos al mes.
@@ -270,6 +272,9 @@ export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenD
           });
           insertar(cx, "aplicaciones", {
             pago_id: pagoId, cargo_id: cargoId, monto_centavos: monto + (parcial ? 0 : condonado),
+          });
+          insertar(cx, "recibos", {
+            folio: `DEMO-${String(pagoId).padStart(5, "0")}`, pago_id: pagoId, alumno_id: x.alumnoId,
           });
           resumen.pagos++;
         }
@@ -376,6 +381,7 @@ export function limpiarDemo(cx: Conexion): { alumnos: number; gastos: number } {
     cx.exec(`
       DELETE FROM nomina_partidas WHERE clase_id IN (SELECT id FROM clases WHERE inscripcion_id IN (${inscDemo}));
       DELETE FROM nomina_pagos WHERE docente_id IN (${docentesDemo});
+      DELETE FROM recibos WHERE alumno_id IN (${alumnosDemo});
       DELETE FROM aplicaciones WHERE pago_id IN (SELECT id FROM pagos WHERE alumno_id IN (${alumnosDemo}));
       DELETE FROM pagos WHERE alumno_id IN (${alumnosDemo});
       DELETE FROM cargos WHERE alumno_id IN (${alumnosDemo});

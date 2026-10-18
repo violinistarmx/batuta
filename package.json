@@ -9,16 +9,16 @@
     "start": "node .next/standalone/server.js",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed.ts",
-    "seed:finanzas": "tsx scripts/seed-finanzas.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts",
+    "db:seed": "tsx --env-file-if-exists=.env src/db/seed.ts",
+    "seed:finanzas": "tsx --env-file-if-exists=.env scripts/seed-finanzas.ts",
     "preparar": "npm run db:migrate && npm run db:seed",
     "db:reset": "rm -f data/batuta.db* && npm run db:migrate && npm run db:seed",
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
     "verify": "node scripts/verifica-garantias.mjs && node scripts/verifica-saldos.mjs && node scripts/verifica-finanzas.mjs && node scripts/verifica-comunicacion.mjs && node scripts/verifica-bajas.mjs",
-    "usuario": "tsx src/db/crear-usuario.ts",
+    "usuario": "tsx --env-file-if-exists=.env src/db/crear-usuario.ts",
     "limpiar:alumnos": "node scripts/limpiar-alumnos.mjs",
-    "docente": "tsx src/db/crear-docente.ts",
+    "docente": "tsx --env-file-if-exists=.env src/db/crear-docente.ts",
     "respaldo": "node scripts/respaldo.mjs",
     "restaurar": "node scripts/restaurar.mjs",
     "corregir:sofia-dibujo": "node scripts/corregir-credito-sofia.mjs"
@@ -28,7 +28,7 @@
     "@react-pdf/renderer": "^4.9.0",
     "better-sqlite3": "11.10.0",
     "drizzle-orm": "0.45.2",
-    "next": "16.3.5",
+    "next": "16.4.2",
     "qrcode": "^1.5.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -50,5 +50,8 @@
     "tailwindcss": "4.3.3",
     "tsx": "4.20.3",
     "typescript": "5.8.3"
+  },
+  "overrides": {
+    "esbuild": "^0.25.0"
   }
 }
