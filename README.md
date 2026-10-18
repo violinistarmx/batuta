@@ -786,6 +786,38 @@ un enlace al expediente del alumno: es donde hay que ir si se decide cobrar algo
 justo después de reportar un instrumento roto cuando hace falta recordar que **nadie va a
 cobrar nada solo**.
 
+## Navegación: Ajustes y Finanzas con barra lateral
+
+El menú principal se quedó con lo que se usa a diario. **Ajustes** reúne lo que se toca poco y
+**Finanzas** reúne todo lo del dinero, cada uno con una barra lateral de secciones. Se muestra y se
+oculta con **Ctrl + B** (Cmd + B en Mac) o con el botón; el navegador recuerda la elección. En el
+celular es un panel que se abre encima y se cierra al elegir.
+
+Toda la estructura vive en `lib/navegacion.ts` —una lista por barra, pura y con pruebas—: mover,
+renombrar o agregar una sección es editar esa lista. Cada pantalla sigue exigiendo su propio
+permiso; la barra solo decide qué se muestra.
+
+| Barra | Grupo | Secciones |
+|-------|-------|-----------|
+| **Ajustes** | Reglas de la academia | Reglas del contrato · Decisiones de dirección · Metas de finanzas · Datos de la academia |
+| | Equipo | Cuentas (`/usuarios`) |
+| | Academia | Catálogo (`/catalogo`) |
+| | Seguridad | Bitácora (`/bitacora`) |
+| **Finanzas** | Panorama | Resumen (el dashboard) |
+| | Ingresos · lo que entra | Cobranza · Productos |
+| | Egresos · lo que sale | Gastos · Nómina docente · Tarifas de maestros |
+| | Análisis | Reportes (antes en el menú principal) |
+| | Reglas | Metas y reglas (en Ajustes) · Categorías de gasto |
+
+El orden de Finanzas sigue las preguntas en el orden en que se hacen: ¿cómo voy?, ¿qué entra?, ¿qué
+sale?, ¿por qué?, ¿con qué reglas? Lo que se consulta junto vive en el mismo grupo. Arriba de la
+barra van las dos cifras que se miran primero: cobrado en el mes y por cobrar.
+
+Las direcciones no cambiaron (`/usuarios`, `/catalogo`, `/bitacora`) porque Ajustes es un grupo de
+ruta de Next; `/reportes` redirige a `/finanzas/reportes` y `/ajustes` a su primera sección. Quien no
+tiene nada de Ajustes (un maestro, recepción) conserva un acceso directo al catálogo, que es de todos;
+un maestro que solo entra a «Mi nómina» ve esa pantalla sin la barra de dirección.
+
 ## Productos y vales de entrega
 
 La academia vende métodos, instrumentos de cuerda, libretas. Un producto es un **cargo más**
