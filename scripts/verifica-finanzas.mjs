@@ -26,9 +26,9 @@ sobre.length === 0
   ? ok("ningún cargo tiene aplicado más de lo que vale")
   : bad(`cargos sobreaplicados: ${JSON.stringify(sobre)}`);
 
-console.log("\n== CUADRE: lo aplicado nunca excede el pago ==");
+console.log("\n== CUADRE: lo aplicado nunca excede el pago (más su descuento autorizado) ==");
 const excede = todos(`
-  SELECT p.id, p.monto_centavos AS pago,
+  SELECT p.id, p.monto_centavos + p.descuento_centavos AS pago,
          coalesce(sum(a.monto_centavos), 0) AS aplicado
   FROM pagos p LEFT JOIN aplicaciones a ON a.pago_id = p.id
   GROUP BY p.id HAVING aplicado > pago`);
@@ -45,9 +45,9 @@ dobles.length === 0 ? ok("ningún pago tiene dos recibos") : bad(`recibos duplic
 console.log("\n== GARANTIA: el folio es único ==");
 const folios = todos("SELECT folio, count(*) n FROM recibos GROUP BY folio HAVING n > 1");
 folios.length === 0 ? ok("no hay folios repetidos") : bad(`folios repetidos: ${JSON.stringify(folios)}`);
-const pago = uno("SELECT id FROM pagos LIMIT 1");
-if (pago) {
-  const folio = uno("SELECT folio FROM recibos LIMIT 1").folio;
+const recibo = uno("SELECT folio FROM recibos LIMIT 1");
+if (recibo) {
+  const folio = recibo.folio;
   try {
     db.prepare("INSERT INTO recibos(folio, pago_id, alumno_id) SELECT ?, pago_id, alumno_id FROM recibos LIMIT 1").run(folio);
     bad("la base aceptó un folio repetido");
@@ -57,7 +57,7 @@ if (pago) {
       : bad(`rechazó por otra razón: ${e.code}`);
   }
 } else {
-  console.log("  (sin pagos en la base: se omite la prueba de folio repetido)");
+  console.log("  (sin recibos en la base: se omite la prueba de folio repetido)");
 }
 
 console.log("\n== GARANTIA: una clase no se paga dos veces ==");
