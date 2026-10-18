@@ -43,7 +43,7 @@ export async function guardarAjuste(
     cambios: { [clave]: [antes, v.valor] },
   });
 
-  revalidatePath("/ajustes");
+  revalidatePath("/ajustes", "layout");
   revalidatePath("/catalogo");
   return { ok: "Guardado.", clave };
 }

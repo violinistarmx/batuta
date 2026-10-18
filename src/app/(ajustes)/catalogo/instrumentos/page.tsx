@@ -3,7 +3,6 @@ import { asc } from "drizzle-orm";
 
 import { db } from "@/db";
 import { instrumentos } from "@/db/schema/index";
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { crearInstrumento, renombrarInstrumento, toggleInstrumento } from "./acciones";
 import { FilaInstrumento, FormularioNuevoInstrumento } from "./cliente";
@@ -24,7 +23,6 @@ export default async function AdminInstrumentos() {
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="catalogo" />
       <main className="mx-auto max-w-2xl px-5 py-8">
         <Link
           href="/catalogo"

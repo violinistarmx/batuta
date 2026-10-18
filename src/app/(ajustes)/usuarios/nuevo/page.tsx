@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { docentesSinCuenta } from "@/lib/datos/usuarios";
 import { FormularioCuenta } from "./formulario";
@@ -12,7 +11,6 @@ export default async function NuevaCuenta() {
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="usuarios" />
       <main className="mx-auto max-w-3xl px-5 py-8">
         <Link href="/usuarios" className="text-xs text-vs-tinta-3 no-underline hover:underline">
           ← Cuentas

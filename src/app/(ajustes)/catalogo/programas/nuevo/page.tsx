@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { hoyEnMexico } from "@/lib/zona";
 import { FormularioNuevoPrograma } from "./formulario";
@@ -13,7 +12,6 @@ export default async function NuevoPrograma() {
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="catalogo" />
       <main className="mx-auto max-w-2xl px-5 py-8">
         <Link
           href="/catalogo"

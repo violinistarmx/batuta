@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { parametrosNomina } from "@/lib/datos/costo-docente";
 import { historialTarifas, tarifasActuales } from "@/lib/datos/tarifas";
@@ -19,7 +18,6 @@ export default async function Tarifas() {
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="finanzas" />
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-5">
         <p className="text-[11px] uppercase tracking-[0.16em] text-vs-tinta-3">
           <Link href="/finanzas" className="no-underline hover:underline">Finanzas</Link>
@@ -30,7 +28,7 @@ export default async function Tarifas() {
           Lo que gana cada maestro por hora impartida. Un cambio vale desde la fecha que elijas:
           las clases anteriores conservan la tarifa de su día. Sin tarifa propia, se usa la del
           programa o la general ({pesosExactos(general)} por hora,{" "}
-          <Link href="/ajustes" className="underline">Ajustes</Link>).
+          <Link href="/ajustes/direccion" className="underline">Ajustes</Link>).
         </p>
 
         <ul className="mt-6 space-y-4">

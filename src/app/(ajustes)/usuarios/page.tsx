@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { listarUsuarios } from "@/lib/datos/usuarios";
 import { NOMBRE_ROL, debeCambiarPassword, type Rol } from "@/lib/dominio/usuarios";
@@ -32,7 +31,6 @@ export default async function Usuarios() {
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="usuarios" />
       <main className="mx-auto max-w-5xl px-5 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

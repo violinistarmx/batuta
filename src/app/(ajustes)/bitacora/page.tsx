@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import {
   POR_PAGINA, consultarBitacora, desdeCuandoHayBitacora, quienesAparecen,
@@ -62,7 +61,6 @@ export default async function Bitacora({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="bitacora" />
       <main className="mx-auto max-w-5xl px-5 py-8">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Bitácora</h1>
         <p className="mt-1 max-w-2xl text-sm text-vs-tinta-2">

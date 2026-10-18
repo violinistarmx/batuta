@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { egresosNominaDelPeriodo } from "@/lib/datos/finanzas";
 import { dashboardFinanzas, metasFinanzas } from "@/lib/datos/finanzas-dashboard";
@@ -36,7 +35,6 @@ export default async function Finanzas({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="finanzas" />
       <main className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 sm:py-7">
         <Tablero
           d={d}

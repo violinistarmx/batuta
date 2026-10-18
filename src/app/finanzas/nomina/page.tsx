@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import {
   cortesDeNomina, nominaPendientePorDocente, partidasPendientesDe, rangoNomina,
@@ -54,7 +53,6 @@ export default async function Nomina({ searchParams }: { searchParams: Promise<B
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="finanzas" />
       <main className="mx-auto max-w-5xl px-5 py-8">
         {puedePagar && (
           <Link href="/finanzas" className="text-xs text-vs-tinta-3 no-underline hover:underline">
@@ -74,7 +72,7 @@ export default async function Nomina({ searchParams }: { searchParams: Promise<B
         {puedePagar && (
           <p className="mt-2 text-xs text-vs-tinta-3">
             Para cambiar estos porcentajes:{" "}
-            <Link href="/ajustes" className="underline">Ajustes → Decisiones de dirección</Link>.
+            <Link href="/ajustes/direccion" className="underline">Ajustes → Decisiones de dirección</Link>.
           </p>
         )}
 

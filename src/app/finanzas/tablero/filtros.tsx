@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { mesAnterior } from "@/lib/finanzas/fechas";
@@ -49,7 +48,7 @@ export function BarraFiltros({
   };
 
   const selector = (clave: keyof Filtros, etiqueta: string, lista: { id: number; nombre: string }[]) => (
-    <label className="flex min-w-0 flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
+    <label className="flex min-w-[120px] flex-1 flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
       {etiqueta}
       <select
         value={seleccion.filtros[clave] ?? ""}
@@ -97,8 +96,8 @@ export function BarraFiltros({
         </div>
 
         {/* Periodo y filtros: una sola fila sobre las gráficas. */}
-        <div className="relative mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-[auto_auto_auto_repeat(4,minmax(0,1fr))]">
-          <div className="col-span-2 flex flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75 sm:col-span-1">
+        <div className="relative mt-4 flex flex-wrap items-end gap-2.5">
+          <div className="flex shrink-0 flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
             Vista
             <div className="mt-1 inline-flex rounded-lg bg-white/15 p-0.5" role="group" aria-label="Vista mensual o anual">
               <button type="button" aria-pressed={p.modo === "mes"}
@@ -114,7 +113,7 @@ export function BarraFiltros({
             </div>
           </div>
 
-          <div className="flex flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
+          <div className="flex min-w-[190px] flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
             {p.modo === "mes" ? "Mes" : "Año"}
             {p.modo === "mes" ? (
               <div className="mt-1 flex items-center gap-1">
@@ -134,7 +133,7 @@ export function BarraFiltros({
             )}
           </div>
 
-          <label className="flex flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
+          <label className="flex min-w-[150px] flex-1 flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
             Comparar
             <select
               value={seleccion.comparacion} disabled={p.modo === "anio"}
@@ -150,7 +149,7 @@ export function BarraFiltros({
             </select>
           </label>
 
-          <label className="flex min-w-0 flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
+          <label className="flex min-w-[120px] flex-1 flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
             Línea
             <select
               value={seleccion.filtros.linea}
@@ -186,16 +185,6 @@ export function BarraFiltros({
         )}
       </div>
 
-      <nav aria-label="Secciones de finanzas" className="flex flex-wrap gap-x-1 gap-y-1 bg-indigo-950/90 px-3 py-1.5 text-sm sm:px-5">
-        {[
-          ["/finanzas/gastos", "Gastos"], ["/finanzas/nomina", "Nómina"], ["/finanzas/tarifas", "Tarifas de maestros"],
-          ["/finanzas/cobranza", "Cobranza"], ["/finanzas/productos", "Productos"], ["/ajustes", "Metas"],
-        ].map(([href, texto]) => (
-          <Link key={href} href={href!} className="rounded-md px-2.5 py-1 text-white/85 no-underline hover:bg-white/10 hover:text-white">
-            {texto}
-          </Link>
-        ))}
-      </nav>
     </header>
   );
 }

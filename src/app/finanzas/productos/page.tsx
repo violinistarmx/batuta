@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { catalogoDeProductos } from "@/lib/datos/productos";
 import { Catalogo } from "./cliente";
@@ -18,7 +17,6 @@ export default async function Productos() {
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="finanzas" />
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-5">
         <p className="text-[11px] uppercase tracking-[0.16em] text-vs-tinta-3">
           <Link href="/finanzas" className="no-underline hover:underline">Finanzas</Link>

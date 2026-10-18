@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { programaPorId } from "@/lib/datos/catalogo";
 import { parametrosNomina } from "@/lib/datos/costo-docente";
@@ -33,7 +32,6 @@ export default async function EditarPrograma({
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="catalogo" />
       <main className="mx-auto max-w-2xl px-5 py-8">
         <Link
           href="/catalogo"

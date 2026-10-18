@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Encabezado } from "@/components/encabezado";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { categoriasDeGasto, gastosDelPeriodo, matrizDeGastos } from "@/lib/datos/gastos";
 import { limitesDeMes, mesesDelAnio, nombreCortoDeMes, nombreDeMes } from "@/lib/finanzas/fechas";
@@ -61,7 +60,6 @@ export default async function PaginaGastos({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="finanzas" />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

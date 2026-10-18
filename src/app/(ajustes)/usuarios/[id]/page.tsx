@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Encabezado } from "@/components/encabezado";
 import { FotoPerfil } from "@/components/foto-perfil";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { resumenFotoDocente } from "@/lib/datos/fotos";
@@ -58,7 +57,6 @@ export default async function Cuenta({ params }: { params: Promise<{ id: string 
 
   return (
     <>
-      <Encabezado sesion={sesion} activo="usuarios" />
       <main className="mx-auto max-w-3xl px-5 py-8">
         <Link href="/usuarios" className="text-xs text-vs-tinta-3 no-underline hover:underline">
           ← Cuentas

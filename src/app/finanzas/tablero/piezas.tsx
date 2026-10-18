@@ -71,7 +71,7 @@ export function TarjetaKpi({ k, comparacion }: { k: Kpi; comparacion: string }) 
 
 export function RejillaKpis({ d }: { d: Dashboard }) {
   return (
-    <div className="grid h-full auto-rows-fr grid-cols-1 gap-3 overflow-auto min-[420px]:grid-cols-2 lg:grid-cols-5">
+    <div className="grid h-full auto-rows-fr grid-cols-[repeat(auto-fit,minmax(176px,1fr))] gap-3 overflow-auto">
       {d.kpis.map((k) => <TarjetaKpi key={k.clave} k={k} comparacion={d.comparacion.etiqueta} />)}
     </div>
   );
