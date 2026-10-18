@@ -5,10 +5,11 @@ import { and, asc, desc, eq, gte, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   alumnos, aplicaciones, cargos, ciclos, clases, docentes, gastos, inscripciones,
-  nominaPagos, nominaPartidas, pagos, programas, recibos, secuencias,
+  nominaPagos, nominaPartidas, pagos, programas, recibos, secuencias, valesEntrega,
 } from "@/db/schema/index";
 import { TARIFA_VIGENTE_DE_CLASE, costoDeClaseSql, parametrosNomina } from "@/lib/datos/costo-docente";
-import { formatearFolio, planearAplicacion, type Cargo } from "@/lib/dominio/cobranza";
+import { formatearFolio, repartirPago, type CargoRepartible } from "@/lib/dominio/cobranza";
+import { puedeCancelarCargo } from "@/lib/dominio/vales";
 import { conceptoEgresoNomina } from "@/lib/dominio/egresos";
 import { generaPartida, importeDocenteCentavos } from "@/lib/dominio/nomina";
 import type { EstadoClase } from "@/lib/dominio/creditos";
@@ -192,8 +193,11 @@ export function cargosDeAlumno(alumnoId: number) {
       cancelado: cargos.cancelado,
       aplicadoCentavos: APLICADO,
       inscripcionId: cargos.inscripcionId,
+      valeCodigo: valesEntrega.codigo,
+      valeEstado: valesEntrega.estado,
     })
     .from(cargos)
+    .leftJoin(valesEntrega, eq(valesEntrega.cargoId, cargos.id))
     .where(and(eq(cargos.alumnoId, alumnoId), eq(cargos.cancelado, false)))
     .orderBy(asc(cargos.venceEl), asc(cargos.id))
     .all();
@@ -246,6 +250,11 @@ export function cancelarCargo(
     .from(cargos).where(eq(cargos.id, cargoId)).get();
   if (!cargo || cargo.alumnoId !== alumnoId) throw new Error("No se encontró el cargo.");
 
+  const vale = db.select({ estado: valesEntrega.estado }).from(valesEntrega)
+    .where(eq(valesEntrega.cargoId, cargoId)).get();
+  const puede = puedeCancelarCargo(vale?.estado ?? null);
+  if (!puede.permitido) throw new Error(puede.mensaje);
+
   db.update(cargos).set({
     cancelado: true,
     motivoCancelacion: motivo || "Cancelado manualmente",
@@ -295,6 +304,7 @@ export function cargoPorId(cargoId: number) {
     montoCentavos: cargos.montoCentavos,
     venceEl: cargos.venceEl,
     cancelado: cargos.cancelado,
+    sedeId: cargos.sedeId,
     aplicadoCentavos: APLICADO,
   }).from(cargos).where(eq(cargos.id, cargoId)).get();
 }
@@ -316,6 +326,12 @@ export type DatosPago = {
   descripcion: string | null;
   /** Observaciones internas: solo las ven dirección y recepción, no aparecen en el recibo. */
   nota: string | null;
+  /**
+   * Cargo al que quien cobra quiere que vaya primero el dinero (un producto, por
+   * ejemplo). Sin él, el pago salda los cargos que no son producto del más viejo al
+   * más nuevo y deja los productos al final.
+   */
+  cargoObjetivoId?: number | null;
 };
 
 export type ResultadoPago = {
@@ -335,6 +351,22 @@ function siguienteFolio(tx: Tx, prefijo: string, anio: number): string {
     .where(eq(secuencias.clave, clave))
     .returning({ valor: secuencias.valor }).get();
   return formatearFolio(prefijo, anio, fila?.valor ?? 1);
+}
+
+/** Cargos no cancelados del alumno con lo aplicado a cada uno, listos para repartir un pago. */
+function cargosAbiertosDe(tx: Tx, alumnoId: number): CargoRepartible[] {
+  return tx
+    .select({
+      id: cargos.id,
+      montoCentavos: cargos.montoCentavos,
+      aplicadoCentavos: APLICADO,
+      venceEl: cargos.venceEl,
+      esProducto: sql<number>`cargos.concepto = 'producto'`,
+    })
+    .from(cargos)
+    .where(and(eq(cargos.alumnoId, alumnoId), eq(cargos.cancelado, false)))
+    .all()
+    .map((c) => ({ ...c, esProducto: Boolean(c.esProducto) }));
 }
 
 /**
@@ -360,33 +392,24 @@ export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: str
     }).returning({ id: pagos.id }).get();
     if (!pago) throw new Error("No se pudo registrar el pago.");
 
-    const abiertos = tx
-      .select({
-        id: cargos.id,
-        montoCentavos: cargos.montoCentavos,
-        aplicadoCentavos: APLICADO,
-        venceEl: cargos.venceEl,
-      })
-      .from(cargos)
-      .where(and(eq(cargos.alumnoId, d.alumnoId), eq(cargos.cancelado, false)))
-      .all() as Cargo[];
+    const abiertos = cargosAbiertosDe(tx, d.alumnoId);
+
+    if (d.cargoObjetivoId != null && !abiertos.some((c) => c.id === d.cargoObjetivoId)) {
+      throw new Error("El cargo elegido ya no está abierto o no es de este alumno.");
+    }
 
     // El plan distribuye dinero real + condonación como si fuera un solo pago.
     // Así el cargo queda saldado aunque el alumno haya pagado menos.
-    const plan = planearAplicacion(d.montoCentavos + descuento, abiertos);
+    const plan = repartirPago(
+      d.montoCentavos + descuento, abiertos, d.cargoObjetivoId != null ? [d.cargoObjetivoId] : [],
+    );
 
+    // El monto del cargo NO se toca: lo pagado vive en `aplicaciones`. Reescribirlo con lo
+    // aplicado en este pago hacía que un abono pareciera saldar el cargo entero.
     for (const a of plan.asignaciones) {
       tx.insert(aplicaciones).values({
         pagoId: pago.id, cargoId: a.cargoId, montoCentavos: a.montoCentavos,
       }).run();
-
-      // Ajustar el monto del cargo al monto real pagado (incluye descuento).
-      // Si el alumno pagó menos por descuento autorizado, el cargo refleja
-      // el valor válido en lugar del precio original del ciclo.
-      tx.update(cargos)
-        .set({ montoCentavos: a.montoCentavos })
-        .where(eq(cargos.id, a.cargoId))
-        .run();
     }
 
     const anio = Number(d.recibidoEl.slice(0, 4));
@@ -448,34 +471,20 @@ export function actualizarPago(
       nota: d.nota,
     }).where(eq(pagos.id, pagoId)).run();
 
-    // Borrar aplicaciones antiguas y recalcular
+    // Borrar aplicaciones antiguas y recalcular. El dinero vuelve primero a los cargos
+    // a los que ya estaba aplicado, para que corregir un pago de producto no lo mande
+    // a la mensualidad más vieja.
+    const previos = tx.select({ cargoId: aplicaciones.cargoId }).from(aplicaciones)
+      .where(eq(aplicaciones.pagoId, pagoId)).all().map((a) => a.cargoId);
     tx.delete(aplicaciones).where(eq(aplicaciones.pagoId, pagoId)).run();
 
-    const abiertos = tx
-      .select({
-        id: cargos.id,
-        montoCentavos: cargos.montoCentavos,
-        aplicadoCentavos: APLICADO,
-        venceEl: cargos.venceEl,
-      })
-      .from(cargos)
-      .where(and(eq(cargos.alumnoId, alumnoId), eq(cargos.cancelado, false)))
-      .all() as Cargo[];
-
-    const plan = planearAplicacion(d.montoCentavos + d.descuentoCentavos, abiertos);
+    const abiertos = cargosAbiertosDe(tx, alumnoId);
+    const plan = repartirPago(d.montoCentavos + d.descuentoCentavos, abiertos, previos);
 
     for (const a of plan.asignaciones) {
       tx.insert(aplicaciones).values({
         pagoId, cargoId: a.cargoId, montoCentavos: a.montoCentavos,
       }).run();
-
-      // Ajustar el monto del cargo al monto real pagado (incluye descuento).
-      // Si el alumno pagó menos por descuento autorizado, el cargo refleja
-      // el valor válido en lugar del precio original del ciclo.
-      tx.update(cargos)
-        .set({ montoCentavos: a.montoCentavos })
-        .where(eq(cargos.id, a.cargoId))
-        .run();
     }
   });
 }

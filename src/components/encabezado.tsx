@@ -43,6 +43,9 @@ export function Encabezado(
     permisos.has("inventario.gestionar")
       ? { href: "/inventario", texto: "Inventario", clave: "inventario" }
       : null,
+    permisos.has("vales.entregar")
+      ? { href: "/entregas", texto: "Entregas", clave: "entregas" }
+      : null,
     permisos.has("reportes.leer")
       ? { href: "/reportes", texto: "Reportes", clave: "reportes" }
       : null,

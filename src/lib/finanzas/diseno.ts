@@ -6,7 +6,7 @@
 
 export type IdWidget =
   | "kpis" | "equilibrio" | "observaciones" | "mensual" | "categorias" | "treemap"
-  | "programas" | "flujo" | "retencion" | "cac" | "instrumentos" | "matriz" | "profit_first";
+  | "programas" | "flujo" | "retencion" | "cac" | "instrumentos" | "matriz" | "profit_first" | "productos";
 
 export type TipoGrafica = "barras" | "lineas" | "area" | "dona" | "tabla" | "treemap";
 
@@ -34,6 +34,7 @@ export const WIDGETS: DefinicionWidget[] = [
   { id: "instrumentos", titulo: "Margen por instrumento (6 meses)", tipos: ["lineas", "barras", "tabla"], minW: 4, minH: 5 },
   { id: "matriz", titulo: "Matriz mensual de egresos", tipos: [], minW: 6, minH: 8 },
   { id: "profit_first", titulo: "Profit First", tipos: ["barras", "tabla"], minW: 4, minH: 5 },
+  { id: "productos", titulo: "Productos: ventas y margen", tipos: [], minW: 6, minH: 6 },
 ];
 
 export type Paleta = {
@@ -83,6 +84,7 @@ export const DISENO_INICIAL: Diseno = {
     { i: "instrumentos", x: 6, y: 30, w: 6, h: 7 },
     { i: "matriz", x: 0, y: 37, w: 12, h: 12 },
     { i: "profit_first", x: 0, y: 49, w: 12, h: 6 },
+    { i: "productos", x: 0, y: 55, w: 12, h: 9 },
   ],
 };
 

@@ -39,7 +39,9 @@ const tarifaVigente = (alias: string) => `(
  * aplica a los cargos sin que entre dinero. Por eso cada aplicación se escala por
  * monto / (monto + descuento): así se atribuye al programa solo dinero real.
  * La parte de un pago que no se aplicó a ningún cargo (saldo a favor) entra sin
- * dimensiones: cuenta en el total, pero no se puede atribuir a un programa.
+ * dimensiones: cuenta en el total, pero no se puede atribuir a un programa. Esa parte se
+ * calcula restando TODAS las aplicaciones (también las de productos), así que el dinero
+ * de un producto no se cuenta aquí ni como saldo a favor.
  */
 export const SQL_INGRESOS = `
 SELECT substr(p.recibido_el, 1, 7) AS mes,
@@ -52,6 +54,8 @@ JOIN cargos ca ON ca.id = ap.cargo_id
 LEFT JOIN inscripciones i ON i.id = ca.inscripcion_id
 WHERE p.recibido_el BETWEEN :desde AND :hasta
   AND (p.monto_centavos + p.descuento_centavos) > 0
+  -- Los productos tienen su propia consulta (SQL_PRODUCTOS): no se mezclan con las clases.
+  AND ca.concepto <> 'producto'
 GROUP BY mes, programaId, instrumentoId, docenteId, sedeId
 UNION ALL
 SELECT substr(p.recibido_el, 1, 7) AS mes, NULL, NULL, NULL, NULL,
@@ -118,7 +122,9 @@ GROUP BY mes, categoriaId, subcategoria, tipo, sedeId, programaId
 export const SQL_CARGOS = `
 SELECT substr(ca.vence_el, 1, 7) AS mes,
   i.programa_id AS programaId, i.instrumento_id AS instrumentoId,
-  i.docente_id AS docenteId, ${sedeDeInscripcion("i")} AS sedeId,
+  i.docente_id AS docenteId,
+  CASE WHEN ca.concepto = 'producto' THEN ca.sede_id ELSE ${sedeDeInscripcion("i")} END AS sedeId,
+  (ca.concepto = 'producto') AS producto,
   sum(ca.monto_centavos) AS facturado,
   sum(min(ca.monto_centavos, coalesce((
     SELECT sum(ap.monto_centavos) FROM aplicaciones ap WHERE ap.cargo_id = ca.id
@@ -126,7 +132,38 @@ SELECT substr(ca.vence_el, 1, 7) AS mes,
 FROM cargos ca
 LEFT JOIN inscripciones i ON i.id = ca.inscripcion_id
 WHERE ca.cancelado = 0 AND ca.vence_el BETWEEN :desde AND :hasta
-GROUP BY mes, programaId, instrumentoId, docenteId, sedeId
+GROUP BY mes, programaId, instrumentoId, docenteId, sedeId, producto
+`;
+
+/**
+ * Productos cobrados, por mes, sede y producto.
+ *
+ * El ingreso es dinero real (se escala por monto / (monto + descuento), igual que
+ * SQL_INGRESOS). El costo es el del cargo, congelado al venderlo, en la proporción en
+ * que se saldó (lo aplicado, cobrado más condonado, entre el monto del cargo): ver
+ * `costoReconocido`. Un cargo sin costo registrado cuenta como `sinCosto` y no aporta
+ * costo. Un cargo cancelado no reconoce costo: el producto no salió.
+ * `unidades` es lo saldado entre el monto del cargo: una venta pagada completa suma 1.
+ */
+export const SQL_PRODUCTOS = `
+SELECT substr(p.recibido_el, 1, 7) AS mes,
+  ca.sede_id AS sedeId, ca.producto_id AS productoId,
+  CASE WHEN ca.producto_id IS NULL THEN ca.descripcion ELSE pr.nombre END AS nombre,
+  sum(ap.monto_centavos * 1.0 * p.monto_centavos / (p.monto_centavos + p.descuento_centavos)) AS ingreso,
+  sum(CASE WHEN ca.costo_centavos IS NULL OR ca.cancelado = 1 THEN 0
+           ELSE ca.costo_centavos * min(1.0, ap.monto_centavos * 1.0 / ca.monto_centavos) END) AS costo,
+  sum(CASE WHEN ca.costo_centavos IS NULL
+           THEN ap.monto_centavos * 1.0 * p.monto_centavos / (p.monto_centavos + p.descuento_centavos)
+           ELSE 0 END) AS sinCosto,
+  sum(ap.monto_centavos * 1.0 / ca.monto_centavos) AS unidades
+FROM aplicaciones ap
+JOIN pagos p ON p.id = ap.pago_id
+JOIN cargos ca ON ca.id = ap.cargo_id
+LEFT JOIN productos pr ON pr.id = ca.producto_id
+WHERE ca.concepto = 'producto' AND ca.monto_centavos > 0
+  AND p.recibido_el BETWEEN :desde AND :hasta
+  AND (p.monto_centavos + p.descuento_centavos) > 0
+GROUP BY mes, sedeId, productoId, nombre
 `;
 
 /**

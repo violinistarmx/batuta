@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { db } from "@/db";
@@ -6,7 +7,10 @@ import { configuracion } from "@/db/schema/index";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { reciboPorId, renglonesDeRecibo } from "@/lib/datos/finanzas";
+import { ValeEntrega } from "@/components/vale-entrega";
+import { valesDeRecibo } from "@/lib/datos/vales";
 import { pesosExactos } from "@/lib/formato";
+import { qrDeVale, urlBase } from "@/lib/qr";
 import { fechaCivil } from "@/lib/zona";
 import { Suspense } from "react";
 import { AvisoTras } from "@/components/aviso";
@@ -35,6 +39,10 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
   if (!r) notFound();
 
   const renglones = renglonesDeRecibo(r.pagoId);
+  // Vales de los productos que este pago cubrió: el comprobante lleva el código y el QR.
+  const vales = valesDeRecibo(r.pagoId);
+  const base = urlBase(await headers());
+  const qrs = await Promise.all(vales.map((v) => qrDeVale(v.token, base, 120)));
   const cfg = Object.fromEntries(
     db.select().from(configuracion).all().map((c) => [c.clave, c.valor]),
   );
@@ -187,6 +195,14 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
             </div>
           </div>
         </section>
+
+        {vales.length > 0 && (
+          <section className="mt-4 space-y-2" aria-label="Vales de entrega">
+            {vales.map((v, i) => (
+              <ValeEntrega key={v.id} vale={v} qrSvg={qrs[i]!} claseExtra="break-inside-avoid" />
+            ))}
+          </section>
+        )}
 
         {/* Observaciones internas: siempre visibles en el recibo (pantalla e impresión). */}
         {r.nota && (

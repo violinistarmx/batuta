@@ -40,7 +40,7 @@ async function main() {
     const r = sembrarDemo(cx, hoy);
     console.log(`✓ Datos demo en ${ruta} (${r.meses[0]} a ${r.meses[r.meses.length - 1]}):`);
     console.log(`  ${r.alumnos} alumnos · ${r.clases} clases · ${r.pagos} pagos · ` +
-      `${r.cortesNomina} cortes de nómina · ${r.gastos} gastos`);
+      `${r.cortesNomina} cortes de nómina · ${r.gastos} gastos · ${r.ventasProductos} ventas de productos`);
     console.log("  Para borrarlos: npm run seed:finanzas -- --limpiar");
   }
   db.close();

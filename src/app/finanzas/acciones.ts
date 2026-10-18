@@ -40,6 +40,9 @@ const Pago = z.object({
    */
   descripcion: z.string().trim().max(1000).transform((s) => (s === "" ? null : s)),
   nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
+  /** Cargo al que va primero el dinero; vacío = reparto automático. */
+  cargoObjetivoId: z.string().trim().transform((s) => (s === "" ? null : Number(s)))
+    .refine((n) => n === null || (Number.isInteger(n) && n > 0), "Elige un cargo válido."),
 });
 
 export type EstadoPago = { error?: string };
@@ -56,6 +59,7 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
     referencia: datos.get("referencia") ?? "",
     descripcion: datos.get("descripcion") ?? "",
     nota: datos.get("nota") ?? "",
+    cargoObjetivoId: datos.get("cargoObjetivoId") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
 
@@ -89,6 +93,7 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
     entidadId: r.pagoId,
     cambios: {
       alumnoId: d.alumnoId, montoCentavos, descuentoCentavos, metodo: d.metodo,
+      ...(d.cargoObjetivoId !== null ? { cargoObjetivoId: d.cargoObjetivoId } : {}),
       folio: r.folio, aplicado: r.aplicadoCentavos, aFavor: r.aFavorCentavos,
     },
   });

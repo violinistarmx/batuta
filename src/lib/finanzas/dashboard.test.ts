@@ -35,7 +35,8 @@ const hechos: Hechos = {
     { mes: "2026-10", categoriaId: 1, subcategoria: null, tipo: "fijo", sedeId: null, programaId: null, centavos: 100_000 },
     { mes: "2026-10", categoriaId: 2, subcategoria: "Instagram", tipo: "variable", sedeId: null, programaId: null, centavos: 20_000 },
   ],
-  cargos: [{ mes: "2026-10", ...D, facturado: 500_000, saldado: 400_000 }],
+  cargos: [{ mes: "2026-10", ...D, facturado: 500_000, saldado: 400_000, producto: false }],
+  productos: [],
   inscripciones: [
     { id: 1, alumnoId: 1, ...D, fechaInicio: "2026-01-10", fechaFin: null, origen: "recomendacion" },
     { id: 2, alumnoId: 2, ...D, fechaInicio: "2026-02-01", fechaFin: "2026-10-05", origen: null },
@@ -150,5 +151,102 @@ describe("armarDashboard", () => {
   it("observaciones y Profit First presentes", () => {
     assert.ok(d.observaciones.length > 0);
     assert.equal(d.profitFirst!.length, 4);
+  });
+});
+
+describe("productos en el dashboard", () => {
+  const base = armarDashboard(hechos, op);
+  const conProductos: Hechos = {
+    ...hechos,
+    productos: [
+      // Método vendido en 600 con costo de 399: margen 201.
+      { mes: "2026-10", sedeId: 1000, productoId: 7, nombre: "Método Suzuki Violín vol. 1", ingreso: 60_000, costo: 39_900, sinCosto: 0, unidades: 1 },
+      // Concepto libre sin costo registrado: ingresa, pero su margen no se conoce.
+      { mes: "2026-10", sedeId: 1000, productoId: null, nombre: "Libreta pautada", ingreso: 6_000, costo: 0, sinCosto: 6_000, unidades: 1 },
+      { mes: "2026-09", sedeId: 1000, productoId: 7, nombre: "Método Suzuki Violín vol. 1", ingreso: 30_000, costo: 20_000, sinCosto: 0, unidades: 0.5 },
+    ],
+    cargos: [
+      ...hechos.cargos,
+      { mes: "2026-10", programaId: null, instrumentoId: null, docenteId: null, sedeId: 1000, facturado: 66_000, saldado: 66_000, producto: true },
+    ],
+  };
+  const d = armarDashboard(conProductos, op);
+
+  it("los productos suman al ingreso total y no cambian los ingresos de clases", () => {
+    assert.equal(valor(d, "ingresos").valor, 410_000 + 66_000);
+    assert.match(valor(d, "ingresos").detalle!, /Clases \$4,100\.00 · productos \$660\.00/);
+    assert.equal(valor(d, "ingresos").anterior, 200_000 + 30_000);
+  });
+
+  it("el margen del producto es lo cobrado menos su costo; lo sin costo se avisa aparte", () => {
+    const metodo = d.productos.filas.find((x) => x.id === 7)!;
+    assert.equal(metodo.ingresos, 60_000);
+    assert.equal(metodo.margen, 20_100);
+    assert.equal(Math.round((metodo.margenPct ?? 0) * 1000) / 10, 33.5);
+    assert.equal(d.productos.sinCosto, 6_000);
+    assert.equal(d.productos.margen, 20_100);
+    assert.ok(d.observaciones.some((o) => /sin costo registrado/.test(o)));
+  });
+
+  it("el costo de productos entra a los egresos, al margen bruto, al neto y al flujo", () => {
+    const ingresos = 476_000;
+    assert.equal(valor(d, "margen_bruto").valor, (ingresos - 159_000 - 39_900) / ingresos);
+    assert.equal(valor(d, "margen_neto").valor, (ingresos - 159_000 - 39_900 - 120_000) / ingresos);
+    assert.equal(valor(d, "flujo").valor, ingresos - 60_000 - 39_900 - 120_000);
+  });
+
+  it("el costo docente se sigue midiendo contra los ingresos de clases", () => {
+    assert.equal(valor(d, "costo_docente").detalle, valor(base, "costo_docente").detalle);
+  });
+
+  it("el punto de equilibrio no cambia: los productos no son por alumno", () => {
+    assert.deepEqual(d.equilibrio, base.equilibrio);
+  });
+
+  it("filtro «solo clases» deja el dashboard como estaba", () => {
+    const c = armarDashboard(conProductos, { ...op, filtros: { ...SIN_FILTROS, linea: "clases" } });
+    assert.equal(valor(c, "ingresos").valor, 410_000);
+    assert.equal(valor(c, "margen_neto").valor, valor(base, "margen_neto").valor);
+    assert.equal(c.productos.filas.length, 0);
+    assert.deepEqual(c.filtrosActivos, [{ dimension: "Línea", valor: "Solo clases" }]);
+  });
+
+  it("filtro «solo productos» excluye clases y gastos generales", () => {
+    const p = armarDashboard(conProductos, { ...op, filtros: { ...SIN_FILTROS, linea: "productos" } });
+    assert.equal(valor(p, "ingresos").valor, 66_000);
+    assert.equal(valor(p, "costo_docente").valor, 0);
+    assert.equal(p.productos.margen, 20_100);
+    assert.equal(valor(p, "flujo").valor, 66_000 - 39_900);
+    // Por cobrar solo cuenta los cargos de producto.
+    assert.equal(valor(p, "por_cobrar").valor, 0);
+  });
+
+  it("un filtro de programa, instrumento o maestro deja fuera los productos", () => {
+    const f = armarDashboard(conProductos, { ...op, filtros: { ...SIN_FILTROS, programaId: 1 } });
+    assert.equal(f.productos.filas.length, 0);
+    assert.equal(valor(f, "ingresos").valor, 300_000);
+  });
+
+  it("el filtro de sede aplica a los productos por la sede donde se vendieron", () => {
+    const otra = armarDashboard(conProductos, { ...op, filtros: { ...SIN_FILTROS, sedeId: 2000 } });
+    assert.equal(otra.productos.filas.length, 0);
+    const misma = armarDashboard(conProductos, { ...op, filtros: { ...SIN_FILTROS, sedeId: 1000 } });
+    assert.equal(misma.productos.ingresos, 66_000);
+  });
+
+  it("la serie y la matriz llevan el costo de productos y siguen cuadrando", () => {
+    assert.equal(d.serie[9]!.ingresosProductos, 66_000);
+    assert.equal(d.serie[9]!.costoProductos, 39_900);
+    assert.equal(d.serie[8]!.costoProductos, 20_000);
+    const fila = d.matriz.filas.find((x) => x.id === "costo_productos")!;
+    assert.equal(fila.total, 59_900);
+    assert.equal(d.matriz.total, 60_000 + 159_000 + 59_900 + 120_000);
+    assert.equal(d.matriz.filas.some((x) => x.id === "costo_productos"), true);
+    assert.equal(base.matriz.filas.some((x) => x.id === "costo_productos"), false);
+  });
+
+  it("sin ventas de productos el dashboard queda igual que antes", () => {
+    assert.equal(base.productos.filas.length, 0);
+    assert.equal(base.productos.ingresos, 0);
   });
 });

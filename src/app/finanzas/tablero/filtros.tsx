@@ -43,6 +43,7 @@ export function BarraFiltros({
     const clave: Record<string, keyof Filtros> = {
       Programa: "programaId", Instrumento: "instrumentoId", Sede: "sedeId", Maestro: "docenteId", Categoría: "categoriaId",
     };
+    if (dimension === "Línea") { navegar({ filtros: { linea: "todo" } }); return; }
     const k = clave[dimension];
     if (k) navegar({ filtros: { [k]: null } });
   };
@@ -149,6 +150,18 @@ export function BarraFiltros({
             </select>
           </label>
 
+          <label className="flex min-w-0 flex-col text-[10px] font-semibold uppercase tracking-wider text-white/75">
+            Línea
+            <select
+              value={seleccion.filtros.linea}
+              onChange={(e) => navegar({ filtros: { linea: e.target.value as Filtros["linea"] } })}
+              className={`${control} mt-1 max-w-full truncate`}
+            >
+              <option value="todo">Clases y productos</option>
+              <option value="clases">Solo clases</option>
+              <option value="productos">Solo productos</option>
+            </select>
+          </label>
           {selector("programaId", "Programa", d.catalogos.programas)}
           {selector("instrumentoId", "Instrumento", d.catalogos.instrumentos)}
           {selector("sedeId", "Sede", d.catalogos.sedes)}
@@ -166,7 +179,7 @@ export function BarraFiltros({
               </button>
             ))}
             <button type="button" className="text-white/85 underline hover:text-white"
-                    onClick={() => navegar({ filtros: { programaId: null, instrumentoId: null, sedeId: null, docenteId: null, categoriaId: null } })}>
+                    onClick={() => navegar({ filtros: { linea: "todo", programaId: null, instrumentoId: null, sedeId: null, docenteId: null, categoriaId: null } })}>
               Quitar todos
             </button>
           </div>
@@ -176,7 +189,7 @@ export function BarraFiltros({
       <nav aria-label="Secciones de finanzas" className="flex flex-wrap gap-x-1 gap-y-1 bg-indigo-950/90 px-3 py-1.5 text-sm sm:px-5">
         {[
           ["/finanzas/gastos", "Gastos"], ["/finanzas/nomina", "Nómina"], ["/finanzas/tarifas", "Tarifas de maestros"],
-          ["/finanzas/cobranza", "Cobranza"], ["/ajustes", "Metas"],
+          ["/finanzas/cobranza", "Cobranza"], ["/finanzas/productos", "Productos"], ["/ajustes", "Metas"],
         ].map(([href, texto]) => (
           <Link key={href} href={href!} className="rounded-md px-2.5 py-1 text-white/85 no-underline hover:bg-white/10 hover:text-white">
             {texto}

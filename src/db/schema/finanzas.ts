@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { alumnos, docentes, usuarios } from "./personas";
 import { ciclos, clases, inscripciones } from "./academico";
 import { categoriasGasto, programas, sedes } from "./catalogo";
@@ -19,13 +19,22 @@ export const cargos = sqliteTable("cargos", {
   inscripcionId: integer("inscripcion_id").references(() => inscripciones.id),
   cicloId: integer("ciclo_id").references(() => ciclos.id),
   concepto: text("concepto", {
-    enum: ["mensualidad", "clase_suelta", "inscripcion", "material", "recital", "otro"],
+    enum: ["mensualidad", "clase_suelta", "inscripcion", "material", "recital", "otro", "producto"],
   }).notNull(),
   descripcion: text("descripcion").notNull(),
   /** Periodo que ampara, en texto legible: "18 sep - 17 oct 2026". */
   periodo: text("periodo"),
   montoCentavos: integer("monto_centavos").notNull(),
   venceEl: text("vence_el").notNull(),
+  /** Solo en cargos de producto: dónde se vende y se entrega. Los demás salen de su inscripción. */
+  sedeId: integer("sede_id").references(() => sedes.id),
+  /** Producto del catálogo del que salió el cargo. NULL = concepto libre. */
+  productoId: integer("producto_id").references(() => productos.id),
+  /**
+   * Costo del producto congelado al venderlo. NULL = se vendió sin costo registrado
+   * (concepto libre): el margen de esa venta no se conoce y el dashboard la marca.
+   */
+  costoCentavos: integer("costo_centavos"),
   cancelado: integer("cancelado", { mode: "boolean" }).notNull().default(false),
   motivoCancelacion: text("motivo_cancelacion"),
   creadoPor: integer("creado_por").references(() => usuarios.id),
@@ -187,3 +196,55 @@ export const panelesFinanzas = sqliteTable("paneles_finanzas", {
   diseno: text("diseno").notNull(),
   actualizadoEn: integer("actualizado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
+
+
+/**
+ * Catálogo de productos que vende la academia: métodos, instrumentos de cuerda,
+ * libretas. El costo y el margen son información de dirección: solo se leen con
+ * `productos.gestionar`, nunca en el flujo de venta que ve la familia.
+ */
+export const productos = sqliteTable("productos", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  codigo: text("codigo"),
+  nombre: text("nombre").notNull(),
+  categoria: text("categoria", {
+    enum: ["metodo", "instrumento", "accesorio", "papeleria", "otro"],
+  }).notNull().default("otro"),
+  descripcion: text("descripcion"),
+  /** Lo que le cuesta a la academia. */
+  costoCentavos: integer("costo_centavos").notNull().default(0),
+  /** Precio de venta sugerido; el cargo puede llevar otro (descuento). */
+  precioCentavos: integer("precio_centavos").notNull(),
+  activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+  creadoPor: integer("creado_por").references(() => usuarios.id),
+  creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (t) => [
+  uniqueIndex("ux_productos_nombre").on(t.nombre),
+  uniqueIndex("ux_productos_codigo").on(t.codigo).where(sql`codigo IS NOT NULL`),
+]);
+
+/**
+ * Vale de entrega de un cargo de producto. Uno por cargo.
+ *
+ * `codigo` es el legible (VE-2026-000123); `token` es lo que lleva el QR y no es
+ * secuencial, para que nadie pueda construir los vales vecinos.
+ */
+export const valesEntrega = sqliteTable("vales_entrega", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  codigo: text("codigo").notNull(),
+  token: text("token").notNull(),
+  cargoId: integer("cargo_id").notNull().references(() => cargos.id, { onDelete: "cascade" }),
+  estado: text("estado", { enum: ["pendiente", "entregado"] }).notNull().default("pendiente"),
+  creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  entregadoEn: integer("entregado_en", { mode: "timestamp" }),
+  entregadoPor: integer("entregado_por").references(() => usuarios.id),
+  /** Entrega con el cargo sin saldar: motivo y director que la autorizó. */
+  excepcionMotivo: text("excepcion_motivo"),
+  autorizadoPor: integer("autorizado_por").references(() => usuarios.id),
+}, (t) => [
+  uniqueIndex("ux_vales_codigo").on(t.codigo),
+  uniqueIndex("ux_vales_token").on(t.token),
+  uniqueIndex("ux_vales_cargo").on(t.cargoId),
+  index("ix_vales_estado").on(t.estado),
+  check("ck_vale_entrega", sql`(estado = 'entregado') = (entregado_en IS NOT NULL AND entregado_por IS NOT NULL)`),
+]);

@@ -132,7 +132,7 @@ const CATEGORIA_LEGADA: Record<string, string> = {
 
 export type ResumenDemo = {
   alumnos: number; inscripciones: number; clases: number; pagos: number;
-  cortesNomina: number; gastos: number; meses: string[];
+  cortesNomina: number; gastos: number; ventasProductos: number; meses: string[];
 };
 
 export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenDemo {
@@ -143,7 +143,7 @@ export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenD
 
   const r = mulberry32(semilla);
   const meses = ultimosMesesHasta(hoy.slice(0, 7), 12);
-  const resumen: ResumenDemo = { alumnos: 0, inscripciones: 0, clases: 0, pagos: 0, cortesNomina: 0, gastos: 0, meses };
+  const resumen: ResumenDemo = { alumnos: 0, inscripciones: 0, clases: 0, pagos: 0, cortesNomina: 0, gastos: 0, ventasProductos: 0, meses };
 
   const leerConfig = (clave: string, omision: number) => {
     const v = filas(cx, "SELECT valor FROM configuracion WHERE clave = ?", clave)[0]?.valor;
@@ -330,6 +330,66 @@ export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenD
       }
     }
 
+    // ── Productos: catálogo y ventas con su vale de entrega ──────────────────
+    // Cada venta lleva sede, costo congelado y recibo, igual que las reales. Los códigos de
+    // vale llevan «DEMO» para no chocar con la secuencia anual de los vales verdaderos.
+    const CATALOGO_DEMO: [string, string, number, number, number][] = [
+      ["Método Suzuki Violín vol. 1", "metodo", 60_000, 39_900, 25],
+      ["Libreta pautada 20 pentagramas", "papeleria", 6_000, 2_500, 35],
+      ["Cuerdas para violín (juego)", "accesorio", 45_000, 28_000, 20],
+      ["Afinador digital", "accesorio", 18_000, 9_500, 15],
+      ["Violín 1/2 de estudio", "instrumento", 380_000, 290_000, 5],
+    ];
+    const productosDemo = CATALOGO_DEMO.map(([nombre, categoria, precio, costo, peso]) => ({
+      id: insertar(cx, "productos", {
+        nombre: `${nombre} ${MARCA}`, categoria, precio_centavos: precio, costo_centavos: costo,
+      }),
+      nombre: `${nombre} ${MARCA}`, precio, costo, peso,
+    }));
+    const usuarioDemo = filas(cx, "SELECT id FROM usuarios ORDER BY id LIMIT 1")[0]?.id ?? null;
+    let valeN = 0;
+    for (const mes of meses) {
+      const [ini, finMes] = limitesDeMes(mes);
+      if (ini > hoy) break;
+      for (let i = entero(r, 3, 8); i > 0; i--) {
+        const x = inscs[entero(r, 0, inscs.length - 1)]!;
+        if (x.inicio > finMes) continue;
+        const p = elegir(r, productosDemo.map((q) => [q, q.peso] as [typeof q, number]));
+        const aula = aulas[entero(r, 0, aulas.length - 1)]!;
+        const vence = menor(sumarDias(ini, entero(r, 0, Math.max(0, Number(finMes.slice(8)) - 1))), hoy);
+        // Una de cada diez libretas se vende como concepto libre, sin costo registrado.
+        const libre = p.precio === 6_000 && r() < 0.1;
+        const cargoId = insertar(cx, "cargos", {
+          alumno_id: x.alumnoId, concepto: "producto", descripcion: libre ? `Libreta pautada ${MARCA}` : p.nombre,
+          monto_centavos: p.precio, vence_el: vence, sede_id: aula.sedeId,
+          producto_id: libre ? null : p.id, costo_centavos: libre ? null : p.costo,
+        });
+        valeN++;
+        const pagado = r() < 0.9;
+        const entregado = pagado && usuarioDemo !== null && r() < 0.8;
+        insertar(cx, "vales_entrega", {
+          codigo: `VE-DEMO-${String(valeN).padStart(6, "0")}`,
+          token: `demovale${semilla}x${valeN}x${Math.floor(r() * 1e9)}`,
+          cargo_id: cargoId,
+          estado: entregado ? "entregado" : "pendiente",
+          entregado_en: entregado ? instante(sumarDias(vence, 1)) : null,
+          entregado_por: entregado ? usuarioDemo : null,
+        });
+        if (pagado) {
+          const pagoId = insertar(cx, "pagos", {
+            alumno_id: x.alumnoId, monto_centavos: p.precio, descuento_centavos: 0,
+            metodo: elegir(r, [["efectivo", 60], ["transferencia", 40]]), recibido_el: vence, referencia: "DEMO",
+          });
+          insertar(cx, "aplicaciones", { pago_id: pagoId, cargo_id: cargoId, monto_centavos: p.precio });
+          insertar(cx, "recibos", {
+            folio: `DEMO-${String(pagoId).padStart(5, "0")}`, pago_id: pagoId, alumno_id: x.alumnoId,
+          });
+          resumen.pagos++;
+        }
+        resumen.ventasProductos++;
+      }
+    }
+
     // ── Gastos ───────────────────────────────────────────────────────────────
     const cats = new Map(filas(cx, "SELECT id, nombre FROM categorias_gasto").map((c) => [String(c.nombre), Number(c.id)]));
     const gasto = (fecha: string, categoria: string, concepto: string, monto: number,
@@ -384,7 +444,9 @@ export function limpiarDemo(cx: Conexion): { alumnos: number; gastos: number } {
       DELETE FROM recibos WHERE alumno_id IN (${alumnosDemo});
       DELETE FROM aplicaciones WHERE pago_id IN (SELECT id FROM pagos WHERE alumno_id IN (${alumnosDemo}));
       DELETE FROM pagos WHERE alumno_id IN (${alumnosDemo});
+      DELETE FROM vales_entrega WHERE cargo_id IN (SELECT id FROM cargos WHERE alumno_id IN (${alumnosDemo}));
       DELETE FROM cargos WHERE alumno_id IN (${alumnosDemo});
+      DELETE FROM productos WHERE nombre LIKE '%${MARCA}';
       DELETE FROM clases WHERE inscripcion_id IN (${inscDemo});
       DELETE FROM ciclos WHERE inscripcion_id IN (${inscDemo});
       DELETE FROM inscripciones WHERE alumno_id IN (${alumnosDemo});

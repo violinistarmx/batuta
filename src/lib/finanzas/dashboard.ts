@@ -10,6 +10,11 @@
  * - Gastos: por fecha del gasto. Con filtro de instrumento o maestro no se puede
  *   atribuir ningún gasto, y con filtro de sede o programa solo cuentan los gastos
  *   asignados a esa sede o ese programa: los generales quedan fuera.
+ * - Productos: ingreso = dinero real cobrado; costo = el del cargo, congelado al venderlo, en
+ *   la proporción en que se saldó. Entran al ingreso total y su costo a los egresos, pero NO a
+ *   la base del costo docente ni del punto de equilibrio (no son por alumno). El filtro
+ *   «Línea» muestra todo, solo clases o solo productos; un filtro de programa, instrumento o
+ *   maestro deja fuera los productos (no se pueden atribuir).
  */
 
 import { pesosExactos } from "../formato.ts";
@@ -25,11 +30,13 @@ import {
 import { observaciones, type Corte } from "./observaciones.ts";
 import { repartoProfitFirst } from "./profit-first.ts";
 import type {
-  Dashboard, Dimensiones, FilaCanal, FilaInstrumento, FilaMatriz, FilaMes, FilaRentable, Filtros,
-  GastoCategoria, HechoGasto, HechoInscripcion, Hechos, Kpi, OpcionesDashboard, Periodo,
+  Dashboard, Dimensiones, FilaCanal, FilaInstrumento, FilaMatriz, FilaMes, FilaProducto, FilaRentable,
+  Filtros, GastoCategoria, HechoGasto, HechoInscripcion, Hechos, Kpi, OpcionesDashboard, Periodo,
+  ResumenProductos,
 } from "./tipos";
 
 export const COLOR_COSTO_DOCENTE = "#7c3aed";
+export const COLOR_COSTO_PRODUCTOS = "#0d9488";
 
 export const CANALES: Record<string, string> = {
   instagram: "Instagram",
@@ -54,6 +61,7 @@ function coincide(d: Dimensiones, f: Filtros, ignorar?: keyof Dimensiones): bool
 }
 
 function coincideGasto(g: HechoGasto, f: Filtros, ignorarCategoria = false): boolean {
+  if (f.linea === "productos") return false;
   if (f.instrumentoId !== null || f.docenteId !== null) return false;
   if (f.sedeId !== null && g.sedeId !== f.sedeId) return false;
   if (f.programaId !== null && g.programaId !== f.programaId) return false;
@@ -64,7 +72,14 @@ function coincideGasto(g: HechoGasto, f: Filtros, ignorarCategoria = false): boo
 // ── Medidas de dinero ────────────────────────────────────────────────────────
 
 type Medidas = {
+  /** Total cobrado: clases más productos, según el filtro. */
   ingresos: number;
+  ingresosClases: number;
+  ingresosProductos: number;
+  /** Costo de los productos cobrados. */
+  costoProductos: number;
+  /** Cobrado de productos sin costo registrado. */
+  productosSinCosto: number;
   costoDocente: number;
   horas: number;
   nominaPagada: number;
@@ -80,21 +95,36 @@ function medir(h: Hechos, meses: string[], f: Filtros, op: OpcionesDashboard): M
   const en = new Set(meses);
   const publicidadIds = new Set(h.catalogos.categorias.filter((c) => c.clave === "publicidad").map((c) => c.id));
   const m: Medidas = {
-    ingresos: 0, costoDocente: 0, horas: 0, nominaPagada: 0, gastos: 0, gastosFijos: 0,
+    ingresos: 0, ingresosClases: 0, ingresosProductos: 0, costoProductos: 0, productosSinCosto: 0,
+    costoDocente: 0, horas: 0, nominaPagada: 0, gastos: 0, gastosFijos: 0,
     gastosVariables: 0, publicidad: 0, facturado: 0, saldado: 0,
   };
+  const conClases = f.linea !== "productos";
+  const conProductos = f.linea !== "clases"
+    && f.programaId === null && f.instrumentoId === null && f.docenteId === null;
 
-  for (const x of h.ingresos) if (en.has(x.mes) && coincide(x, f)) m.ingresos += x.centavos;
+  if (conClases) {
+    for (const x of h.ingresos) if (en.has(x.mes) && coincide(x, f)) m.ingresosClases += x.centavos;
+  }
+
+  if (conProductos) {
+    for (const p of h.productos) {
+      if (!en.has(p.mes) || (f.sedeId !== null && p.sedeId !== f.sedeId)) continue;
+      m.ingresosProductos += p.ingreso;
+      m.costoProductos += p.costo;
+      m.productosSinCosto += p.sinCosto;
+    }
+  }
 
   for (const c of h.clases) {
-    if (!en.has(c.mes) || !coincide(c, f)) continue;
+    if (!conClases || !en.has(c.mes) || !coincide(c, f)) continue;
     m.costoDocente += c.importePartida
       ?? importeDocenteCentavos(c.minutos, c.estado, op.nomina, c.tarifaDocente ?? c.tarifaPrograma);
     // Horas impartidas: el maestro estuvo frente al horario (asistió o el alumno faltó sin avisar).
     if (c.estado === "asistio" || c.estado === "falta") m.horas += c.minutos / 60;
   }
 
-  for (const n of h.nomina) if (en.has(n.mes) && coincide(n, f)) m.nominaPagada += n.centavos;
+  if (conClases) for (const n of h.nomina) if (en.has(n.mes) && coincide(n, f)) m.nominaPagada += n.centavos;
 
   for (const g of h.gastos) {
     if (!en.has(g.mes) || !coincideGasto(g, f)) continue;
@@ -104,12 +134,16 @@ function medir(h: Hechos, meses: string[], f: Filtros, op: OpcionesDashboard): M
   }
 
   for (const c of h.cargos) {
-    if (!en.has(c.mes) || !coincide(c, f)) continue;
+    if (!en.has(c.mes) || !(c.producto ? conProductos : conClases) || !coincide(c, f)) continue;
     m.facturado += c.facturado;
     m.saldado += c.saldado;
   }
 
-  m.ingresos = Math.round(m.ingresos);
+  m.ingresosClases = Math.round(m.ingresosClases);
+  m.ingresosProductos = Math.round(m.ingresosProductos);
+  m.costoProductos = Math.round(m.costoProductos);
+  m.productosSinCosto = Math.round(m.productosSinCosto);
+  m.ingresos = m.ingresosClases + m.ingresosProductos;
   return m;
 }
 
@@ -231,12 +265,13 @@ function calcularCorte(
   const alumnos = inicio > op.hoy
     ? { activos: 0, iniciaron: 0, continuan: 0, altas: 0, bajas: 0, nuevos: 0, nuevosPorCanal: new Map() }
     : contarAlumnos(h, inicio, fin, f, primera);
-  const egresos = med.costoDocente + med.gastos;
+  const egresos = med.costoDocente + med.costoProductos + med.gastos;
   const n = mesesTranscurridos(meses, op.hoy);
   const a = alumnos.activos;
+  // El punto de equilibrio es por alumno: solo cuentan los ingresos de clases.
   const equilibrio = puntoEquilibrio(
     med.gastosFijos / n,
-    a === 0 ? 0 : med.ingresos / n / a,
+    a === 0 ? 0 : med.ingresosClases / n / a,
     a === 0 ? 0 : (med.costoDocente + med.gastosVariables) / n / a,
     a,
   );
@@ -245,12 +280,13 @@ function calcularCorte(
     alumnos,
     porCobrar: med.facturado - med.saldado,
     cobranza: porcentajeCobranza(med.saldado, med.facturado),
-    costoPct: proporcion(med.costoDocente, med.ingresos),
-    margenBruto: margenBruto(med.ingresos, med.costoDocente),
+    // El costo docente se mide contra lo que cobran las clases, no contra las ventas de productos.
+    costoPct: proporcion(med.costoDocente, med.ingresosClases),
+    margenBruto: margenBruto(med.ingresos, med.costoDocente + med.costoProductos),
     margenNeto: margenNeto(med.ingresos, egresos),
     egresos,
     resultado: med.ingresos - egresos,
-    flujo: med.ingresos - med.nominaPagada - med.gastos,
+    flujo: med.ingresos - med.nominaPagada - med.costoProductos - med.gastos,
     retencion: retencion(alumnos.iniciaron, alumnos.continuan),
     cac: calcularCac(med.publicidad, alumnos.nuevos),
     costoPorAlumno: costoPorAlumno(egresos, a),
@@ -291,7 +327,10 @@ function armarKpis(
 
   return [
     kpi("ingresos", "Ingresos cobrados", "moneda", a.med.ingresos, b.med.ingresos, true,
-      porTendencia(varIngresos), null, "Pagos recibidos en el periodo"),
+      porTendencia(varIngresos), null,
+      a.med.ingresosProductos > 0
+        ? `Clases ${pesosExactos(a.med.ingresosClases)} · productos ${pesosExactos(a.med.ingresosProductos)}`
+        : "Pagos recibidos en el periodo"),
     kpi("por_cobrar", "Por cobrar", "moneda", a.porCobrar, b.porCobrar, false,
       semaforo(a.cobranza, m.cobranzaMin, "minimo", t), `Cobranza > ${pct(m.cobranzaMin)}`,
       `Cobranza ${pct(a.cobranza)} de lo facturado`),
@@ -300,12 +339,12 @@ function armarKpis(
       `${pct(a.costoPct)} de los ingresos · ${Math.round(a.med.horas)} h impartidas`),
     kpi("margen_bruto", "Margen bruto", "porcentaje", a.margenBruto, b.margenBruto, true,
       semaforo(a.margenBruto, m.margenBrutoMin, "minimo", t), `Meta > ${pct(m.margenBrutoMin)}`,
-      "Ingresos menos costo docente"),
+      a.med.costoProductos > 0 ? "Ingresos menos costo docente y de productos" : "Ingresos menos costo docente"),
     kpi("margen_neto", "Margen operativo neto", "porcentaje", a.margenNeto, b.margenNeto, true,
       semaforo(a.margenNeto, m.margenNetoMin, "minimo", t), `Meta > ${pct(m.margenNetoMin)}`,
       `Resultado ${pesosExactos(a.resultado)}`),
     kpi("flujo", "Flujo de caja", "moneda", a.flujo, b.flujo, true,
-      a.med.ingresos === 0 && a.med.nominaPagada === 0 && a.med.gastos === 0
+      a.med.ingresos === 0 && a.med.nominaPagada === 0 && a.med.gastos === 0 && a.med.costoProductos === 0
         ? "sin_dato" : a.flujo >= 0 ? "verde" : "rojo",
       null, `Acumulado del año ${pesosExactos(flujoAcumuladoAnio)}`),
     kpi("alumnos", "Alumnos activos", "numero", a.alumnos.activos, b.alumnos.activos, true,
@@ -384,6 +423,14 @@ function armarMatriz(h: Hechos, anio: number, op: OpcionesDashboard): Dashboard[
     valores: costo, total: costo.reduce((s, v) => s + v, 0), calculada: true,
   }];
 
+  const costoProd = meses.map((m) => medir(h, [m], { ...f, categoriaId: null }, op).costoProductos);
+  if (costoProd.some((v) => v !== 0)) {
+    filas.push({
+      id: "costo_productos", nombre: "Costo de productos vendidos", color: COLOR_COSTO_PRODUCTOS,
+      valores: costoProd, total: costoProd.reduce((s, v) => s + v, 0), calculada: true,
+    });
+  }
+
   const idx = new Map(meses.map((m, i) => [m, i]));
   const porCat = new Map<number | null, number[]>();
   for (const g of h.gastos) {
@@ -436,6 +483,55 @@ function cacPorCanal(h: Hechos, meses: string[], f: Filtros, alumnos: Alumnos): 
   }).sort((a, b) => b.nuevos - a.nuevos || b.gasto - a.gasto);
 }
 
+// ── Productos ────────────────────────────────────────────────────────────────
+
+/**
+ * Lo vendido por producto en el periodo, con su margen. El margen solo cuenta lo cobrado de
+ * ventas con costo registrado: lo que se cobró sin costo se avisa aparte (`sinCosto`), porque
+ * tratarlo como ganancia pura inflaría el margen.
+ */
+function resumenProductos(h: Hechos, meses: string[], f: Filtros): ResumenProductos {
+  const en = new Set(meses);
+  const visible = f.linea !== "clases" && f.programaId === null && f.instrumentoId === null && f.docenteId === null;
+  const porClave = new Map<string, FilaProducto>();
+
+  if (visible) {
+    for (const p of h.productos) {
+      if (!en.has(p.mes) || (f.sedeId !== null && p.sedeId !== f.sedeId)) continue;
+      const clave = p.productoId !== null ? `id:${p.productoId}` : `libre:${p.nombre}`;
+      const fila = porClave.get(clave) ?? {
+        id: p.productoId, nombre: p.nombre, unidades: 0, ingresos: 0, costo: 0, margen: 0, margenPct: null, sinCosto: 0,
+      };
+      fila.unidades += p.unidades;
+      fila.ingresos += p.ingreso;
+      fila.costo += p.costo;
+      fila.sinCosto += p.sinCosto;
+      porClave.set(clave, fila);
+    }
+  }
+
+  const filas = [...porClave.values()].map((x) => {
+    const conCosto = x.ingresos - x.sinCosto;
+    const margen = conCosto - x.costo;
+    return {
+      ...x,
+      unidades: Math.round(x.unidades * 10) / 10,
+      ingresos: Math.round(x.ingresos), costo: Math.round(x.costo), sinCosto: Math.round(x.sinCosto),
+      margen: Math.round(margen), margenPct: proporcion(margen, conCosto),
+    };
+  }).sort((a, b) => b.margen - a.margen || b.ingresos - a.ingresos);
+
+  const ingresos = filas.reduce((s, x) => s + x.ingresos, 0);
+  const costo = filas.reduce((s, x) => s + x.costo, 0);
+  const sinCosto = filas.reduce((s, x) => s + x.sinCosto, 0);
+  const margen = ingresos - sinCosto - costo;
+  return {
+    ingresos, costo, margen, margenPct: proporcion(margen, ingresos - sinCosto),
+    unidades: Math.round(filas.reduce((s, x) => s + x.unidades, 0) * 10) / 10,
+    sinCosto, filas,
+  };
+}
+
 // ── Dashboard ────────────────────────────────────────────────────────────────
 
 export function armarDashboard(h: Hechos, op: OpcionesDashboard): Dashboard {
@@ -462,9 +558,10 @@ export function armarDashboard(h: Hechos, op: OpcionesDashboard): Dashboard {
     acumulado += futuro ? 0 : c.flujo;
     return {
       mes, etiqueta: nombreCortoDeMes(mes), futuro,
-      ingresos: c.med.ingresos, costoDocente: c.med.costoDocente, gastos: c.med.gastos,
+      ingresos: c.med.ingresos, ingresosProductos: c.med.ingresosProductos,
+      costoDocente: c.med.costoDocente, costoProductos: c.med.costoProductos, gastos: c.med.gastos,
       egresos: c.egresos, resultado: c.resultado, margenNeto: c.margenNeto,
-      recibido: c.med.ingresos, pagado: c.med.nominaPagada + c.med.gastos,
+      recibido: c.med.ingresos, pagado: c.med.nominaPagada + c.med.costoProductos + c.med.gastos,
       flujo: c.flujo, flujoAcumulado: acumulado,
       activos: c.alumnos.activos, retencion: c.retencion,
       altas: c.alumnos.altas, bajas: c.alumnos.bajas, nuevos: c.alumnos.nuevos,
@@ -485,6 +582,7 @@ export function armarDashboard(h: Hechos, op: OpcionesDashboard): Dashboard {
     }),
   }));
 
+  const productos = resumenProductos(h, meses, f);
   const etiquetaPeriodo = etiquetaDe(meses, op.periodo.modo);
   const etiquetaComparada = op.periodo.modo === "anio"
     ? String(anio - 1)
@@ -505,6 +603,7 @@ export function armarDashboard(h: Hechos, op: OpcionesDashboard): Dashboard {
   const nombres = (lista: { id: number; nombre: string }[], id: number | null) =>
     lista.find((x) => x.id === id)?.nombre ?? String(id);
   const filtrosActivos: Dashboard["filtrosActivos"] = [];
+  if (f.linea !== "todo") filtrosActivos.push({ dimension: "Línea", valor: f.linea === "clases" ? "Solo clases" : "Solo productos" });
   if (f.programaId !== null) filtrosActivos.push({ dimension: "Programa", valor: nombres(h.catalogos.programas, f.programaId) });
   if (f.instrumentoId !== null) filtrosActivos.push({ dimension: "Instrumento", valor: nombres(h.catalogos.instrumentos, f.instrumentoId) });
   if (f.sedeId !== null) filtrosActivos.push({ dimension: "Sede", valor: nombres(h.catalogos.sedes, f.sedeId) });
@@ -523,17 +622,23 @@ export function armarDashboard(h: Hechos, op: OpcionesDashboard): Dashboard {
     categorias: gastosPorCategoria(h, meses, f),
     matriz: armarMatriz(h, anio, op),
     canales: cacPorCanal(h, meses, f, actual.alumnos),
+    productos,
     profitFirst: op.profitFirst.activo
       ? repartoProfitFirst(actual.med.ingresos, actual.egresos, op.profitFirst.porcentajes)
       : null,
-    observaciones: observaciones(
-      corte(actual, etiquetaPeriodo.toLowerCase()),
-      corte(anterior, etiquetaComparada),
-      op.metas,
-      programas.map((p) => ({ nombre: p.nombre, margen: p.margen, margenPct: p.margenPct })),
-    ),
+    observaciones: [
+      ...observaciones(
+        corte(actual, etiquetaPeriodo.toLowerCase()),
+        corte(anterior, etiquetaComparada),
+        op.metas,
+        programas.map((p) => ({ nombre: p.nombre, margen: p.margen, margenPct: p.margenPct })),
+      ),
+      ...(productos.sinCosto > 0
+        ? [`Hay ${pesosExactos(productos.sinCosto)} cobrados por productos sin costo registrado: su margen no se conoce.`]
+        : []),
+    ],
     catalogos: h.catalogos,
     sinDatos: actual.med.ingresos === 0 && actual.med.costoDocente === 0 && actual.med.gastos === 0
-      && actual.alumnos.activos === 0,
+      && actual.med.costoProductos === 0 && actual.alumnos.activos === 0,
   };
 }
