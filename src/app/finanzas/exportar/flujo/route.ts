@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
-import { pagosDelPeriodo } from "@/lib/datos/finanzas";
+import { egresosNominaDelPeriodo, pagosDelPeriodo } from "@/lib/datos/finanzas";
 import { gastosDelPeriodo, ETIQUETA_CATEGORIA } from "@/lib/datos/gastos";
 import { hoyEnMexico } from "@/lib/zona";
 
 export const dynamic = "force-dynamic";
+
+const METODO_NOMINA: Record<string, string> = {
+  transferencia: "Transferencia", efectivo: "Efectivo", deposito: "Depósito", otro: "Otro",
+};
 
 function esc(v: string | null | undefined): string {
   if (v == null) return "";
@@ -23,6 +27,7 @@ function centavos(n: number): string {
 export async function GET(req: NextRequest) {
   const sesion = await exigirPermiso("finanzas.leer");
   const puedeGastos = tienePermiso(sesion, "gastos.gestionar");
+  const puedeNomina = tienePermiso(sesion, "nomina.leer");
 
   const hoy = hoyEnMexico();
   const inicioMes = `${hoy.slice(0, 7)}-01`;
@@ -67,6 +72,25 @@ export async function GET(req: NextRequest) {
         "",
         centavos(g.montoCentavos),
         "",
+      ].join(","));
+    }
+  }
+
+  // ── Pagos a docentes (nómina) ───────────────────────────────────────────────
+  // Va por fecha de pago y se desglosa por programa: una fila por programa de cada
+  // corte. Solo lo ve quien puede ver la nómina; un maestro no debe ver lo de otros.
+  if (puedeNomina) {
+    for (const n of egresosNominaDelPeriodo(desde, hasta)) {
+      rows.push([
+        "Egreso",
+        esc(n.pagadoEl),
+        esc(n.concepto),
+        esc(n.docente),
+        esc(METODO_NOMINA[n.metodo] ?? n.metodo),
+        "",
+        "",
+        centavos(n.totalCentavos),
+        esc(`Nómina · ${n.clases} clase(s) · ${n.programa}`),
       ].join(","));
     }
   }

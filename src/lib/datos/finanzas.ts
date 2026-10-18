@@ -9,6 +9,7 @@ import {
 } from "@/db/schema/index";
 import { costoDeClaseSql, parametrosNomina } from "@/lib/datos/costo-docente";
 import { formatearFolio, planearAplicacion, type Cargo } from "@/lib/dominio/cobranza";
+import { conceptoEgresoNomina } from "@/lib/dominio/egresos";
 import { generaPartida, importeDocenteCentavos } from "@/lib/dominio/nomina";
 import type { EstadoClase } from "@/lib/dominio/creditos";
 import type { Alcance } from "@/lib/auth/permisos";
@@ -887,4 +888,164 @@ export function cobranzaGlobal() {
     .where(eq(cargos.cancelado, false))
     .orderBy(asc(cargos.venceEl))
     .all();
+}
+
+// ----------------------------------------------- egresos y resultado por programa ---
+
+export type EgresoNomina = {
+  nominaId: number;
+  docenteId: number;
+  docente: string;
+  pagadoEl: string;
+  metodo: string;
+  programaId: number;
+  programa: string;
+  clases: number;
+  totalCentavos: number;
+  concepto: string;
+};
+
+/**
+ * Pagos a docentes del periodo (por fecha de pago), desglosados por programa.
+ *
+ * Un corte puede cubrir clases de varios programas: sale una fila por programa para
+ * que cada egreso se pueda atribuir. El número de clase es el orden dentro del corte.
+ */
+export function egresosNominaDelPeriodo(desde: string, hasta: string): EgresoNomina[] {
+  const filas = db.select({
+      nominaId: nominaPagos.id,
+      docenteId: docentes.id,
+      docente: docentes.nombre,
+      pagadoEl: nominaPagos.pagadoEl,
+      metodo: nominaPagos.metodo,
+      programaId: programas.id,
+      programa: programas.nombre,
+      iniciaEn: clases.iniciaEn,
+      importe: nominaPartidas.importeCentavos,
+    })
+    .from(nominaPartidas)
+    .innerJoin(nominaPagos, eq(nominaPagos.id, nominaPartidas.nominaId))
+    .innerJoin(docentes, eq(docentes.id, nominaPagos.docenteId))
+    .innerJoin(clases, eq(clases.id, nominaPartidas.claseId))
+    .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(and(gte(nominaPagos.pagadoEl, desde), lte(nominaPagos.pagadoEl, hasta)))
+    .orderBy(asc(nominaPagos.pagadoEl), asc(nominaPagos.id), asc(clases.iniciaEn))
+    .all();
+
+  const grupos = new Map<string, Omit<EgresoNomina, "concepto"> & { numeros: number[] }>();
+  for (const f of filas) {
+    const clave = `${f.nominaId}-${f.programaId}`;
+    let g = grupos.get(clave);
+    if (!g) {
+      g = {
+        nominaId: f.nominaId, docenteId: f.docenteId, docente: f.docente,
+        pagadoEl: f.pagadoEl, metodo: f.metodo, programaId: f.programaId, programa: f.programa,
+        clases: 0, totalCentavos: 0, numeros: [],
+      };
+      grupos.set(clave, g);
+    }
+    g.clases += 1;
+    g.numeros.push(g.clases);
+    g.totalCentavos += f.importe;
+  }
+
+  return [...grupos.values()].map(({ numeros, ...g }) => ({
+    ...g,
+    concepto: conceptoEgresoNomina(g.docente, g.programa, numeros),
+  }));
+}
+
+export type ResultadoPrograma = {
+  programaId: number;
+  programa: string;
+  /** Todo lo cobrado en el periodo para el programa. */
+  ingresoCentavos: number;
+  /** De ese total, lo que vino de mensualidades (renovación del ciclo). */
+  renovacionesCentavos: number;
+  /** Lo demás: inscripción, material, recital y otros cargos. */
+  otrosCargosCentavos: number;
+  /** Lo que costaron las clases impartidas en el periodo (fecha de clase). */
+  costoDevengadoCentavos: number;
+  /** Lo que salió en cortes de nómina pagados en el periodo (fecha de pago). */
+  egresoPagadoCentavos: number;
+  /** Partidas impartidas en el periodo todavía sin corte pagado. */
+  porPagarCentavos: number;
+  /** Ingreso cobrado menos costo devengado. Indicador administrativo, no utilidad. */
+  margenCentavos: number;
+};
+
+/**
+ * Ingreso, costo y egreso por programa. Ingreso y egreso van por fecha de caja (pago
+ * recibido o corte pagado); el costo, por fecha de la clase. Así cada cifra responde
+ * su propia pregunta y el margen no se infla ni se corta a la mitad.
+ */
+export function resultadoPorPrograma(desde: string, hasta: string): ResultadoPrograma[] {
+  const param = parametrosNomina();
+  const ini = instanteEnMexico(desde, "00:00");
+  const fin = instanteEnMexico(hasta, "23:59");
+
+  const listaProgramas = db.select({ id: programas.id, nombre: programas.nombre })
+    .from(programas).orderBy(asc(programas.orden)).all();
+
+  const ingresos = db.select({
+      programaId: inscripciones.programaId,
+      concepto: cargos.concepto,
+      monto: sql<number>`coalesce(sum(${aplicaciones.montoCentavos}), 0)`,
+    })
+    .from(aplicaciones)
+    .innerJoin(pagos, eq(pagos.id, aplicaciones.pagoId))
+    .innerJoin(cargos, eq(cargos.id, aplicaciones.cargoId))
+    .innerJoin(inscripciones, eq(inscripciones.id, cargos.inscripcionId))
+    .where(and(gte(pagos.recibidoEl, desde), lte(pagos.recibidoEl, hasta)))
+    .groupBy(inscripciones.programaId, cargos.concepto)
+    .all();
+
+  const devengado = db.select({
+      programaId: programas.id,
+      costo: sql<number>`coalesce(sum(${costoDeClaseSql(
+        param.tarifaHoraCentavos, param.factorFaltaSinAviso, param.factorFaltaJustificada,
+      )}), 0)`,
+    })
+    .from(clases)
+    .innerJoin(docentes, eq(docentes.id, clases.docenteId))
+    .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(and(gte(clases.iniciaEn, ini), lte(clases.iniciaEn, fin)))
+    .groupBy(programas.id)
+    .all();
+
+  const porPagar = db.select({
+      programaId: programas.id,
+      monto: sql<number>`coalesce(sum(${nominaPartidas.importeCentavos}), 0)`,
+    })
+    .from(nominaPartidas)
+    .innerJoin(clases, eq(clases.id, nominaPartidas.claseId))
+    .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(and(isNull(nominaPartidas.nominaId), gte(clases.iniciaEn, ini), lte(clases.iniciaEn, fin)))
+    .groupBy(programas.id)
+    .all();
+
+  const egresos = egresosNominaDelPeriodo(desde, hasta);
+  const suma = (xs: { monto?: number; costo?: number; totalCentavos?: number }[]) =>
+    xs.reduce((s, x) => s + (x.monto ?? x.costo ?? x.totalCentavos ?? 0), 0);
+
+  return listaProgramas.map((p) => {
+    const ingreso = ingresos.filter((i) => i.programaId === p.id);
+    const total = suma(ingreso);
+    const renovaciones = suma(ingreso.filter((i) => i.concepto === "mensualidad"));
+    const costo = suma(devengado.filter((d) => d.programaId === p.id));
+    return {
+      programaId: p.id,
+      programa: p.nombre,
+      ingresoCentavos: total,
+      renovacionesCentavos: renovaciones,
+      otrosCargosCentavos: total - renovaciones,
+      costoDevengadoCentavos: costo,
+      egresoPagadoCentavos: suma(egresos.filter((e) => e.programaId === p.id)),
+      porPagarCentavos: suma(porPagar.filter((x) => x.programaId === p.id)),
+      margenCentavos: total - costo,
+    };
+  });
 }
