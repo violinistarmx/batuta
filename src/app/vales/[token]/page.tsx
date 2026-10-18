@@ -1,15 +1,20 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { Encabezado } from "@/components/encabezado";
 import { InsigniaPago } from "@/components/vale-entrega";
-import { exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
+import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { sesionActual } from "@/lib/auth/sesion";
+import { alumnoPorId, tutoresDe } from "@/lib/datos/alumnos";
 import { valePorToken } from "@/lib/datos/vales";
-import { evaluarEntrega } from "@/lib/dominio/vales";
+import { destinatarioWhatsApp, enlaceWhatsApp } from "@/lib/dominio/recordatorios";
+import { evaluarEntrega, textoTicketVale } from "@/lib/dominio/vales";
+import { qrDeVale, urlBase } from "@/lib/qr";
 import { fechaCivil, horaCivil } from "@/lib/zona";
 import { pesosExactos } from "@/lib/formato";
 import { Entrega } from "./entrega";
+import { EnviarTicket } from "./enviar-ticket";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +37,19 @@ export default async function Vale({ params }: { params: Promise<{ token: string
   const decision = evaluarEntrega(v.estado, v);
   const puedeExcepcion = tienePermiso(sesion, "vales.autorizar_excepcion");
 
+  // Ticket para la familia: mensaje al tutor responsable de pago y la imagen con el QR.
+  const alumno = alumnoPorId(v.alumnoId, alcanceDe(sesion));
+  const destino = alumno ? destinatarioWhatsApp(tutoresDe(alumno.id), alumno) : null;
+  const pendienteCentavos = Math.max(0, v.montoCentavos - v.aplicadoCentavos);
+  const mensaje = textoTicketVale({
+    saludo: destino?.saludo ?? v.alumno.split(" ")[0]!,
+    alumno: v.alumno, concepto: v.concepto, codigo: v.codigo, sede: v.sede,
+    importe: pesosExactos(v.montoCentavos),
+    pagado: pendienteCentavos === 0,
+    pendiente: pendienteCentavos > 0 ? pesosExactos(pendienteCentavos) : null,
+  });
+  const qrSvg = await qrDeVale(token, urlBase(await headers()), 260);
+
   return (
     <>
       <Encabezado sesion={sesion} activo="entregas" />
@@ -41,6 +59,13 @@ export default async function Vale({ params }: { params: Promise<{ token: string
           {" "}›{" "}Vale
         </p>
         <h1 className="mt-2 font-mono text-2xl font-semibold tabular-nums">{v.codigo}</h1>
+
+        {v.estado === "entregado" && v.entregadoEn && (
+          <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900">
+            ✓ Entregado el {fechaCivil(v.entregadoEn)} a las {horaCivil(v.entregadoEn)}
+            <span className="font-normal"> · por {v.entregadoPor ?? "—"}</span>
+          </p>
+        )}
 
         <dl className="mt-5 divide-y divide-vs-linea rounded-xl border border-vs-linea bg-white text-sm">
           {[
@@ -101,6 +126,17 @@ export default async function Vale({ params }: { params: Promise<{ token: string
             </>
           )}
         </section>
+
+        {!v.cancelado && (
+          <div className="mt-6">
+            <EnviarTicket
+              codigo={v.codigo} concepto={v.concepto} alumno={v.alumno} sede={v.sede}
+              importe={pesosExactos(v.montoCentavos)} pagado={pendienteCentavos === 0}
+              qrSvg={qrSvg} mensaje={mensaje}
+              enlaceWhatsApp={destino ? enlaceWhatsApp(destino.numero, mensaje) : null}
+            />
+          </div>
+        )}
 
         <p className="mt-8 text-xs text-vs-tinta-3">
           <Link href={`/alumnos/${v.alumnoId}`} className="hover:underline">Ver expediente del alumno</Link>

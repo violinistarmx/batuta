@@ -411,6 +411,8 @@ const PERMISOS_ASISTENTE = [
   "buscar", "alumnos.leer", "alumnos.crear", "alumnos.editar",
   "inscripciones.leer", "inscripciones.crear", "clases.leer", "clases.crear",
   "clases.reprogramar", "asistencia.registrar", "pagos.registrar",
+  // Recepción cobra y le entrega el comprobante al padre: sin esto, tras cobrar caía en un 404.
+  "recibos.emitir",
   "prospectos.leer", "prospectos.crear", "prospectos.editar", "prospectos.convertir",
   "comunicacion.redactar",
   // Quien entrega el instrumento en el mostrador es quien tiene que registrarlo.

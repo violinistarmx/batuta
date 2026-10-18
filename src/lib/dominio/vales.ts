@@ -105,3 +105,37 @@ export function puedeCancelarCargo(estadoVale: EstadoVale | null): { permitido: 
   }
   return { permitido: true };
 }
+
+export type DatosTicket = {
+  saludo: string;
+  alumno: string;
+  concepto: string;
+  codigo: string;
+  sede: string | null;
+  /** Ya formateado: «$600.00». Este módulo no sabe de moneda. */
+  importe: string;
+  pagado: boolean;
+  /** Lo que falta por pagar, ya formateado; solo se usa si no está pagado. */
+  pendiente: string | null;
+};
+
+/**
+ * Mensaje de WhatsApp que acompaña al ticket del vale. Lleva el código para poder buscarlo, pero
+ * NO un enlace: la ruta del vale exige sesión del personal y a la familia no le serviría.
+ */
+export function textoTicketVale(d: DatosTicket): string {
+  const lineas = [
+    `Hola ${d.saludo} 👋, te saluda VioliniStar Academia de Música.`,
+    "",
+    `Este es el vale de entrega de *${d.concepto}* para ${d.alumno}:`,
+    `🎟️ *${d.codigo}* · ${d.importe}`,
+    "",
+  ];
+  lineas.push(
+    d.pagado
+      ? `Ya está pagado. Presenta el ticket (el código QR) para recogerlo${d.sede ? ` en la sede ${d.sede}` : ""}.`
+      : `Aún falta por pagar${d.pendiente ? ` ${d.pendiente}` : ""}. Lo entregamos en cuanto se liquide${d.sede ? ` en la sede ${d.sede}` : ""}; presenta este ticket.`,
+  );
+  lineas.push("", "¡Gracias! 🎻");
+  return lineas.join("\n");
+}

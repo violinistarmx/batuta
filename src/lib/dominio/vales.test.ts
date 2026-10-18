@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
-  evaluarEntrega, formatearCodigoVale, puedeCancelarCargo, resolverEntrega, type CargoDelVale,
+  evaluarEntrega, formatearCodigoVale, puedeCancelarCargo, resolverEntrega, textoTicketVale, type CargoDelVale,
 } from "./vales.ts";
 
 const saldado: CargoDelVale = { cancelado: false, montoCentavos: 60_000, aplicadoCentavos: 60_000 };
@@ -118,5 +118,35 @@ describe("cancelar un cargo con vale", () => {
 
   test("con vale entregado: no", () => {
     assert.equal(puedeCancelarCargo("entregado").permitido, false);
+  });
+});
+
+describe("texto del ticket por WhatsApp", () => {
+  const base = {
+    saludo: "Sra. Minerva", alumno: "Renata", concepto: "Método Suzuki Violín vol. 1",
+    codigo: "VE-2026-000123", sede: "Mineral de la Reforma", importe: "$600.00",
+    pagado: true, pendiente: null,
+  };
+
+  test("pagado: lleva código, concepto, alumno, sede y cómo recogerlo", () => {
+    const t = textoTicketVale(base);
+    for (const parte of ["Sra. Minerva", "Renata", "Método Suzuki Violín vol. 1", "VE-2026-000123", "$600.00", "Ya está pagado", "Mineral de la Reforma"]) {
+      assert.ok(t.includes(parte), parte);
+    }
+  });
+
+  test("sin pagar: avisa lo que falta y que se entrega al liquidar", () => {
+    const t = textoTicketVale({ ...base, pagado: false, pendiente: "$400.00" });
+    assert.ok(t.includes("falta por pagar $400.00"));
+    assert.ok(!t.includes("Ya está pagado"));
+  });
+
+  test("nunca incluye un enlace: la ruta del vale es solo para el personal", () => {
+    assert.ok(!/https?:\/\//.test(textoTicketVale(base)));
+    assert.ok(!/https?:\/\//.test(textoTicketVale({ ...base, pagado: false, pendiente: "$1.00" })));
+  });
+
+  test("sin sede no inventa una", () => {
+    assert.ok(!textoTicketVale({ ...base, sede: null }).includes("sede"));
   });
 });
