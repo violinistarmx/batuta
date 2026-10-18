@@ -5,7 +5,7 @@ import { Encabezado } from "@/components/encabezado";
 import { GraficaColumnas, GraficaDonut, GraficaDosSeries } from "@/components/graficas";
 import { exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import {
-  cobranzaGlobal, egresosNominaDelPeriodo, resultadoAdministrativo, resultadoPorPrograma,
+  cobranzaGlobal, egresosNominaDelPeriodo, resultadoAdministrativo,
 } from "@/lib/datos/finanzas";
 import { gastosPorCategoria } from "@/lib/datos/gastos";
 import { gastosDelPeriodo } from "@/lib/datos/gastos";
@@ -37,10 +37,6 @@ export default async function Finanzas({
   // Costo y pagos a docentes: solo para quien ve la nómina. Un maestro con acceso a
   // finanzas no debe ver cuánto cobran sus colegas.
   const puedeNomina = tienePermiso(sesion, "nomina.leer");
-  const porPrograma = resultadoPorPrograma(d, h).filter((p) =>
-    p.ingresoCentavos !== 0 || p.costoDevengadoCentavos !== 0 ||
-    p.egresoPagadoCentavos !== 0 || p.porPagarCentavos !== 0,
-  );
   const egresosNomina = puedeNomina ? egresosNominaDelPeriodo(d, h) : [];
   const ultimosGastos = puedeGastos ? gastosDelPeriodo(d, h).slice(0, 5) : [];
   const categoriaGastos = puedeGastos ? gastosPorCategoria(d, h) : [];
@@ -165,72 +161,6 @@ export default async function Finanzas({
             Incluye la nómina ya impartida aunque todavía no se haya pagado. Sin eso, el
             resultado se vería inflado hasta hacer el corte.
           </p>
-        </section>
-
-        {/* ------------------------------------------ resultado por programa */}
-        <section style={retardo(6)} className="entrar mt-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="font-display text-lg font-semibold">Resultado por programa</h2>
-            <a
-              href={`/finanzas/exportar/programas?desde=${d}&hasta=${h}`}
-              className="text-sm no-underline hover:underline"
-              title="Descargar el resultado por programa en CSV"
-            >
-              ↓ CSV por programa
-            </a>
-          </div>
-          <p className="mt-1 text-sm text-vs-tinta-2">
-            Lo cobrado en el periodo contra lo que costaron las clases impartidas en el mismo
-            periodo. Los pagos a docentes se muestran por fecha de pago.
-          </p>
-
-          {porPrograma.length === 0 ? (
-            <p className="mt-4 rounded-xl border border-dashed border-vs-linea bg-white p-6 text-center text-sm text-vs-tinta-3">
-              Sin movimientos por programa en el periodo.
-            </p>
-          ) : (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {porPrograma.map((p) => (
-                <article key={p.programaId} data-programa={p.programaId}
-                         className="rounded-xl border border-vs-linea bg-white p-4">
-                  <h3 className="font-display text-base font-semibold">{p.programa}</h3>
-                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div>
-                      <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Ingreso cobrado</dt>
-                      <dd className="font-medium tabular-nums">{pesos(p.ingresoCentavos)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Renovaciones</dt>
-                      <dd className="font-medium tabular-nums">{pesos(p.renovacionesCentavos)}</dd>
-                    </div>
-                    {puedeNomina && (
-                      <>
-                        <div>
-                          <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Costo docente</dt>
-                          <dd className="font-medium tabular-nums">{pesos(p.costoDevengadoCentavos)}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Pagado a docentes</dt>
-                          <dd className="font-medium tabular-nums">{pesos(p.egresoPagadoCentavos)}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-[11px] uppercase tracking-wider text-vs-tinta-3">Por pagar</dt>
-                          <dd className="font-medium tabular-nums">{pesos(p.porPagarCentavos)}</dd>
-                        </div>
-                      </>
-                    )}
-                  </dl>
-                  {puedeNomina && (
-                    <p className={`mt-3 border-t border-vs-linea pt-2 font-display text-lg font-semibold tabular-nums ${
-                      p.margenCentavos < 0 ? "text-vs-naranja-700" : ""
-                    }`}>
-                      Margen {p.margenCentavos < 0 ? "−" : ""}{pesos(Math.abs(p.margenCentavos))}
-                    </p>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
         </section>
 
         {/* ------------------------------------ pagos a docentes del periodo */}
