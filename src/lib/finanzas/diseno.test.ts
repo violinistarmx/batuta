@@ -27,6 +27,11 @@ describe("diseño del dashboard", () => {
     assert.equal(d.posiciones[1]!.x, 6);
   });
 
+  it("sube a la altura mínima los diseños guardados con widgets más bajos", () => {
+    const d = validarDiseno({ posiciones: [{ i: "kpis", x: 0, y: 0, w: 12, h: 6 }] });
+    assert.equal(d.posiciones[0]!.h, 12);
+  });
+
   it("solo acepta tipos de gráfica que tienen sentido para cada widget", () => {
     const d = validarDiseno({
       posiciones: DISENO_INICIAL.posiciones,

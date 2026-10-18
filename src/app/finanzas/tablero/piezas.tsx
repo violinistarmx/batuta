@@ -31,9 +31,10 @@ function Variacion({ k, comparacion }: { k: Kpi; comparacion: string }) {
     ? `${sube ? "+" : ""}${(k.variacion * 100).toFixed(1)} pts`
     : `${sube ? "+" : ""}${(k.variacion * 100).toFixed(1)} %`;
   return (
-    <span className="inline-flex items-center gap-1 tabular-nums" style={{ color }}>
-      <span aria-hidden="true">{plano ? "■" : sube ? "▲" : "▼"}</span>
-      {texto}
+    <span className="tabular-nums" style={{ color }}>
+      <span className="whitespace-nowrap">
+        <span aria-hidden="true">{plano ? "■" : sube ? "▲" : "▼"}</span> {texto}
+      </span>{" "}
       <span style={{ color: "#6e5c45" }}>{comparacion}</span>
     </span>
   );
@@ -62,7 +63,7 @@ export function TarjetaKpi({ k, comparacion }: { k: Kpi; comparacion: string }) 
       </p>
       <div className="mt-1 space-y-0.5 text-[11px] leading-snug">
         <p><Variacion k={k} comparacion={comparacion} /></p>
-        {k.detalle && <p className="truncate text-vs-tinta-2" title={k.detalle}>{k.detalle}</p>}
+        {k.detalle && <p className="line-clamp-2 text-vs-tinta-2" title={k.detalle}>{k.detalle}</p>}
         {k.meta && <p className="text-vs-tinta-3">{k.meta}</p>}
       </div>
     </article>
