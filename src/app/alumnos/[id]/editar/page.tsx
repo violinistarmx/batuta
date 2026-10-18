@@ -59,6 +59,7 @@ export default async function EditarAlumno({ params }: { params: Promise<{ id: s
               objetivoMusical: alumno.objetivoMusical,
               experienciaPrevia: alumno.experienciaPrevia,
               observaciones: alumno.observaciones,
+              origen: alumno.origen ?? null,
             }}
             tutores={tutoresDe(alumno.id)}
             salud={salud}

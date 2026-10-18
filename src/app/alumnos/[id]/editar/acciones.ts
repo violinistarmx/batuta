@@ -21,6 +21,10 @@ const correo = z.string().trim().max(150)
   .transform((s) => (s === "" ? null : s))
   .refine((s) => s === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s), "Correo inválido.");
 
+const ORIGENES = [
+  "instagram", "facebook", "tiktok", "recomendacion", "whatsapp", "google", "paso_por_la_calle", "evento", "otro",
+];
+
 const Alumno = z.object({
   nombre: z.string().trim().min(3, "Escribe el nombre completo del alumno.").max(150),
   fechaNacimiento: z.string().trim()
@@ -36,6 +40,9 @@ const Alumno = z.object({
   objetivoMusical: texto(500),
   experienciaPrevia: texto(500),
   observaciones: texto(1000),
+  // Canal por el que llegó. Alimenta el costo de adquisición por canal.
+  origen: z.string().trim().transform((v) => (v === "" ? null : v))
+    .refine((v) => v === null || ORIGENES.includes(v), "Origen inválido."),
 });
 
 const Tutor = z.object({
@@ -175,6 +182,7 @@ export async function editarAlumnoAccion(_previo: EstadoEdicion, datos: FormData
     objetivoMusical: d.objetivoMusical,
     experienciaPrevia: d.experienciaPrevia,
     observaciones: d.observaciones,
+    origen: d.origen,
   };
   const antesAlumno = {
     nombre: actual.nombre,
@@ -187,6 +195,7 @@ export async function editarAlumnoAccion(_previo: EstadoEdicion, datos: FormData
     objetivoMusical: actual.objetivoMusical,
     experienciaPrevia: actual.experienciaPrevia,
     observaciones: actual.observaciones,
+    origen: actual.origen,
   };
   const cambiosAlumno = diferencias(antesAlumno, despues);
 

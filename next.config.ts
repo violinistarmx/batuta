@@ -2,7 +2,7 @@
 
 const config: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["better-sqlite3", "@react-pdf/renderer"],
   allowedDevOrigins: ['192.168.100.20'],
   experimental: {
     // Por defecto Next limita el cuerpo de una acción de servidor a 1 MB. Un aviso

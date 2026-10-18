@@ -89,4 +89,12 @@ INSERT INTO tarifas_docente (docente_id, tarifa_hora_centavos, vigente_desde)
 -- ── Origen del alumno ─────────────────────────────────────────────────────────
 ALTER TABLE alumnos ADD COLUMN origen TEXT;--> statement-breakpoint
 UPDATE alumnos SET origen = (SELECT p.origen FROM prospectos p WHERE p.alumno_id = alumnos.id)
-  WHERE EXISTS (SELECT 1 FROM prospectos p WHERE p.alumno_id = alumnos.id);
+  WHERE EXISTS (SELECT 1 FROM prospectos p WHERE p.alumno_id = alumnos.id);--> statement-breakpoint
+
+-- ── Diseño del dashboard por usuario ──────────────────────────────────────────
+-- Qué gráficas ve, dónde, de qué tamaño, de qué tipo y con qué paleta (JSON).
+CREATE TABLE paneles_finanzas (
+  usuario_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+  diseno TEXT NOT NULL,
+  actualizado_en INTEGER NOT NULL DEFAULT (unixepoch())
+);

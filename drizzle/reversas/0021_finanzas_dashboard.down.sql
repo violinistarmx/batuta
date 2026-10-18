@@ -6,6 +6,8 @@
 -- vigente a docentes.tarifa_hora_centavos con el primer UPDATE), categorías nuevas,
 -- sedes y el origen de los alumnos. Los gastos conservan su `categoria` original.
 
+DROP TABLE IF EXISTS paneles_finanzas;
+
 UPDATE docentes SET tarifa_hora_centavos = (
   SELECT td.tarifa_hora_centavos FROM tarifas_docente td
   WHERE td.docente_id = docentes.id AND td.vigente_hasta IS NULL

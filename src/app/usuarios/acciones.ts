@@ -262,7 +262,7 @@ export async function actualizarTarifaDocente(
 
   registrar({
     usuarioId: sesion.usuarioId,
-    accion: "usuario.editar",
+    accion: "tarifa.cambiar",
     entidad: "tarifas_docente",
     entidadId: docenteId,
     cambios: { tarifaHoraCentavos: [anterior, tarifaHora], vigenteDesde: [null, desde] },

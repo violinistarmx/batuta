@@ -177,3 +177,13 @@ export const tarifasDocente = sqliteTable("tarifas_docente", {
   index("ix_tarifas_docente").on(t.docenteId, t.vigenteDesde),
   uniqueIndex("ux_tarifa_docente_abierta").on(t.docenteId).where(sql`vigente_hasta IS NULL`),
 ]);
+
+/**
+ * Diseño del dashboard de finanzas de cada usuario: qué gráficas ve, dónde, de qué
+ * tamaño, de qué tipo y con qué paleta. JSON validado en lib/finanzas/diseno.ts.
+ */
+export const panelesFinanzas = sqliteTable("paneles_finanzas", {
+  usuarioId: integer("usuario_id").primaryKey().references(() => usuarios.id, { onDelete: "cascade" }),
+  diseno: text("diseno").notNull(),
+  actualizadoEn: integer("actualizado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});

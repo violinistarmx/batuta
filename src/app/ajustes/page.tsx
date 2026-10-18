@@ -13,7 +13,7 @@ import { Ajuste } from "./cliente";
 
 export const dynamic = "force-dynamic";
 
-const ORDEN: Grupo[] = ["contrato", "direccion", "institucional"];
+const ORDEN: Grupo[] = ["contrato", "direccion", "finanzas", "institucional"];
 
 /** Cómo se lee un valor bajo candado, que se muestra pero no se edita. */
 function mostrar(clave: string, valor: string, tipo: string): string {

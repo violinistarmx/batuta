@@ -19,6 +19,8 @@ describe("ajustes · cómo se agrupa", () => {
 
   it("sin fuente se trata como decisión de dirección", () => {
     assert.equal(grupoDe({ clave: "lo_que_sea", fuente: null }), "direccion");
+    assert.equal(grupoDe({ clave: "meta_margen_neto_min", fuente: "Dirección" }), "finanzas");
+    assert.equal(grupoDe({ clave: "profit_first_activo", fuente: "Dirección" }), "finanzas");
   });
 });
 
