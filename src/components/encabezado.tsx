@@ -49,6 +49,9 @@ export function Encabezado(
     permisos.has("vales.entregar")
       ? { href: "/entregas", texto: "Entregas", clave: "entregas" }
       : null,
+    permisos.has("renovaciones.leer")
+      ? { href: "/renovaciones", texto: "Por renovar", clave: "renovaciones" }
+      : null,
     // Cuentas, bitácora y catálogo viven dentro de Ajustes; reportes, dentro de Finanzas.
     // Quien no tiene nada de Ajustes conserva un acceso directo al catálogo, que es de todos.
     rutaAjustes

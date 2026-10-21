@@ -231,6 +231,9 @@ const CONFIG: {
     descripcion: "Proporción que cobra el docente cuando la falta es justificada y se " +
       "recupera. 0 = sin costo para la academia.",
     fuente: "Dirección" },
+  { clave: "renovacion_aviso_clases", valor: "4", tipo: "entero",
+    descripcion: "Clases restantes del período en las que se avisa que toca renovar. Dirección y administración lo ven en pendientes.",
+    fuente: "Dirección" },
   { clave: "horas_aviso_posposicion", valor: "24", tipo: "entero",
     descripcion: "Anticipación mínima para posponer sin consumir la clase.",
     fuente: "Contrato cláusula 4ª" },
@@ -369,6 +372,7 @@ const PERMISOS = [
   ["avisos.enviar", "Enviar avisos internos a los maestros"],
   ["documentos.leer", "Descargar documentos del expediente"],
   ["inventario.gestionar", "Gestionar inventario y préstamos"],
+  ["renovaciones.leer", "Ver quién debe renovar su programa y recibir la alerta de renovación"],
   ["productos.gestionar", "Administrar el catálogo de productos y ver sus costos y márgenes"],
   ["vales.entregar", "Entregar productos con vale y ver las entregas pendientes"],
   ["vales.autorizar_excepcion", "Autorizar la entrega de un producto sin pago completo"],
@@ -405,6 +409,7 @@ const PERMISOS_ADMINISTRADORA = [
   "inscripciones.leer", "inscripciones.crear",
   "clases.leer", "clases.crear",
   "avisos.enviar",
+  "renovaciones.leer",
 ];
 
 const PERMISOS_ASISTENTE = [

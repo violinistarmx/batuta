@@ -8,7 +8,9 @@ import { Bienvenida } from "@/components/bienvenida";
 import { Encabezado } from "@/components/encabezado";
 import { avisosSinLeer } from "@/lib/datos/avisos";
 import { alcanceDe, exigirSesionUsable, tienePermiso } from "@/lib/auth/permisos";
-import { alertasDe, clasesDeHoy, indicadores, ultimoRespaldo } from "@/lib/datos/tablero";
+import { alertasDe, clasesDeHoy, indicadores, renovacionesPendientes, ultimoRespaldo } from "@/lib/datos/tablero";
+import { valorEntero } from "@/lib/datos/ajustes";
+import { TarjetaRenovaciones } from "@/components/tarjeta-renovaciones";
 import { contarPorSeveridad, type Severidad } from "@/lib/dominio/alertas";
 import { fechaLarga, hora, saludo } from "@/lib/formato";
 import { hoyEnMexico, horaCivil } from "@/lib/zona";
@@ -142,6 +144,10 @@ export default async function Inicio({
             </div>
           ))}
         </dl>
+
+        {tienePermiso(sesion, "renovaciones.leer") && (
+          <TarjetaRenovaciones filas={renovacionesPendientes(valorEntero("renovacion_aviso_clases", 4))} />
+        )}
 
         {/* ---------------------------------------------------------- alertas */}
         <section className="mt-8">

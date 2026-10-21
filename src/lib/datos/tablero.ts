@@ -17,6 +17,7 @@ import {
   estadoDeSeguimiento, siguienteAccion, type Etapa,
 } from "@/lib/dominio/prospectos";
 import { estadoDeDevolucion } from "@/lib/dominio/inventario";
+import { situacionRenovacion, type SituacionRenovacion } from "@/lib/dominio/renovacion";
 import { respaldoAlDia } from "@/lib/dominio/respaldos";
 import {
   ordenarAlertas, severidadDeAdeudo, severidadDeAsistencia, severidadDeCredencial,
@@ -469,4 +470,45 @@ export function ultimoRespaldo(): string | null {
     // La carpeta todavía no existe: es lo mismo que no tener respaldo.
     return null;
   }
+}
+
+// --- renovaciones: alumnos cuyo período está por agotarse -----------------------------
+// No entra a la lista de pendientes: ahí los adeudos atrasados (que son muchos) ocupan los
+// primeros lugares y la renovación quedaría fuera de los doce visibles. Tiene su propia tarjeta
+// y su propia pantalla, para dirección y administración.
+
+export type RenovacionPendiente = SituacionRenovacion & {
+  inscripcionId: number;
+  alumnoId: number;
+  alumno: string;
+  programa: string;
+  terminaEl: string;
+};
+
+/** Períodos abiertos de alumnos activos con pocas clases restantes, los que hay que renovar ya primero. */
+export function renovacionesPendientes(umbral: number): RenovacionPendiente[] {
+  const filas = db
+    .select({
+      inscripcionId: inscripciones.id,
+      alumnoId: alumnos.id,
+      alumno: alumnos.nombre,
+      programa: programas.nombre,
+      terminaEl: ciclos.terminaEl,
+      saldo: sql<number>`coalesce((
+        SELECT sum(cc.delta) FROM creditos_clase cc WHERE cc.ciclo_id = ciclos.id
+      ), 0)`,
+    })
+    .from(ciclos)
+    .innerJoin(inscripciones, eq(inscripciones.id, ciclos.inscripcionId))
+    .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(and(eq(ciclos.estado, "abierto"), eq(inscripciones.estado, "activa")))
+    .all();
+
+  return filas
+    .flatMap((f) => {
+      const situacion = situacionRenovacion(f.saldo, umbral);
+      return situacion ? [{ ...f, ...situacion }] : [];
+    })
+    .sort((a, b) => a.restantes - b.restantes || a.alumno.localeCompare(b.alumno));
 }

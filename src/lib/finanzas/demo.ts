@@ -251,6 +251,8 @@ export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenD
           inscripcion_id: x.id, numero, inicia_el: desde, termina_el: hasta,
           clases_contratadas: p.clases, minutos_por_clase: p.minutos, precio_centavos: p.precio,
         });
+        // Igual que la app: el ciclo emite sus clases y cada clase tomada o faltada sin aviso consume una.
+        insertar(cx, "creditos_clase", { ciclo_id: cicloId, delta: p.clases, motivo: "emision_ciclo" });
 
         // Cargo de la mensualidad, vence el día 5 (o el día que empezó).
         const vence = desde > `${mes}-05` ? desde : `${mes}-05`;
@@ -292,6 +294,12 @@ export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenD
             inscripcion_id: x.id, ciclo_id: cicloId, docente_id: x.docenteId, aula_id: x.aulaId,
             inicia_en: instante(fecha), termina_en: instante(fecha, p.minutos), minutos: p.minutos, estado,
           });
+          if (estado === "asistio" || estado === "falta") {
+            insertar(cx, "creditos_clase", {
+              ciclo_id: cicloId, clase_id: id, delta: -1,
+              motivo: estado === "asistio" ? "clase_tomada" : "falta_sin_aviso",
+            });
+          }
           clases.push({ id, docenteId: x.docenteId, minutos: p.minutos, estado, fecha, programa: p });
           resumen.clases++;
         }
@@ -419,6 +427,14 @@ export function sembrarDemo(cx: Conexion, hoy: string, semilla = 2026): ResumenD
       if (r() < 0.25) gasto(d(22), "Honorarios docentes", "Músico invitado", entero(r, 80_000, 150_000), "variable", { subcategoria: "Invitados" });
     }
 
+    // Períodos que ya vencieron se cierran como lo hace la app: lo que sobró de clases expira.
+    cx.prepare(`INSERT INTO creditos_clase (ciclo_id, delta, motivo, nota)
+      SELECT c.id, -s.total, 'expiracion_ciclo', 'Cierre del período (demo)'
+      FROM ciclos c JOIN (SELECT ciclo_id, sum(delta) AS total FROM creditos_clase GROUP BY ciclo_id) s
+        ON s.ciclo_id = c.id
+      WHERE c.termina_el < ? AND c.estado = 'abierto' AND s.total > 0`).run(hoy);
+    cx.prepare(`UPDATE ciclos SET estado = 'cerrado', cerrado_en = unixepoch()
+      WHERE termina_el < ? AND estado = 'abierto'`).run(hoy);
     cx.exec("COMMIT");
   } catch (e) {
     cx.exec("ROLLBACK");
@@ -447,6 +463,7 @@ export function limpiarDemo(cx: Conexion): { alumnos: number; gastos: number } {
       DELETE FROM vales_entrega WHERE cargo_id IN (SELECT id FROM cargos WHERE alumno_id IN (${alumnosDemo}));
       DELETE FROM cargos WHERE alumno_id IN (${alumnosDemo});
       DELETE FROM productos WHERE nombre LIKE '%${MARCA}';
+      DELETE FROM creditos_clase WHERE ciclo_id IN (SELECT id FROM ciclos WHERE inscripcion_id IN (${inscDemo}));
       DELETE FROM clases WHERE inscripcion_id IN (${inscDemo});
       DELETE FROM ciclos WHERE inscripcion_id IN (${inscDemo});
       DELETE FROM inscripciones WHERE alumno_id IN (${alumnosDemo});

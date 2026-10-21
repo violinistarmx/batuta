@@ -818,6 +818,18 @@ ruta de Next; `/reportes` redirige a `/finanzas/reportes` y `/ajustes` a su prim
 tiene nada de Ajustes (un maestro, recepción) conserva un acceso directo al catálogo, que es de todos;
 un maestro que solo entra a «Mi nómina» ve esa pantalla sin la barra de dirección.
 
+## Por renovar
+
+Un alumno tiene que renovar cuando al período le quedan pocas clases. La cuenta sale del libro de
+créditos (`creditos_clase`), no de la agenda: el ciclo emite sus clases y cada clase tomada o
+faltada sin aviso consume una. Cuando quedan `renovacion_aviso_clases` (4 por defecto, un ajuste de
+dirección) o menos, aparece en **Por renovar**; con cero, la situación es «Renovar ya».
+
+Lo ven quienes tienen el permiso `renovaciones.leer`: dirección y administración. Administración es
+un rol **secundario** que se suma a cualquier cuenta (Ajustes → Cuentas → la cuenta → «Roles adicionales»), no un rol aparte.
+La lista no va dentro de «Pendientes» a propósito: los adeudos atrasados son muchos y la renovación
+quedaría fuera de los doce que se muestran. Tiene su propia tarjeta en el inicio y su pantalla.
+
 ## Productos y vales de entrega
 
 La academia vende métodos, instrumentos de cuerda, libretas. Un producto es un **cargo más**
