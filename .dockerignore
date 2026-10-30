@@ -1,0 +1,32 @@
+# Nada de lo que vive solo en tu computadora entra al contexto de construcción de la imagen.
+# Los secretos llegan al contenedor por variables de entorno del host, nunca por archivos.
+.git
+.github
+.env
+.env.*
+*.env
+
+# Datos reales: base, expedientes y respaldos.
+data/
+almacen/
+almacen.*
+data.*
+respaldos/
+*.db
+*.db-shm
+*.db-wal
+SECRETOS-*.txt
+
+# Dependencias y artefactos locales: la imagen los reconstruye.
+node_modules/
+.next/
+out/
+build/
+
+# Configuración local de agentes y herramientas.
+.claude/
+.vscode/
+.idea/
+*.log
+npm-debug.log*
+.DS_Store

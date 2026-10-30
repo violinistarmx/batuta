@@ -26,6 +26,10 @@ respaldos/
 .env.local
 .env*.local
 
+# Permisos y preferencias locales de los agentes: cada quien los suyo, no los del repo.
+.claude/settings.local.json
+.claude/*.local.*
+
 # Secretos de produccion. La llave de datos sensibles descifra la tabla de
 # salud de los alumnos: fuera del repositorio, siempre.
 SECRETOS-*.txt
