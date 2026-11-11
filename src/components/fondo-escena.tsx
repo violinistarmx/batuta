@@ -4,10 +4,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { EVENTO_FONDO, cambiarFondoPausado, fondoAnimadoPermitido, fondoPausadoGuardado } from "@/lib/fondo";
+import { fondoDeTema, type Tema } from "@/lib/tema";
 
 /**
  * Paisaje de fondo de toda la aplicación: un video corto en bucle detrás del contenido, con la
- * imagen fija como respaldo y un velo claro para que el texto se lea encima.
+ * imagen fija como respaldo y un velo para que el texto se lea encima. Cada tema trae el suyo:
+ * «claro» el paisaje de día con velo blanco; «cristal» la ciudad al atardecer con velo oscuro.
  *
  * - En celular, con «reducir movimiento» o en ahorro de datos: solo la imagen (ver lib/fondo.ts).
  * - MP4 (H.264) primero y WebM (VP9) de respaldo, para navegadores sin H.264.
@@ -16,7 +18,8 @@ import { EVENTO_FONDO, cambiarFondoPausado, fondoAnimadoPermitido, fondoPausadoG
  *   la escena pone el suyo en una esquina, donde no tapa nada.
  * - No se imprime: los recibos y comprobantes salen en blanco.
  */
-export function FondoEscena() {
+export function FondoEscena({ tema }: { tema: Tema }) {
+  const base = fondoDeTema(tema);
   const video = useRef<HTMLVideoElement>(null);
   const [conVideo, setConVideo] = useState(false);
   const [ancho, setAncho] = useState(1920);
@@ -44,23 +47,24 @@ export function FondoEscena() {
     if (!v) return;
     if (pausado) v.pause();
     else v.play().catch(() => { /* el navegador no lo dejó reproducir: queda la imagen */ });
-  }, [pausado, conVideo]);
+  }, [pausado, conVideo, base]);
 
   return (
     <>
       <div aria-hidden="true" className="fondo-escena no-imprimir">
         {conVideo && (
           <video
+            key={base}
             ref={video}
             className="fondo-escena-video"
-            poster="/fondo/escena.jpg"
+            poster={`/fondo/${base}.jpg`}
             muted
             loop
             playsInline
             preload="metadata"
           >
-            <source src={`/fondo/escena-${ancho}.mp4`} type="video/mp4" />
-            <source src={`/fondo/escena-${ancho}.webm`} type="video/webm" />
+            <source src={`/fondo/${base}-${ancho}.mp4`} type="video/mp4" />
+            <source src={`/fondo/${base}-${ancho}.webm`} type="video/webm" />
           </video>
         )}
         <div className="fondo-escena-velo" />

@@ -838,6 +838,26 @@ Todo sale de los tokens de `src/app/globals.css`: las pantallas no se tocaron un
 El build copia `public/` al servidor `standalone` (`npm run build`). Antes no lo hacía y en producción
 el logo daba 404.
 
+### Tema Liquid Glass
+
+**Ajustes → Personal → Apariencia** cambia entre dos temas: **Claro** (el de arriba) y **Liquid
+Glass** (ciudad al atardecer, tarjetas de vidrio translúcido y texto blanco). Cualquier cuenta
+puede elegirlo; no hace falta ningún permiso.
+
+- **Por navegador, no por cuenta:** se guarda en la cookie `batuta_tema` (un año). El servidor la
+  lee al pintar la página, así que carga ya con el tema, sin parpadeo. Cambiarlo no afecta a nadie
+  más.
+- **Cómo funciona:** `<html data-tema="cristal">` cambia los valores de los mismos tokens
+  (`--color-vs-tinta`, `--color-vs-linea`…) y convierte toda superficie `bg-white` en vidrio con
+  `backdrop-filter`. Los avisos rojo, verde y ámbar pasan a tintes translúcidos con texto claro.
+  Todo está en `globals.css`, en el bloque «Tema Liquid Glass».
+- **Islas claras:** las gráficas de Finanzas (sus colores van fijos en el código), los recibos y los
+  diálogos de confirmación se quedan en el tema claro. Para dejar otra zona clara, ponle la clase
+  `tema-claro`.
+- **Video:** `public/fondo/cristal-*` (1920 y 1280 px, MP4 y WebM) y `cristal.jpg` de póster, con
+  las mismas reglas de celular, pausa y «reducir movimiento».
+- **Impresión:** siempre en claro y sobre blanco, sea cual sea el tema.
+
 ## Por renovar
 
 Un alumno tiene que renovar cuando al período le quedan pocas clases. La cuenta sale del libro de

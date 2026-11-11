@@ -11,12 +11,12 @@ const hrefs = (g: { secciones: { href: string }[] }[]) => g.flatMap((x) => x.sec
 describe("secciones de Ajustes", () => {
   test("el director ve todo, agrupado", () => {
     const g = seccionesDeAjustes(con("configuracion.gestionar", "usuarios.gestionar", "bitacora.leer"));
-    assert.deepEqual(g.map((x) => x.titulo), ["Reglas de la academia", "Equipo", "Academia", "Seguridad"]);
-    assert.equal(hrefs(g).length, 7);
+    assert.deepEqual(g.map((x) => x.titulo), ["Personal", "Reglas de la academia", "Equipo", "Academia", "Seguridad"]);
+    assert.equal(hrefs(g).length, 8);
   });
 
-  test("quien solo tiene sesión ve únicamente el catálogo", () => {
-    assert.deepEqual(hrefs(seccionesDeAjustes(con())), ["/catalogo"]);
+  test("quien solo tiene sesión ve su apariencia y el catálogo", () => {
+    assert.deepEqual(hrefs(seccionesDeAjustes(con())), ["/ajustes/apariencia", "/catalogo"]);
   });
 
   test("sin permiso, la sección ni aparece", () => {
@@ -24,7 +24,7 @@ describe("secciones de Ajustes", () => {
     assert.ok(h.includes("/usuarios") && !h.includes("/bitacora") && !h.includes("/ajustes/contrato"));
   });
 
-  test("«Ajustes» en el menú lleva a la primera sección propia; el catálogo solo no cuenta", () => {
+  test("«Ajustes» en el menú lleva a la primera sección con permiso; apariencia y catálogo no cuentan", () => {
     assert.equal(rutaInicialDeAjustes(con("configuracion.gestionar")), "/ajustes/contrato");
     assert.equal(rutaInicialDeAjustes(con("bitacora.leer")), "/bitacora");
     assert.equal(rutaInicialDeAjustes(con()), null);

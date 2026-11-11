@@ -26,6 +26,12 @@ export type GrupoDeSecciones = { titulo: string; secciones: Seccion[] };
 
 const GRUPOS_AJUSTES: GrupoDeSecciones[] = [
   {
+    titulo: "Personal",
+    secciones: [
+      { href: "/ajustes/apariencia", texto: "Apariencia", detalle: "Tema: claro o Liquid Glass", permiso: null },
+    ],
+  },
+  {
     titulo: "Reglas de la academia",
     secciones: [
       { href: "/ajustes/contrato", texto: "Reglas del contrato", detalle: "Cláusulas que el sistema aplica", permiso: "configuracion.gestionar" },
