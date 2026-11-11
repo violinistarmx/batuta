@@ -818,6 +818,26 @@ ruta de Next; `/reportes` redirige a `/finanzas/reportes` y `/ajustes` a su prim
 tiene nada de Ajustes (un maestro, recepción) conserva un acceso directo al catálogo, que es de todos;
 un maestro que solo entra a «Mi nómina» ve esa pantalla sin la barra de dirección.
 
+## Diseño: paisaje de fondo, tarjetas blancas e Inter Tight
+
+La interfaz sigue la dirección «Light» de la plantilla HabitFlow (PrettySites), adaptada a la marca:
+un paisaje en video detrás de todo, un velo claro para que el texto se lea, tarjetas blancas y la
+tipografía **Inter Tight**. La paleta conserva el naranja y el amarillo oficiales de VioliniStar.
+Todo sale de los tokens de `src/app/globals.css`: las pantallas no se tocaron una por una.
+
+- **Video** (`public/fondo/`): el original de 44 MB en 4K se recomprimió a 1920 px (2.8 MB) y
+  1280 px (1.2 MB), en MP4 (H.264) y WebM (VP9) de respaldo, sin audio. La imagen fija
+  `escena.jpg` es el póster y el fondo cuando no hay video.
+- **Cuándo no hay video:** en celular (menos de 768 px), con «reducir movimiento» y con ahorro de
+  datos. Ahí se ve la imagen fija.
+- **Pausa:** botón junto a la campana del encabezado; en la pantalla de acceso, en una esquina. Se
+  recuerda en el navegador.
+- **Impresión:** el fondo no se imprime; recibos y comprobantes salen en blanco.
+- **Tipografía:** `next/font` la descarga al compilar y la sirve desde el propio dominio.
+
+El build copia `public/` al servidor `standalone` (`npm run build`). Antes no lo hacía y en producción
+el logo daba 404.
+
 ## Por renovar
 
 Un alumno tiene que renovar cuando al período le quedan pocas clases. La cuenta sale del libro de

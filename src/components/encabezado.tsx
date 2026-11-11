@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Campana } from "@/components/campana";
+import { ControlFondo } from "@/components/control-fondo";
 import { permisosDe } from "@/lib/auth/permisos";
 import type { Sesion } from "@/lib/auth/sesion";
 import { avisosSinLeer } from "@/lib/datos/avisos";
@@ -77,6 +78,7 @@ export function Encabezado(
           </span>
         </Link>
         <div className="flex items-center gap-3">
+          <ControlFondo />
           <Campana sinLeer={avisosSinLeer(sesion.usuarioId)} />
           <Link href="/perfil"
                 className="text-xs text-vs-tinta-3 no-underline hover:underline">

@@ -5,7 +5,7 @@
   "description": "CRM/ERP academico para la Academia de Musica VioliniStar",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && cp -r .next/static .next/standalone/.next/static",
+    "build": "next build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/",
     "start": "node .next/standalone/server.js",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",

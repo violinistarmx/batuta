@@ -1,30 +1,38 @@
 @import "tailwindcss";
 
 /**
- * Identidad VioliniStar.
+ * Identidad VioliniStar sobre el diseño «Light» (paisaje de fondo, tarjetas blancas, Inter Tight).
  *
- * Los cinco colores oficiales se conservan como RELLENO. Para tinta se usan dos
- * derivados oscuros del mismo naranja, porque los originales no pasan contraste:
- * #F27405 sobre el crema oficial da 2.80:1, y AA pide 4.5:1.
+ * Los colores oficiales de marca se conservan como RELLENO: naranja y amarillo. El crema y los
+ * neutros se acercan al blanco y gris del diseño, con un sesgo cálido para no perder la marca.
+ * Para tinta se usan derivados oscuros del naranja, porque el naranja oficial no pasa contraste:
+ * #F27405 sobre blanco da 2.9:1, y AA pide 4.5:1.
+ *
+ * Los nombres no cambian: cada pantalla usa estos tokens, así que todo el sistema cambia aquí.
  */
 @theme {
-  --color-vs-crema: #fffceb;
+  --color-vs-crema: #f7f5ef;
   --color-vs-naranja: #f27405;
   --color-vs-naranja-claro: #ff9020;
   --color-vs-amarillo: #fed403;
   --color-vs-amarillo-suave: #fed247;
 
-  /* Derivados accesibles sobre crema: 4.10:1 y 5.30:1 */
+  /* Derivados accesibles: 4.5:1 y 5.6:1 sobre blanco */
   --color-vs-naranja-600: #c2600a;
   --color-vs-naranja-700: #a85104;
 
-  /* Neutros cálidos, con sesgo hacia el naranja de marca */
-  --color-vs-tinta: #221a0e;
-  --color-vs-tinta-2: #4a3b28;
-  --color-vs-tinta-3: #6e5c45;
-  --color-vs-linea: #e6dcc0;
+  /* Neutros del diseño, apenas cálidos: 16:1, 9.6:1 y 5.3:1 sobre blanco */
+  --color-vs-tinta: #1b1b1b;
+  --color-vs-tinta-2: #454545;
+  --color-vs-tinta-3: #6b6b6b;
+  --color-vs-linea: #e9e5da;
 
-  --font-display: Newsreader, Georgia, serif;
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+
+  /* Tarjetas más redondas, como las del diseño */
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
 }
 
 /**
@@ -171,9 +179,36 @@
   .confirmar::backdrop { transition: none; }
 }
 
+/* El fondo lo pone la escena (components/fondo-escena.tsx). El color de html es el respaldo
+   mientras carga la imagen: el cielo del paisaje. */
+html { background: #dfe9f3; }
 body {
-  background: var(--color-vs-crema);
+  background: transparent;
   color: var(--color-vs-tinta);
+}
+
+/* Títulos con el interletrado apretado del diseño */
+.font-display { letter-spacing: -0.02em; }
+
+.fondo-escena {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: #dfe9f3 url("/fondo/escena.jpg") center / cover no-repeat;
+  pointer-events: none;
+}
+.fondo-escena-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Velo claro: arriba deja ver el cielo, abajo cubre más, donde el paisaje tiene más color. */
+.fondo-escena-velo {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0.72) 45%, rgb(255 255 255 / 0.82) 100%);
 }
 
 /* Oculta la barra de scroll sin deshabilitar el scroll (usado en nav móvil) */
@@ -422,7 +457,7 @@ body {
 
 @media print {
   .no-imprimir, .no-print { display: none !important; }
-  body { background: #fff; }
+  html, body { background: #fff; }
   .recibo {
     margin: 0;
     max-width: none;
