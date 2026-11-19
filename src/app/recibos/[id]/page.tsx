@@ -1,23 +1,15 @@
-import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { db } from "@/db";
-import { configuracion } from "@/db/schema/index";
 import { exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
-import { reciboPorId, renglonesDeRecibo } from "@/lib/datos/finanzas";
+import { armarComprobante, tokenDeRecibo } from "@/lib/datos/comprobante";
 import { ValeEntrega } from "@/components/vale-entrega";
 import { valesDeRecibo } from "@/lib/datos/vales";
-import { tutoresDe } from "@/lib/datos/alumnos";
-import {
-  contactoDelComprobante, descripcionDelComprobante, lineasDeClases, periodoLegible,
-  textoComprobanteWhatsApp,
-} from "@/lib/dominio/comprobante";
+import { periodoLegible, textoComprobanteWhatsApp } from "@/lib/dominio/comprobante";
 import { destinosDeClase, enlaceWhatsApp } from "@/lib/dominio/recordatorios";
-import { esMenorDeEdad, pesosExactos } from "@/lib/formato";
+import { pesosExactos } from "@/lib/formato";
 import { qrDeVale, urlBase } from "@/lib/qr";
-import { fechaCivil } from "@/lib/zona";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import { Suspense } from "react";
 import { AvisoTras } from "@/components/aviso";
@@ -50,17 +42,19 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
   const reciboId = Number(id);
   if (!Number.isInteger(reciboId)) notFound();
 
-  const r = reciboPorId(reciboId);
-  if (!r) notFound();
+  const c = armarComprobante(reciboId);
+  if (!c) notFound();
+  const {
+    r, renglones, cfg, fechaPago, emision, totalReal, aFavor, esAdulto, tutoresDelAlumno, contacto,
+    clasesLista, descripcionPago, banco, hayBanco, instagram,
+  } = c;
+  const { anio, mes, dia } = fechaPago;
+  const { anio: ae, mes: me, dia: de } = emision;
 
-  const renglones = renglonesDeRecibo(r.pagoId);
   // Vales de los productos que este pago cubrió: el comprobante lleva el código y el QR.
   const vales = valesDeRecibo(r.pagoId);
   const base = urlBase(await headers());
   const qrs = await Promise.all(vales.map((v) => qrDeVale(v.token, base, 120)));
-  const cfg = Object.fromEntries(
-    db.select().from(configuracion).all().map((c) => [c.clave, c.valor]),
-  );
 
   registrar({
     usuarioId: sesion.usuarioId,
@@ -70,35 +64,15 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
     cambios: { folio: r.folio },
   });
 
-  const [anio = 0, mes = 1, dia = 1] = r.recibidoEl.split("-").map(Number);
-  // La emisión es su propio instante: puede caer un día después del pago cuando
-  // el recibo se captura tarde, y el documento no debe disimularlo.
-  const [ae = 0, me = 1, de = 1] = fechaCivil(r.emitidoEn).split("-").map(Number);
-  const aplicado = renglones.reduce((s, x) => s + x.montoAplicado, 0);
-  // El dinero real que entró: lo que pagó el alumno menos la condonación.
-  // Si el formulario capturó el total del cargo como "monto", restamos el descuento
-  // para obtener lo que el alumno efectivamente pagó de bolsillo.
-  const totalReal = r.montoCentavos - r.descuentoCentavos;
-  // El saldo a favor refleja solo el dinero real no aplicado a ningún cargo.
-  const aFavor = Math.max(0, totalReal - Math.max(0, aplicado - r.descuentoCentavos));
-
-  // Los datos de quien paga salen de la cuenta del alumno; si es menor, del tutor responsable.
-  // Adulto solo si consta que tiene 18 o más (sin fecha se trata como menor, como en los recordatorios).
-  const esAdulto = !!r.alumnoNacimiento && !esMenorDeEdad(r.alumnoNacimiento);
-  const tutoresDelAlumno = tutoresDe(r.alumnoId);
-  const contacto = contactoDelComprobante(
-    { nombre: r.alumno, telefono: r.alumnoTelefono, direccion: r.alumnoDireccion },
-    esAdulto ? [] : tutoresDelAlumno,
-    esAdulto,
-  );
-
   // WhatsApp del comprobante: a quien paga. Un alumno adulto (o la cuenta de un responsable de
   // pago, como la titular de un plan familiar) recibe en su propio número; un menor, en el de su
   // tutor responsable. Sin número registrado el botón avisa en vez de abrir un chat equivocado.
+  // El mensaje lleva el enlace privado al PDF: la liga de wa.me no puede adjuntar el archivo.
   const destinos = destinosDeClase(tutoresDelAlumno, { nombre: r.alumno, telefono: r.alumnoTelefono }, esAdulto);
   const preferido = destinos.sugerido === "tutor" ? destinos.tutor : destinos.alumno;
   const destinoWa = preferido ?? destinos.alumno ?? destinos.tutor;
-  const whatsapp = destinoWa
+  const token = destinoWa ? tokenDeRecibo(r.id) : null;
+  const whatsapp = destinoWa && token
     ? {
         href: enlaceWhatsApp(destinoWa.numero, textoComprobanteWhatsApp({
           saludo: destinoWa.saludo,
@@ -106,18 +80,11 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
           paraTutor: destinoWa.paraTutor,
           folio: r.folio,
           total: pesosExactos(totalReal),
+          enlace: `${base}/comprobante/${token}`,
         })),
         para: destinoWa.paraTutor ? `${destinoWa.saludo} (tutor responsable)` : destinoWa.saludo,
       }
     : null;
-  const clasesLista = lineasDeClases(r.clasesTexto);
-  const descripcionPago = descripcionDelComprobante(r.descripcion, clasesLista);
-  const banco = {
-    nombre: cfg.recibo_banco_nombre, titular: cfg.recibo_banco_titular, cuenta: cfg.recibo_banco_cuenta,
-    clabe: cfg.recibo_banco_clabe, tarjeta: cfg.recibo_banco_tarjeta,
-  };
-  const hayBanco = Boolean(banco.cuenta || banco.clabe || banco.tarjeta);
-  const instagram = cfg.academia_instagram ? `@${cfg.academia_instagram.replace(/^@/, "")}` : "";
 
   return (
     <>

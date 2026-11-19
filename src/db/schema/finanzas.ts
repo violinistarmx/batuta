@@ -104,6 +104,11 @@ export const recibos = sqliteTable("recibos", {
   alumnoId: integer("alumno_id").notNull().references(() => alumnos.id),
   emitidoPor: integer("emitido_por").references(() => usuarios.id),
   emitidoEn: integer("emitido_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  /**
+   * Token de 256 bits del enlace privado al PDF (`/comprobante/<token>`). NULL hasta que se
+   * comparte por primera vez. Anular el pago borra el recibo y con él el enlace.
+   */
+  token: text("token"),
 }, (t) => [
   uniqueIndex("ux_recibos_folio").on(t.folio),
   // Un pago genera un recibo. Reimprimir usa el mismo folio, no emite otro.

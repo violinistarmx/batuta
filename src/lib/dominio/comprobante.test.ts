@@ -68,3 +68,9 @@ test("el mensaje de WhatsApp al tutor nombra al alumno; al adulto no", () => {
   const adulto = textoComprobanteWhatsApp({ ...base, saludo: "Ana", paraTutor: false });
   assert.doesNotMatch(adulto, / de Ana Victoria/);
 });
+
+test("el mensaje de WhatsApp incluye el enlace al PDF cuando lo hay", () => {
+  const base = { saludo: "Laura", alumno: "Ana", paraTutor: true, folio: "VS-1", total: "$1.00" };
+  assert.match(textoComprobanteWhatsApp({ ...base, enlace: "https://x.mx/comprobante/abc" }), /PDF aquí: https:\/\/x\.mx\/comprobante\/abc/);
+  assert.doesNotMatch(textoComprobanteWhatsApp(base), /PDF aquí/);
+});

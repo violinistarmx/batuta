@@ -495,6 +495,19 @@ de nacimiento) el teléfono y la dirección son los del tutor responsable de pag
 comprobante añade una fila «Tutor». Las migraciones `0024_comprobante_pago` (columnas
 `pagos.clases_texto` y `pagos.sello_pago`, reversible) guardan esos datos.
 
+**Enviar por WhatsApp.** La barra del comprobante tiene el botón «Enviar comprobante por
+WhatsApp»: abre el chat directo con quien paga (el tutor responsable si el alumno es menor, el
+propio alumno si es adulto, la cuenta del responsable en un plan familiar) con el mensaje ya
+escrito. Una liga de `wa.me` no puede adjuntar un archivo, así que el mensaje lleva un **enlace
+privado al PDF** (`/comprobante/<token>`): la familia no tiene cuenta, por eso la ruta es pública
+y su protección es el token (256 bits aleatorios, guardado en `recibos.token`, migración
+`0025_comprobante_enlace`). El token se crea al enviar por primera vez y no cambia; **anular el
+pago borra el recibo y el enlace deja de funcionar**; editar el pago actualiza lo que muestra el
+enlace. Un token inexistente responde 404 y cada apertura queda en la bitácora
+(`documento.descargar`, sin usuario). Quien tenga el enlace puede ver ese comprobante, igual que
+quien tenga el papel. El PDF se genera en el servidor con react-pdf y las tipografías Barlow
+embebidas (`src/lib/comprobante/`); no lleva vales de entrega.
+
 **Datos para pago.** El bloque oscuro «Datos para pago y transferencia» sale de los ajustes
 `recibo_banco_*` (Ajustes → Datos de la academia). Cuenta, CLABE y tarjeta **no están en el
 código**: se capturan una vez ahí y, mientras estén vacíos, el comprobante no imprime el bloque.

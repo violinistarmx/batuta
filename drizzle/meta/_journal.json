@@ -176,6 +176,13 @@
       "when": 1792300000000,
       "tag": "0024_comprobante_pago",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1792400000000,
+      "tag": "0025_comprobante_enlace",
+      "breakpoints": true
     }
   ]
 }
