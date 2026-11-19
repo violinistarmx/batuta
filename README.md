@@ -272,7 +272,7 @@ disponibles, período, próxima clase, adeudo— y desde ahí el expediente est�
 
 Mientras la credencial física esté en diseño, **el QR es la credencial**: se descarga como PNG
 desde `/api/qr/[id]`, se manda por WhatsApp y el alumno lo muestra desde el teléfono. Hay
-también una tarjeta imprimible con el mismo armazón que la nota de remisión. Registrar la
+también una tarjeta imprimible con el mismo armazón que el recibo de la academia. Registrar la
 entrega —y por qué medio— apaga la alerta de la cláusula 10ª; «entregada» a secas no
 distinguiría una tarjeta de un enlace seis meses después.
 
@@ -477,11 +477,27 @@ meses, ni un saldo a favor — y esos tres casos ocurren todas las semanas.
 La inscripción **no genera cargo**: el contrato de 2025 la declara gratuita, y el sistema se
 atiene al contrato aunque el brief inicial mencionara $800.
 
-### El recibo
+### El comprobante de pago
 
-Es la nota de remisión de la academia, replicada en HTML e impresa por el navegador. No se
-genera PDF en el servidor: «Guardar como PDF» da fidelidad exacta y cero dependencias, y un
-PDF servidor solo hará falta cuando el sistema envíe recibos por correo (fase 2).
+Antes «nota de remisión»; hoy el documento se llama **Comprobante de pago** y sigue la plantilla
+oficial (carta, naranja y amarillo, tipografías Barlow servidas por `next/font`), replicada en
+HTML e impresa por el navegador. No se genera PDF en el servidor: «Guardar como PDF» da
+fidelidad exacta y cero dependencias, y un PDF servidor solo hará falta cuando el sistema envíe
+comprobantes por correo (fase 2). El estilo vive en `src/app/recibos/[id]/comprobante.css`; el
+armazón `.recibo` de `globals.css` queda para la credencial, el programa de recital y la responsiva.
+
+**Qué se captura y qué sale solo.** Al registrar (o editar) un pago se agregan únicamente los
+datos que la plantilla pide y el sistema no tiene: *descripción*, *fechas y horarios de las
+clases* (una por línea; se sugieren desde la agenda del período), *notas* y el sello «Pago
+registrado» (activo por defecto). Todo lo demás sale de la cuenta del alumno: nombre, código,
+dirección, teléfono, programa y período. **Si el alumno es menor de edad** (o no consta su fecha
+de nacimiento) el teléfono y la dirección son los del tutor responsable de pago, y el
+comprobante añade una fila «Tutor». Las migraciones `0024_comprobante_pago` (columnas
+`pagos.clases_texto` y `pagos.sello_pago`, reversible) guardan esos datos.
+
+**Datos para pago.** El bloque oscuro «Datos para pago y transferencia» sale de los ajustes
+`recibo_banco_*` (Ajustes → Datos de la academia). Cuenta, CLABE y tarjeta **no están en el
+código**: se capturan una vez ahí y, mientras estén vacíos, el comprobante no imprime el bloque.
 
 Un abono parcial **no se imprime como «$750 × 1 = $400»**. El renglón cuadra solo —precio
 unitario igual al importe aplicado— y el cargo completo y el saldo restante se declaran en la
@@ -797,7 +813,7 @@ El maestro no entra al inventario.
 
 ### La responsiva
 
-Mismo armazón que la nota de remisión y la credencial: caja, franja, impresión por navegador.
+Mismo armazón que el recibo clásico y la credencial: caja, franja, impresión por navegador.
 Son documentos de la misma casa y duplicar el armazón habría dejado tres que se separan al
 primer ajuste de marca. Lo único propio son las dos firmas al pie — el préstamo es el único
 documento de la academia que alguien firma a mano.

@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { cobrar, type EstadoPago } from "@/app/finanzas/acciones";
+import { CamposComprobante } from "@/components/campos-comprobante";
 
 const campo = "rounded-lg border border-vs-linea bg-white px-3 py-2 text-sm " +
   "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vs-naranja-700";
@@ -19,18 +20,20 @@ function Boton() {
                  focus-visible:outline-offset-2 focus-visible:outline-vs-naranja-700
                  disabled:opacity-60"
     >
-      {pending ? "Registrando…" : "Registrar pago y emitir recibo"}
+      {pending ? "Registrando…" : "Registrar pago y emitir comprobante"}
     </button>
   );
 }
 
 export function Cobrar({
-  alumnoId, hoy, adeudoTotal, adeudoTexto, puedeDescontar, cargosAbiertos = [],
+  alumnoId, hoy, adeudoTotal, adeudoTexto, puedeDescontar, cargosAbiertos = [], clasesSugeridas = [],
 }: {
   alumnoId: number; hoy: string; adeudoTotal: number; adeudoTexto: string;
   puedeDescontar?: boolean;
   /** Cargos con adeudo, para elegir a cuál va el dinero primero. */
   cargosAbiertos?: { id: number; descripcion: string; adeudoCentavos: number }[];
+  /** Clases agendadas del período del adeudo más antiguo, para ofrecerlas ya escritas. */
+  clasesSugeridas?: string[];
 }) {
   const [estado, accion] = useActionState<EstadoPago, FormData>(cobrar, {});
   const [monto, setMonto] = useState(adeudoTotal > 0 ? (adeudoTotal / 100).toFixed(2) : "");
@@ -113,37 +116,21 @@ export function Cobrar({
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="descripcion" className="text-xs font-medium text-vs-tinta-2">
-          Descripción <span className="font-normal text-vs-tinta-3">(aparece en el recibo)</span>
-        </label>
-        <textarea
-          id="descripcion" name="descripcion" rows={3}
-          placeholder={"Ej: mensualidad octubre con beca del 10%\nClases programadas: sábado 4, 11, 18 y 25 de octubre"}
-          className={campo}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="nota" className="text-xs font-medium text-vs-tinta-2">
-          Observaciones internas
-        </label>
-        <textarea id="nota" name="nota" rows={3} className={campo} />
-      </div>
+      <CamposComprobante sugeridas={clasesSugeridas} />
 
       {parcial && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Es un <strong>pago a cuenta</strong>: quedará un saldo pendiente de{" "}
           {((adeudoTotal - totalEfectivo * 100) / 100).toLocaleString("es-MX", {
             style: "currency", currency: "MXN", minimumFractionDigits: 0,
-          })}. El recibo lo indicará.
+          })}. El comprobante lo indicará.
         </p>
       )}
       {descuentoNum > 0 && !parcial && (
         <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
           Se condonarán{" "}
           {(descuentoNum).toLocaleString("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 0 })}{" "}
-          del adeudo. El recibo solo refleja lo cobrado en efectivo/transferencia.
+          del adeudo. El comprobante solo refleja lo cobrado en efectivo/transferencia.
         </p>
       )}
       {sobra && adeudoTotal >= 0 && (

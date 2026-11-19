@@ -66,7 +66,15 @@ export const pagos = sqliteTable("pagos", {
    * la nota es interna (solo la ven dirección y recepción).
    */
   descripcion: text("descripcion"),
+  /**
+   * Fechas y horarios de las clases que cubre el pago, una por línea. Van numeradas en el
+   * comprobante. Texto libre: se sugiere desde la agenda y quien cobra lo corrige.
+   */
+  clasesTexto: text("clases_texto"),
+  /** Notas que salen impresas en el comprobante (recuadro «Notas»). */
   nota: text("nota"),
+  /** Si el comprobante lleva el sello «Pago registrado». */
+  selloPago: integer("sello_pago", { mode: "boolean" }).notNull().default(true),
   registradoPor: integer("registrado_por").references(() => usuarios.id),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (t) => [index("ix_pagos_alumno").on(t.alumnoId, t.recibidoEl)]);

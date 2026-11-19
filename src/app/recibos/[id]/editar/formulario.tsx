@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { editarPago, type EstadoEditar } from "@/app/finanzas/acciones";
+import { CamposComprobante } from "@/components/campos-comprobante";
 
 const campo = "rounded-lg border border-vs-linea bg-white px-3 py-2 text-sm " +
   "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vs-naranja-700";
@@ -31,7 +32,9 @@ type Inicial = {
   recibidoEl: string;
   referencia: string;
   descripcion: string;
+  clasesTexto: string;
   nota: string;
+  selloPago: boolean;
 };
 
 export function FormularioEditarPago({
@@ -115,28 +118,7 @@ export function FormularioEditarPago({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="descripcion" className="text-xs font-medium text-vs-tinta-2">
-          Descripción <span className="font-normal text-vs-tinta-3">(aparece en el recibo)</span>
-        </label>
-        <textarea
-          id="descripcion" name="descripcion" rows={3}
-          placeholder={"Ej: mensualidad octubre con beca del 10%\nClases programadas: sábado 4, 11, 18 y 25 de octubre"}
-          defaultValue={inicial.descripcion}
-          className={campo}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="nota" className="text-xs font-medium text-vs-tinta-2">
-          Observaciones internas
-        </label>
-        <textarea
-          id="nota" name="nota" rows={3}
-          defaultValue={inicial.nota}
-          className={campo}
-        />
-      </div>
+      <CamposComprobante inicial={{ descripcion: inicial.descripcion, clases: inicial.clasesTexto, nota: inicial.nota, sello: inicial.selloPago }} />
 
       <div className="flex flex-wrap items-center gap-4">
         <Boton />

@@ -271,7 +271,7 @@ html[data-tema="cristal"] :is(.border-red-200, .border-red-300, .border-green-20
 }
 
 /* Islas claras: gráficas del dashboard, recibos y diálogos de confirmación */
-html[data-tema="cristal"] :is(.react-grid-item, .recibo, .confirmar, .tema-claro) {
+html[data-tema="cristal"] :is(.react-grid-item, .recibo, .comprobante, .confirmar, .tema-claro) {
   color-scheme: light;
   --color-vs-tinta: #1b1b1b;
   --color-vs-tinta-2: #454545;
@@ -282,7 +282,7 @@ html[data-tema="cristal"] :is(.react-grid-item, .recibo, .confirmar, .tema-claro
   --color-vs-naranja-600: #c2600a;
   color: #1b1b1b;
 }
-html[data-tema="cristal"] :is(.react-grid-item, .recibo, .confirmar, .tema-claro)
+html[data-tema="cristal"] :is(.react-grid-item, .recibo, .comprobante, .confirmar, .tema-claro)
   :is(.bg-white, [class*="bg-white/"], [class*="bg-red-"], [class*="bg-green-"], [class*="bg-amber-"],
       [class*="bg-blue-"], [class*="bg-sky-"], [class*="bg-orange-"], [class*="text-red-"],
       [class*="text-green-"], [class*="text-amber-"], [class*="text-blue-"], [class*="text-sky-"],

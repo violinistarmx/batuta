@@ -25,13 +25,13 @@ export default async function EditarPago({ params }: { params: Promise<{ id: str
           href={`/recibos/${reciboId}`}
           className="text-xs text-vs-tinta-3 no-underline hover:underline"
         >
-          ← Volver al recibo
+          ← Volver al comprobante
         </a>
         <h1 className="mt-3 text-xl font-semibold text-vs-tinta">
           Editar pago · Folio {r.folio}
         </h1>
         <p className="mt-1 text-sm text-vs-tinta-3">
-          Al guardar, las aplicaciones se recalculan y el recibo refleja los nuevos datos.
+          Al guardar, las aplicaciones se recalculan y el comprobante refleja los nuevos datos.
           El folio <strong>{r.folio}</strong> se conserva.
         </p>
       </div>
@@ -49,7 +49,9 @@ export default async function EditarPago({ params }: { params: Promise<{ id: str
           recibidoEl: r.recibidoEl,
           referencia: r.referencia ?? "",
           descripcion: r.descripcion ?? "",
+          clasesTexto: r.clasesTexto ?? "",
           nota: r.nota ?? "",
+          selloPago: r.selloPago,
         }}
         puedeDescontar={puedeDescontar}
       />

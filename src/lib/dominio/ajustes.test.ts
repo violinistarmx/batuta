@@ -12,9 +12,15 @@ describe("ajustes · cómo se agrupa", () => {
   });
 
   it("los datos de la academia van aparte aunque su fuente diga «Contrato»", () => {
-    // El domicilio sale impreso en la nota de remisión: es un dato, no una regla.
+    // El domicilio sale impreso en el comprobante de pago: es un dato, no una regla.
     assert.equal(grupoDe({ clave: "academia_domicilio", fuente: "Contrato" }), "institucional");
     assert.equal(grupoDe({ clave: "recibo_prefijo_folio", fuente: "Dirección" }), "institucional");
+    assert.equal(grupoDe({ clave: "recibo_banco_clabe", fuente: "Comprobante de pago" }), "institucional");
+  });
+
+  it("los datos bancarios del comprobante pueden quedar vacíos; el resto de textos no", () => {
+    assert.deepEqual(validarValor("recibo_banco_clabe", "texto", "  "), { ok: true, valor: "" });
+    assert.equal(validarValor("academia_telefono", "texto", "").ok, false);
   });
 
   it("sin fuente se trata como decisión de dirección", () => {

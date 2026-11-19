@@ -195,6 +195,7 @@ export function cargosDeAlumno(alumnoId: number) {
       cancelado: cargos.cancelado,
       aplicadoCentavos: APLICADO,
       inscripcionId: cargos.inscripcionId,
+      cicloId: cargos.cicloId,
       valeCodigo: valesEntrega.codigo,
       valeEstado: valesEntrega.estado,
     })
@@ -326,8 +327,12 @@ export type DatosPago = {
    * Útil para aclarar "mensualidad de octubre con descuento familiar" o similares.
    */
   descripcion: string | null;
-  /** Observaciones internas: solo las ven dirección y recepción, no aparecen en el recibo. */
+  /** Fechas y horarios de las clases que cubre, una por línea (salen numeradas en el comprobante). */
+  clasesTexto?: string | null;
+  /** Notas: salen impresas en el recuadro «Notas» del comprobante. */
   nota: string | null;
+  /** Si el comprobante lleva el sello «Pago registrado». Por defecto sí. */
+  selloPago?: boolean;
   /**
    * Cargo al que quien cobra quiere que vaya primero el dinero (un producto, por
    * ejemplo). Sin él, el pago salda los cargos que no son producto del más viejo al
@@ -389,7 +394,9 @@ export function registrarPago(d: DatosPago, usuarioId: number, prefijoFolio: str
       recibidoEl: d.recibidoEl,
       referencia: d.referencia,
       descripcion: d.descripcion,
+      clasesTexto: d.clasesTexto ?? null,
       nota: d.nota,
+      selloPago: d.selloPago ?? true,
       registradoPor: usuarioId,
     }).returning({ id: pagos.id }).get();
     if (!pago) throw new Error("No se pudo registrar el pago.");
@@ -440,7 +447,9 @@ export type DatosActualizarPago = {
   recibidoEl: string;
   referencia: string | null;
   descripcion: string | null;
+  clasesTexto?: string | null;
   nota: string | null;
+  selloPago?: boolean;
 };
 
 /**
@@ -470,7 +479,9 @@ export function actualizarPago(
       recibidoEl: d.recibidoEl,
       referencia: d.referencia,
       descripcion: d.descripcion,
+      clasesTexto: d.clasesTexto ?? null,
       nota: d.nota,
+      selloPago: d.selloPago ?? true,
     }).where(eq(pagos.id, pagoId)).run();
 
     // Borrar aplicaciones antiguas y recalcular. El dinero vuelve primero a los cargos
@@ -547,10 +558,13 @@ export function reciboPorId(id: number) {
       recibidoEl: pagos.recibidoEl,
       referencia: pagos.referencia,
       descripcion: pagos.descripcion,
+      clasesTexto: pagos.clasesTexto,
       nota: pagos.nota,
+      selloPago: pagos.selloPago,
       alumnoId: alumnos.id,
       alumno: alumnos.nombre,
       alumnoCodigo: alumnos.codigo,
+      alumnoNacimiento: alumnos.fechaNacimiento,
       alumnoTelefono: alumnos.telefono,
       alumnoDireccion: alumnos.direccion,
     })

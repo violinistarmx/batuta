@@ -1,0 +1,111 @@
+/* ---------------------------------------------------------------------------
+   Comprobante de pago. Plantilla oficial de VioliniStar (tamaño carta, 816 × 1056 px).
+
+   Va aparte de `.recibo` (globals.css) porque ese armazón lo comparten la credencial, el
+   programa de recital y la responsiva. Aquí los bloques del pie (datos bancarios, lema, franja)
+   viajan en el flujo y no con posición absoluta: si el comprobante lleva muchas partidas la hoja
+   crece en vez de cortarlas.
+   --------------------------------------------------------------------------- */
+
+.comprobante {
+  --naranja: #F28C0F; --amarillo: #FFC629; --carbon: #1A1A1A; --blanco: #FFFFFF;
+  --gris: #F5F5F5; --cafe: #8A4B00; --linea: #E3E3E3;
+  --titulo: var(--font-barlow-condensed), 'Arial Narrow', sans-serif;
+  --texto: var(--font-barlow), 'Helvetica Neue', Arial, sans-serif;
+  /* La plantilla es de ancho fijo: en un celular se desplaza, no se deforma. */
+  overflow-x: auto;
+  padding: 1.5rem 0 3rem;
+  color: var(--carbon);
+  font-family: var(--texto);
+}
+.comprobante *, .comprobante *::before, .comprobante *::after { box-sizing: border-box; }
+
+.comprobante .hoja {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 816px;
+  min-height: 1056px;
+  margin: 0 auto;
+  background: var(--blanco);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.18);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.comprobante .marco { position: absolute; inset: 0; border: 14px solid var(--amarillo); pointer-events: none; z-index: 20; }
+
+/* Encabezado */
+.comprobante .head { position: relative; height: 206px; margin: 14px 14px 0; background: var(--naranja); overflow: hidden; padding: 26px 42px; flex: none; }
+.comprobante .head::before { content: ""; position: absolute; right: -70px; top: -70px; width: 330px; height: 330px; background: var(--amarillo); transform: rotate(30deg); }
+.comprobante .head::after { content: ""; position: absolute; right: 318px; top: -100px; width: 46px; height: 440px; background: var(--carbon); transform: rotate(30deg); }
+.comprobante .etiqueta { display: inline-block; background: var(--carbon); color: var(--blanco); font-weight: 700; font-size: 11px; letter-spacing: 2.6px; text-transform: uppercase; padding: 6px 12px; position: relative; z-index: 2; }
+.comprobante .head h1 { position: relative; z-index: 2; font-family: var(--titulo); font-weight: 800; font-size: 48px; line-height: .95; color: var(--blanco); text-transform: uppercase; margin-top: 14px; }
+.comprobante .head .folio { position: relative; z-index: 2; font-family: var(--titulo); font-weight: 700; font-size: 22px; letter-spacing: 1.5px; color: var(--carbon); margin-top: 12px; }
+.comprobante .fecha { position: absolute; right: 42px; top: 26px; z-index: 3; text-align: right; }
+.comprobante .fecha .l { display: inline-block; background: var(--carbon); color: var(--amarillo); font-weight: 700; font-size: 11px; letter-spacing: 2.6px; padding: 6px 14px; text-transform: uppercase; }
+.comprobante .fecha .v { font-family: var(--titulo); font-weight: 800; font-size: 30px; color: var(--carbon); margin-top: 8px; letter-spacing: 1px; }
+.comprobante .sello { position: absolute; right: 56px; top: 116px; z-index: 4; display: inline-block; border: 3px solid var(--carbon); background: var(--amarillo); padding: 5px 12px; font-family: var(--titulo); font-weight: 800; font-size: 16px; letter-spacing: 2.5px; text-transform: uppercase; transform: rotate(-3deg); }
+
+/* Datos de quien paga */
+.comprobante .datos { margin: 14px 56px 0; flex: none; }
+.comprobante .fila { display: flex; gap: 22px; padding: 9px 0; border-bottom: 1px solid var(--linea); align-items: baseline; }
+.comprobante .fila:first-child { border-top: 3px solid var(--naranja); }
+.comprobante .campo { display: flex; gap: 12px; align-items: baseline; flex: 1; }
+.comprobante .campo.corto { flex: 0 0 220px; }
+.comprobante .lab { font-weight: 700; font-size: 10.5px; letter-spacing: 2.2px; text-transform: uppercase; color: var(--cafe); flex: none; min-width: 70px; }
+.comprobante .val { font-weight: 600; font-size: 14px; }
+
+/* Tabla de partidas */
+.comprobante .tabla { margin: 14px 56px 0; flex: none; }
+.comprobante .th, .comprobante .tr { display: grid; grid-template-columns: 1fr 100px 56px 110px; gap: 8px; align-items: start; }
+.comprobante .th { background: var(--carbon); color: var(--blanco); padding: 10px 14px; font-weight: 700; font-size: 10.5px; letter-spacing: 2.2px; text-transform: uppercase; border-bottom: 4px solid var(--amarillo); }
+.comprobante .th .r, .comprobante .tr .r { text-align: right; }
+.comprobante .tr { padding: 14px; border-bottom: 1px solid var(--linea); }
+.comprobante .tr.primera { min-height: 130px; }
+.comprobante .programa { font-family: var(--titulo); font-weight: 700; font-size: 24px; text-transform: uppercase; line-height: 1; }
+.comprobante .programa.menor { font-size: 18px; }
+.comprobante .periodo { display: inline-block; background: var(--amarillo); font-weight: 700; font-size: 11px; letter-spacing: 1.4px; padding: 3px 8px; margin-top: 6px; text-transform: uppercase; }
+.comprobante .desc { font-size: 12.5px; color: #444; margin-top: 8px; line-height: 1.4; white-space: pre-line; }
+.comprobante .clases { margin-top: 12px; list-style: none; counter-reset: c; padding: 0; }
+.comprobante .clases li { counter-increment: c; display: flex; gap: 10px; align-items: center; font-size: 13px; font-weight: 500; padding: 3px 0; border-bottom: 1px dashed var(--linea); }
+.comprobante .clases li::before { content: counter(c); flex: none; width: 22px; height: 22px; background: var(--carbon); color: var(--blanco); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+.comprobante .num { font-weight: 600; font-size: 14px; padding-top: 4px; font-variant-numeric: tabular-nums; }
+.comprobante .tr.nota-fila .programa { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+.comprobante .notas { margin: 8px 56px 0; background: var(--gris); border-left: 6px solid var(--amarillo); padding: 6px 12px; font-size: 11.5px; flex: none; white-space: pre-line; }
+.comprobante .notas b { letter-spacing: 2px; font-size: 10.5px; color: var(--cafe); }
+
+/* Términos y totales */
+.comprobante .pie { display: flex; gap: 30px; margin: 10px 56px 0; flex: none; }
+.comprobante .terminos { flex: 1; }
+.comprobante .terminos h3 { font-family: var(--titulo); font-weight: 800; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; border-left: 6px solid var(--naranja); padding-left: 8px; }
+.comprobante .terminos p { font-size: 9.4px; line-height: 1.42; color: #333; text-align: justify; margin-top: 7px; }
+.comprobante .terminos p.fiscal { color: var(--cafe); font-weight: 600; margin-top: 6px; }
+.comprobante .totales { width: 270px; flex: none; }
+.comprobante .t-fila { display: flex; justify-content: space-between; padding: 8px 2px; border-bottom: 1px solid var(--linea); font-size: 13px; }
+.comprobante .t-fila .lab { min-width: 0; }
+.comprobante .t-total { display: flex; justify-content: space-between; align-items: center; background: var(--naranja); color: var(--carbon); padding: 12px 14px; margin-top: 10px; border-left: 8px solid var(--carbon); }
+.comprobante .t-total .lab { color: var(--carbon); font-size: 12px; }
+.comprobante .t-total .val { font-family: var(--titulo); font-weight: 800; font-size: 30px; font-variant-numeric: tabular-nums; }
+
+.comprobante .vales { margin: 12px 56px 0; flex: none; }
+
+/* Cierre: datos bancarios, lema, franja y fecha de emisión. Siempre al fondo de la hoja. */
+.comprobante .cierre { margin-top: auto; padding-top: 14px; flex: none; }
+.comprobante .banco { margin: 0 14px; background: var(--carbon); color: var(--blanco); padding: 8px 22px 9px; border-top: 4px solid var(--naranja); }
+.comprobante .banco .tit { font-family: var(--titulo); font-weight: 800; font-size: 12px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--amarillo); margin-bottom: 5px; }
+.comprobante .banco .g { display: flex; gap: 16px; align-items: flex-start; }
+.comprobante .banco .c { flex: none; }
+.comprobante .banco .c.t { flex: 1; }
+.comprobante .banco .l { font-weight: 700; font-size: 8.5px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--amarillo); }
+.comprobante .banco .v { font-weight: 700; font-size: 11.5px; margin-top: 1px; white-space: nowrap; }
+.comprobante .mision { margin: 0 14px; padding: 8px 0 6px; text-align: center; font-family: var(--titulo); font-weight: 700; font-size: 20px; color: var(--naranja); letter-spacing: .5px; }
+.comprobante .barra { margin: 0 14px; min-height: 40px; background: var(--carbon); color: var(--amarillo); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 28px; font-weight: 600; font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; }
+.comprobante .barra span:first-child, .comprobante .barra span:last-child { white-space: nowrap; }
+.comprobante .emitido { padding: 8px 14px 24px; text-align: center; font-size: 10px; color: #555; }
+
+/* Impresión: la hoja se encoge al área útil de la página (las márgenes vienen de globals.css). */
+@media print {
+  .comprobante { overflow: visible; padding: 0; }
+  .comprobante .hoja { zoom: 0.87; box-shadow: none; margin: 0; }
+}

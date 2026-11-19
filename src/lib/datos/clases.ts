@@ -8,9 +8,11 @@ import {
   instrumentos, posposiciones, programas,
 } from "@/db/schema/index";
 import { movimientoPorCambio } from "@/lib/dominio/asistencia";
+import { lineaDeClase } from "@/lib/dominio/comprobante";
 import { buscarConflictos, type ClaseAgendada, type Conflicto } from "@/lib/dominio/conflictos";
 import { evaluarPosposicion, horasDeAnticipacion, type EstadoClase } from "@/lib/dominio/creditos";
 import type { Alcance } from "@/lib/auth/permisos";
+import { fechaCivil, finDelDiaEnMexico, horaCivil, inicioDelDiaEnMexico } from "@/lib/zona";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -398,4 +400,41 @@ export function corregirClase(claseId: number, d: CorreccionClase): void {
     })
     .where(eq(clases.id, claseId))
     .run();
+}
+
+/**
+ * Las clases agendadas que cubre un cargo de mensualidad, ya escritas como las pide el
+ * comprobante («Sábado 21 de noviembre 11:00 am a 1:00 pm»): las clases pendientes del período
+ * de esa inscripción y, si es un plan familiar, las de los alumnos que cubre (con su nombre).
+ * Es solo una sugerencia: quien cobra la corrige o la completa. Vacío si no hay nada agendado.
+ */
+export function clasesSugeridasParaComprobante(inscripcionId: number, cicloId: number | null): string[] {
+  if (cicloId === null) return [];
+  const ciclo = db.select({ ini: ciclos.iniciaEl, fin: ciclos.terminaEl }).from(ciclos)
+    .where(eq(ciclos.id, cicloId)).get();
+  if (!ciclo) return [];
+
+  const filas = db.select({
+    iniciaEn: clases.iniciaEn,
+    terminaEn: clases.terminaEn,
+    alumno: alumnos.nombre,
+    inscripcionId: clases.inscripcionId,
+  })
+    .from(clases)
+    .innerJoin(inscripciones, eq(inscripciones.id, clases.inscripcionId))
+    .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
+    .where(and(
+      eq(clases.estado, "programada"),
+      or(eq(inscripciones.id, inscripcionId), eq(inscripciones.cubiertaPorId, inscripcionId)),
+      gte(clases.iniciaEn, inicioDelDiaEnMexico(ciclo.ini)),
+      lte(clases.iniciaEn, finDelDiaEnMexico(ciclo.fin)),
+    ))
+    .orderBy(asc(clases.iniciaEn))
+    .all();
+
+  const variosAlumnos = new Set(filas.map((f) => f.inscripcionId)).size > 1;
+  return filas.map((f) => {
+    const linea = lineaDeClase(fechaCivil(f.iniciaEn), horaCivil(f.iniciaEn), horaCivil(f.terminaEn));
+    return variosAlumnos ? `${f.alumno.split(" ")[0]} · ${linea}` : linea;
+  });
 }

@@ -41,7 +41,7 @@ export const EXPLICACION_GRUPO: Record<Grupo, string> = {
     "Las metas contra las que el dashboard de finanzas pinta el semáforo, y el " +
     "reparto Profit First. Van como proporción: 0.45 es 45 %.",
   institucional:
-    "Lo que aparece impreso en recibos, notas de remisión y credenciales.",
+    "Lo que aparece impreso en los comprobantes de pago y en las credenciales.",
 };
 
 export function grupoDe(p: { clave: string; fuente: string | null }): Grupo {
@@ -92,6 +92,14 @@ export const OPCIONES: Record<string, { valor: string; texto: string }[]> = {
   ],
 };
 
+/**
+ * Datos que pueden quedar vacíos: no imprimirlos es una decisión válida (por ejemplo, los datos
+ * bancarios del comprobante hasta que dirección los capture).
+ */
+export function admiteVacio(clave: string): boolean {
+  return clave.startsWith("recibo_banco_");
+}
+
 /** Los que se capturan en pesos aunque se guarden en centavos. */
 export function esDinero(clave: string): boolean {
   return clave.endsWith("_centavos");
@@ -139,7 +147,7 @@ export function validarValor(clave: string, tipo: Tipo, crudo: string): Validaci
     }
 
     case "texto":
-      if (v === "") return { ok: false, error: "No puede quedar vacío." };
+      if (v === "") return admiteVacio(clave) ? { ok: true, valor: "" } : { ok: false, error: "No puede quedar vacío." };
       if (v.length > 300) return { ok: false, error: "Demasiado largo." };
       return { ok: true, valor: v };
   }

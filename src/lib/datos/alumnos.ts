@@ -275,6 +275,7 @@ export function tutoresDe(alumnoId: number) {
       telefono: tutores.telefono,
       whatsapp: tutores.whatsapp,
       email: tutores.email,
+      direccion: tutores.direccion,
       parentesco: alumnosTutores.parentesco,
       esResponsablePago: alumnosTutores.esResponsablePago,
     })

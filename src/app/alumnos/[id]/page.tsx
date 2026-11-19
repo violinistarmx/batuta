@@ -9,6 +9,7 @@ import { registrar } from "@/lib/bitacora";
 import {
   alumnoPorId, consentimientosDe, credencialDe, saludDe, tutoresDe,
 } from "@/lib/datos/alumnos";
+import { clasesSugeridasParaComprobante } from "@/lib/datos/clases";
 import { inscripcionesDe, planesQuePaga } from "@/lib/datos/inscripciones";
 import { cargosDeAlumno, cargosDeAlumnoCancelados, pagosDeAlumno } from "@/lib/datos/finanzas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
@@ -51,6 +52,11 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const pagos = verFinanzas ? pagosDeAlumno(alumno.id) : [];
   const hoyMx = hoyEnMexico();
   const cobranza = resumirCobranza(cargos, hoyMx);
+  // Clases del período del adeudo más antiguo: se ofrecen ya escritas en el registro del pago.
+  const cargoMasViejo = cargos.find((c) => adeudoDe(c) > 0 && c.inscripcionId !== null);
+  const clasesSugeridas = cargoMasViejo && cargoMasViejo.inscripcionId !== null
+    ? clasesSugeridasParaComprobante(cargoMasViejo.inscripcionId, cargoMasViejo.cicloId)
+    : [];
   const consents = consentimientosDe(alumno.id);
   const credencial = credencialDe(alumno.id);
   const menor = esMenorDeEdad(alumno.fechaNacimiento);
@@ -626,6 +632,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                     alumnoId={alumno.id}
                     hoy={hoyMx}
                     adeudoTotal={cobranza.porCobrarCentavos}
+                    clasesSugeridas={clasesSugeridas}
                     cargosAbiertos={cargos
                       .filter((c) => adeudoDe(c) > 0)
                       .map((c) => ({ id: c.id, descripcion: c.descripcion, adeudoCentavos: adeudoDe(c) }))}

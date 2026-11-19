@@ -39,7 +39,12 @@ const Pago = z.object({
    * Distinto de `nota`, que es una observación interna.
    */
   descripcion: z.string().trim().max(1000).transform((s) => (s === "" ? null : s)),
+  /** Fechas y horarios de las clases que cubre, una por línea. Salen numeradas en el comprobante. */
+  clasesTexto: z.string().trim().max(1500).transform((s) => (s === "" ? null : s)),
+  /** Notas que salen impresas en el recuadro «Notas» del comprobante. */
   nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
+  /** Casilla «Pago registrado»: el sello del comprobante. Desmarcada no llega el campo. */
+  selloPago: z.string().optional().transform((v) => v === "1"),
   /** Cargo al que va primero el dinero; vacío = reparto automático. */
   cargoObjetivoId: z.string().trim().transform((s) => (s === "" ? null : Number(s)))
     .refine((n) => n === null || (Number.isInteger(n) && n > 0), "Elige un cargo válido."),
@@ -58,7 +63,9 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
     recibidoEl: datos.get("recibidoEl"),
     referencia: datos.get("referencia") ?? "",
     descripcion: datos.get("descripcion") ?? "",
+    clasesTexto: datos.get("clasesTexto") ?? "",
     nota: datos.get("nota") ?? "",
+    selloPago: datos.get("selloPago") ?? undefined,
     cargoObjetivoId: datos.get("cargoObjetivoId") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
@@ -112,7 +119,9 @@ const PagoEditar = z.object({
   recibidoEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha del pago."),
   referencia: z.string().trim().max(100).transform((s) => (s === "" ? null : s)),
   descripcion: z.string().trim().max(1000).transform((s) => (s === "" ? null : s)),
+  clasesTexto: z.string().trim().max(1500).transform((s) => (s === "" ? null : s)),
   nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
+  selloPago: z.string().optional().transform((v) => v === "1"),
 });
 
 export type EstadoEditar = { error?: string };
@@ -128,7 +137,9 @@ export async function editarPago(_previo: EstadoEditar, datos: FormData): Promis
     recibidoEl: datos.get("recibidoEl"),
     referencia: datos.get("referencia") ?? "",
     descripcion: datos.get("descripcion") ?? "",
+    clasesTexto: datos.get("clasesTexto") ?? "",
     nota: datos.get("nota") ?? "",
+    selloPago: datos.get("selloPago") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
 
@@ -147,7 +158,8 @@ export async function editarPago(_previo: EstadoEditar, datos: FormData): Promis
       d.pagoId,
       r.alumnoId,
       { montoCentavos, descuentoCentavos, metodo: d.metodo, recibidoEl: d.recibidoEl,
-        referencia: d.referencia, descripcion: d.descripcion, nota: d.nota },
+        referencia: d.referencia, descripcion: d.descripcion, clasesTexto: d.clasesTexto,
+        nota: d.nota, selloPago: d.selloPago },
       sesion.usuarioId,
     );
   } catch (e) {
