@@ -74,10 +74,11 @@ function Guardar() {
 }
 
 export function FormularioEdicion({
-  alumno, tutores, salud, puedeEditarSalud,
+  alumno, tutores, tutoresDisponibles, salud, puedeEditarSalud,
 }: {
   alumno: Alumno;
   tutores: Tutor[];
+  tutoresDisponibles: { id: number; nombre: string; alumnos: string | null }[];
   salud: Salud;
   puedeEditarSalud: boolean;
 }) {
@@ -174,6 +175,24 @@ export function FormularioEdicion({
             </Campo>
           </fieldset>
         ))}
+
+        {tutoresDisponibles.length > 0 && (
+          <fieldset className="grid gap-4 rounded-lg border border-dashed border-vs-linea p-4 sm:col-span-2">
+            <legend className="px-1 text-xs font-semibold text-vs-tinta-2">Vincular un tutor ya registrado (opcional)</legend>
+            <Campo id="tutorExistenteId" label="Tutor que ya está en el sistema">
+              <select id="tutorExistenteId" name="tutorExistenteId" defaultValue="" className={campo}>
+                <option value="">No vincular ninguno</option>
+                {tutoresDisponibles.map((t) => (
+                  <option key={t.id} value={t.id}>{t.nombre}{t.alumnos ? ` — ${t.alumnos}` : ""}</option>
+                ))}
+              </select>
+            </Campo>
+            <p className="text-xs text-vs-tinta-3">
+              Úsalo para que dos familiares compartan tutor y puedan estar en un mismo plan familiar.
+              El parentesco se escribe en el campo de abajo. No lo combines con un tutor nuevo.
+            </p>
+          </fieldset>
+        )}
 
         <fieldset className="grid gap-4 rounded-lg border border-dashed border-vs-linea p-4 sm:col-span-2 sm:grid-cols-2">
           <legend className="px-1 text-xs font-semibold text-vs-tinta-2">Agregar otro tutor (opcional)</legend>

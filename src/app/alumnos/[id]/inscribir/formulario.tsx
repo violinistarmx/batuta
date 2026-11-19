@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -166,8 +167,10 @@ export function FormularioInscripcion({
           {planes.length === 0 && (
             <p className="mt-3 rounded-lg border border-vs-linea bg-vs-crema px-3 py-2 text-xs text-vs-tinta-2">
               No hay planes familiares con lugar libre para este alumno. Para compartir uno,
-              los hermanos deben tener un <strong>tutor en común</strong> registrado y estar en
-              el mismo programa.
+              los familiares deben tener un <strong>tutor en común</strong> registrado y estar en
+              el mismo programa. Si ya los diste de alta por separado, abre{" "}
+              <Link href={`/alumnos/${alumnoId}/editar`} className="underline">Editar datos</Link>{" "}
+              de cada uno y, en «Padre, madre o tutor», vincula el tutor que comparten.
             </p>
           )}
         </section>
