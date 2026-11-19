@@ -336,7 +336,14 @@ y quien lo cambie a mano se colgaría del plan de otra familia.
 
 Eso destapó que el alta **siempre creaba un tutor nuevo**: cada hermano estrenaba su propia
 copia de la misma madre, y la tabla N:N que existe justo para compartirla no servía para
-nada. Ahora el alta ofrece el padrón.
+nada. Ahora el alta ofrece el padrón, y **Editar datos** también permite vincular a un alumno ya
+registrado un tutor que ya existe (sin duplicarlo).
+
+**Familiares sin tutor en común** (abuela adulta y nieta: la abuela no tiene tutor). Al inscribir,
+los planes con lugar libre que no comparten tutor salen en un grupo aparte, y elegir uno exige
+marcar «Confirmo que son familia». Esa confirmación sustituye al tutor en común, no al cupo ni
+al programa (siguen validándose en el servidor), y queda en la bitácora
+(`familiaConfirmadaPorPersonal` en `inscripcion.crear`).
 
 ### Dar de baja (cláusula 12ª)
 
