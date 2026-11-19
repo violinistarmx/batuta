@@ -8,8 +8,8 @@ import { aulasActivas, clasePorId } from "@/lib/datos/clases";
 import { planeacionDeClase, tareasDeClase } from "@/lib/datos/expediente";
 import { etiquetaDeEstado } from "@/lib/dominio/asistencia";
 import {
-  destinatarioClase, enlaceWhatsApp, fechaParaRecordatorio, horaParaRecordatorio,
-  textoRecordatorioClase,
+  destinosDeClase, enlaceWhatsApp, fechaParaRecordatorio, horaParaRecordatorio,
+  textoRecordatorioClase, type ParaQuien,
 } from "@/lib/dominio/recordatorios";
 import { esMenorDeEdad, fechaLarga } from "@/lib/formato";
 import { fechaCivil, hoyEnMexico, horaCivil } from "@/lib/zona";
@@ -19,9 +19,15 @@ import { Avance, Planeacion, Tareas } from "./academico";
 
 export const dynamic = "force-dynamic";
 
-export default async function Clase({ params }: { params: Promise<{ id: string }> }) {
+export default async function Clase({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ para?: string }>;
+}) {
   const sesion = await exigirPermiso("clases.leer");
   const { id } = await params;
+  const { para } = await searchParams;
 
   const claseId = Number(id);
   if (!Number.isInteger(claseId)) notFound();
@@ -40,28 +46,44 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
 
   const terminal = clase.estado === "reprogramada" || clase.estado === "cancelada";
 
-  // Recordatorio al alumno o tutor: solo tiene sentido mientras la clase no ha ocurrido.
-  let enlaceRecordatorio: string | null = null;
+  // Recordatorio al alumno, a su tutor o a los dos: solo tiene sentido mientras la clase no ha ocurrido.
+  // El sistema sugiere uno (adulto: él; menor: su tutor) y quien manda puede cambiarlo.
+  type Envio = { etiqueta: string; enlace: string };
+  let envios: Envio[] = [];
+  let opciones: { valor: ParaQuien; texto: string }[] = [];
+  let elegido: ParaQuien = "tutor";
   if (clase.estado === "programada") {
     const alumnoDatos = alumnoPorId(clase.alumnoId, alcanceDe(sesion));
     // Adulto solo si la fecha de nacimiento consta y es de 18 o más. Sin fecha se
     // trata como menor: el mensaje va al tutor, que es lo prudente.
     const esAdulto = !!alumnoDatos?.fechaNacimiento && !esMenorDeEdad(alumnoDatos.fechaNacimiento);
-    const destino = alumnoDatos
-      ? destinatarioClase(tutoresDe(clase.alumnoId), alumnoDatos, esAdulto)
+    const destinos = alumnoDatos
+      ? destinosDeClase(tutoresDe(clase.alumnoId), alumnoDatos, esAdulto)
       : null;
-    if (destino) {
-      const texto = textoRecordatorioClase({
-        id: clase.id,
-        alumno: clase.alumno.split(" ")[0] ?? clase.alumno,
-        instrumento: clase.instrumento.toLowerCase(),
-        fecha: fechaParaRecordatorio(clase.iniciaEn),
-        horaInicio: horaParaRecordatorio(horaCivil(clase.iniciaEn)),
-        horaFin: horaParaRecordatorio(horaCivil(clase.terminaEn)),
-        saludo: destino.saludo,
-        paraTutor: destino.paraTutor,
-      });
-      enlaceRecordatorio = enlaceWhatsApp(destino.numero, texto);
+    if (destinos) {
+      opciones = [
+        ...(destinos.alumno ? [{ valor: "alumno" as const, texto: "Al alumno" }] : []),
+        ...(destinos.tutor ? [{ valor: "tutor" as const, texto: "Al tutor" }] : []),
+        ...(destinos.alumno && destinos.tutor ? [{ valor: "ambos" as const, texto: "A ambos" }] : []),
+      ];
+      elegido = opciones.some((o) => o.valor === para) ? (para as ParaQuien) : destinos.sugerido;
+      const armar = (d: NonNullable<typeof destinos.alumno>) =>
+        enlaceWhatsApp(d.numero, textoRecordatorioClase({
+          id: clase.id,
+          alumno: clase.alumno.split(" ")[0] ?? clase.alumno,
+          instrumento: clase.instrumento.toLowerCase(),
+          fecha: fechaParaRecordatorio(clase.iniciaEn),
+          horaInicio: horaParaRecordatorio(horaCivil(clase.iniciaEn)),
+          horaFin: horaParaRecordatorio(horaCivil(clase.terminaEn)),
+          saludo: d.saludo,
+          paraTutor: d.paraTutor,
+        }));
+      if ((elegido === "alumno" || elegido === "ambos") && destinos.alumno) {
+        envios.push({ etiqueta: elegido === "ambos" ? "Enviar al alumno" : "Enviar por WhatsApp", enlace: armar(destinos.alumno) });
+      }
+      if ((elegido === "tutor" || elegido === "ambos") && destinos.tutor) {
+        envios.push({ etiqueta: elegido === "ambos" ? "Enviar al tutor" : "Enviar por WhatsApp", enlace: armar(destinos.tutor) });
+      }
     }
   }
 
@@ -102,15 +124,34 @@ export default async function Clase({ params }: { params: Promise<{ id: string }
         {clase.estado === "programada" && (
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-vs-linea bg-white px-4 py-3 text-sm">
             <span className="text-vs-tinta-3">Recordatorio de clase</span>
-            {enlaceRecordatorio ? (
-              <a
-                href={enlaceRecordatorio}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[12px] font-semibold text-green-800 no-underline transition hover:bg-green-100"
-              >
-                Enviar por WhatsApp
-              </a>
+            {opciones.length > 1 && (
+              <span className="inline-flex overflow-hidden rounded-lg border border-vs-linea text-[12px]" role="group" aria-label="Para quién es el recordatorio">
+                {opciones.map((o) => (
+                  <Link
+                    key={o.valor}
+                    href={`/clases/${clase.id}?para=${o.valor}`}
+                    aria-current={elegido === o.valor ? "true" : undefined}
+                    className={`px-2.5 py-1 no-underline transition ${
+                      elegido === o.valor ? "bg-vs-amarillo font-semibold text-vs-tinta" : "text-vs-tinta-2 hover:bg-vs-crema"
+                    }`}
+                  >
+                    {o.texto}
+                  </Link>
+                ))}
+              </span>
+            )}
+            {envios.length > 0 ? (
+              envios.map((e) => (
+                <a
+                  key={e.etiqueta}
+                  href={e.enlace}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[12px] font-semibold text-green-800 no-underline transition hover:bg-green-100"
+                >
+                  {e.etiqueta}
+                </a>
+              ))
             ) : (
               <span className="text-vs-tinta-3">Sin teléfono registrado para enviar</span>
             )}

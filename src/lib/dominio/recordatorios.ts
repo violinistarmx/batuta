@@ -72,30 +72,38 @@ export function destinatarioWhatsApp(
   return { numero, saludo };
 }
 
+export type DestinoRecordatorio = { numero: string; saludo: string; paraTutor: boolean };
+
+/** A quién se le puede mandar el recordatorio de clase. */
+export type ParaQuien = "alumno" | "tutor" | "ambos";
+
 /**
- * Destinatario de un recordatorio de clase.
- *
- * - Alumno adulto: se le escribe a él, directo, de usted.
- * - Alumno menor, o sin fecha de nacimiento: se le escribe al tutor responsable de
- *   pago, lo saluda con su tratamiento y nombre, y se nombra al alumno. Sin tutor,
- *   se usa el teléfono del alumno y se le saluda a él.
+ * Los destinatarios posibles de un recordatorio de clase, cada uno solo si tiene un
+ * teléfono utilizable: el propio alumno (si registró su número) y el tutor responsable
+ * de pago. `sugerido` es lo que el sistema elige solo: el alumno adulto, directo; el
+ * menor o sin fecha de nacimiento, su tutor. Quien manda puede cambiarlo.
  */
-export function destinatarioClase(
+export function destinosDeClase(
   tutores: readonly TutorContacto[],
   alumno: { nombre: string; telefono: string | null },
   esAdulto: boolean,
-): { numero: string; saludo: string; paraTutor: boolean } | null {
-  if (esAdulto) {
-    const numero = numeroWhatsApp(alumno.telefono);
-    return numero ? { numero, saludo: primerNombre(alumno.nombre), paraTutor: false } : null;
-  }
-  const tutor = tutores.find((t) => t.esResponsablePago) ?? tutores[0];
-  const numero = tutor
-    ? numeroWhatsApp(tutor.whatsapp ?? tutor.telefono)
-    : numeroWhatsApp(alumno.telefono);
-  if (!numero) return null;
-  const saludo = tutor ? saludoDeTutor(tutor) : primerNombre(alumno.nombre);
-  return { numero, saludo, paraTutor: true };
+): { alumno: DestinoRecordatorio | null; tutor: DestinoRecordatorio | null; sugerido: ParaQuien } {
+  const numeroAlumno = numeroWhatsApp(alumno.telefono);
+  const deAlumno = numeroAlumno
+    ? { numero: numeroAlumno, saludo: primerNombre(alumno.nombre), paraTutor: false }
+    : null;
+
+  const t = tutores.find((x) => x.esResponsablePago) ?? tutores[0];
+  const numeroTutor = t ? numeroWhatsApp(t.whatsapp ?? t.telefono) : null;
+  const deTutor = t && numeroTutor
+    ? { numero: numeroTutor, saludo: saludoDeTutor(t), paraTutor: true }
+    : null;
+
+  // Sin el destinatario sugerido, se ofrece el otro: nunca se deja sin opción a quien sí tiene un número.
+  const sugerido: ParaQuien = esAdulto
+    ? (deAlumno || !deTutor ? "alumno" : "tutor")
+    : (deTutor || !deAlumno ? "tutor" : "alumno");
+  return { alumno: deAlumno, tutor: deTutor, sugerido };
 }
 
 // ------------------------------------------------------- formato de fecha ---
