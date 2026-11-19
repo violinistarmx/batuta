@@ -144,6 +144,23 @@ export async function editarAlumnoAccion(_previo: EstadoEdicion, datos: FormData
     });
   }
 
+  // Tutor que ya existe en el sistema (p. ej. el que comparte con un familiar): se vincula
+  // sin crear otro, para que los planes familiares lo reconozcan como tutor en común.
+  const existenteId = Number(datos.get("tutorExistenteId") ?? "");
+  let existente: { id: number; nombre: string } | null = null;
+  if (Number.isInteger(existenteId) && existenteId > 0) {
+    if (hayNuevo) {
+      return { error: "Elige un tutor ya registrado o escribe uno nuevo, no los dos a la vez.", campo: "tutorExistenteId" };
+    }
+    const fila = db.select({ id: tutores.id, nombre: tutores.nombre }).from(tutores)
+      .where(eq(tutores.id, existenteId)).get();
+    if (!fila) return { error: "Ese tutor ya no existe. Recarga la página.", campo: "tutorExistenteId" };
+    if (vinculados.some((t) => t.id === fila.id)) {
+      return { error: "Ese tutor ya está vinculado a este alumno.", campo: "tutorExistenteId" };
+    }
+    existente = fila;
+  }
+
   let nuevo: z.infer<typeof NuevoTutor> | null = null;
   if (hayNuevo) {
     const crudoNuevo = Object.fromEntries(
@@ -158,7 +175,7 @@ export async function editarAlumnoAccion(_previo: EstadoEdicion, datos: FormData
   }
 
   // El alumno sigue siendo menor de edad: debe quedar al menos un tutor.
-  const quedaraConTutor = vinculados.length > 0 || nuevo !== null;
+  const quedaraConTutor = vinculados.length > 0 || nuevo !== null || existente !== null;
   if (esMenorDeEdad(d.fechaNacimiento) && !quedaraConTutor) {
     return { error: "El alumno es menor de edad: el contrato exige un padre, madre o tutor.", campo: "fechaNacimiento" };
   }
@@ -239,6 +256,15 @@ export async function editarAlumnoAccion(_previo: EstadoEdicion, datos: FormData
       }).run();
     }
 
+    if (existente) {
+      tx.insert(alumnosTutores).values({
+        alumnoId,
+        tutorId: existente.id,
+        parentesco: texto(60).parse(String(datos.get("nuevoParentesco") ?? "")) ?? "Tutor",
+        esResponsablePago: vinculados.length === 0,
+      }).run();
+    }
+
     if (salud?.success) {
       const s = salud.data;
       const valores = {
@@ -269,6 +295,10 @@ export async function editarAlumnoAccion(_previo: EstadoEdicion, datos: FormData
   if (nuevo) {
     registrar({ usuarioId: sesion.usuarioId, accion: "tutor.editar", entidad: "alumnos_tutores",
       entidadId: alumnoId, cambios: { tutor_nuevo_vinculado: nuevoNombre } });
+  }
+  if (existente) {
+    registrar({ usuarioId: sesion.usuarioId, accion: "tutor.editar", entidad: "alumnos_tutores",
+      entidadId: alumnoId, cambios: { tutor_existente_vinculado: existente.nombre } });
   }
   if (salud?.success) {
     registrar({ usuarioId: sesion.usuarioId, accion: "salud.editar", entidad: "salud_alumno",

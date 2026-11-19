@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
-import { alumnoPorId, saludDe, tutoresDe } from "@/lib/datos/alumnos";
+import { alumnoPorId, saludDe, tutoresDe, tutoresParaVincular } from "@/lib/datos/alumnos";
 import { FormularioEdicion } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +31,12 @@ export default async function EditarAlumno({ params }: { params: Promise<{ id: s
       entidadId: alumno.id,
     });
   }
+
+  // Tutores ya registrados que este alumno todavía no tiene: sirven para compartir un plan familiar.
+  const vinculados = new Set(tutoresDe(alumno.id).map((t) => t.id));
+  const tutoresDisponibles = tutoresParaVincular()
+    .filter((t) => !vinculados.has(t.id))
+    .map((t) => ({ id: t.id, nombre: t.nombre, alumnos: t.alumnos }));
 
   return (
     <>
@@ -62,6 +68,7 @@ export default async function EditarAlumno({ params }: { params: Promise<{ id: s
               origen: alumno.origen ?? null,
             }}
             tutores={tutoresDe(alumno.id)}
+            tutoresDisponibles={tutoresDisponibles}
             salud={salud}
             puedeEditarSalud={puedeEditarSalud}
           />
