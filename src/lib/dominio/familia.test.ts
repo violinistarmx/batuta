@@ -88,6 +88,24 @@ test("exige tutor en común: nadie se cuelga de un plan ajeno", () => {
   assert.match(m ?? "", /tutor en común/i);
 });
 
+test("sin tutor en común, la confirmación expresa de familia lo permite", () => {
+  assert.equal(
+    motivoParaRechazarCobertura({ ...base, compartenTutor: false, familiaConfirmada: true }),
+    null,
+  );
+});
+
+test("la confirmación de familia no salta el cupo ni el programa", () => {
+  const lleno = motivoParaRechazarCobertura({
+    ...base, compartenTutor: false, familiaConfirmada: true, cubiertasActuales: base.alumnosIncluidos - 1,
+  });
+  assert.match(lleno ?? "", /ya cubre/i);
+  const otro = motivoParaRechazarCobertura({
+    ...base, compartenTutor: false, familiaConfirmada: true, programaIdNuevo: base.programaIdTitular + 1,
+  });
+  assert.match(otro ?? "", /mismo programa/i);
+});
+
 test("un alumno no ocupa dos lugares del mismo plan", () => {
   const m = motivoParaRechazarCobertura({ ...base, mismoAlumno: true });
   assert.match(m ?? "", /dos lugares/i);

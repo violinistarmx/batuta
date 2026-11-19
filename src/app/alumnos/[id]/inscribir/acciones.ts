@@ -21,6 +21,8 @@ const Inscripcion = z.object({
   /** Plan familiar al que se suma. Vacío = individual o titular de uno nuevo. */
   cubiertaPorId: z.string().trim().transform((s) => (s === "" ? null : Number(s)))
     .refine((n) => n === null || (Number.isInteger(n) && n > 0), "Plan familiar inválido."),
+  /** Casilla «confirmo que son familia»: permite el plan sin tutor en común. */
+  familiaConfirmada: z.string().optional().transform((v) => v === "1"),
 });
 
 export type EstadoInscripcion = { error?: string };
@@ -39,6 +41,7 @@ export async function inscribir(
     fechaInicio: datos.get("fechaInicio"),
     notas: datos.get("notas") ?? "",
     cubiertaPorId: datos.get("cubiertaPorId") ?? "",
+    familiaConfirmada: datos.get("familiaConfirmada") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -80,6 +83,8 @@ export async function inscribir(
       docenteId: d.docenteId,
       fechaInicio: d.fechaInicio,
       cubiertaPorId: d.cubiertaPorId,
+      // Quedó confirmado por una persona, no por el tutor en común: que se pueda auditar.
+      ...(d.cubiertaPorId !== null && d.familiaConfirmada ? { familiaConfirmadaPorPersonal: true } : {}),
     },
   });
 

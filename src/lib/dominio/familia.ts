@@ -56,6 +56,11 @@ export type SolicitudDeCobertura = {
   titularActivo: boolean;
   /** Al menos un tutor en común. Sin esto cualquiera se cuelga de un plan ajeno. */
   compartenTutor: boolean;
+  /**
+   * Quien inscribe confirmó expresamente que son familia (p. ej. abuela y nieta: la
+   * abuela es adulta y no tiene tutor). Sustituye al tutor en común y queda en bitácora.
+   */
+  familiaConfirmada?: boolean;
   mismoAlumno: boolean;
 };
 
@@ -82,7 +87,7 @@ export function motivoParaRechazarCobertura(s: SolicitudDeCobertura): string | n
   if (s.mismoAlumno) {
     return "Un alumno no puede ocupar dos lugares del mismo plan familiar.";
   }
-  if (!s.compartenTutor) {
+  if (!s.compartenTutor && !s.familiaConfirmada) {
     return "Para compartir un plan familiar los alumnos deben tener un tutor en común.";
   }
   if (cupoRestante(s.alumnosIncluidos, s.cubiertasActuales) === 0) {

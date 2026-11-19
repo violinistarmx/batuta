@@ -12,7 +12,7 @@ type Programa = {
 type Opcion = { id: number; nombre: string };
 type PlanFamiliar = {
   inscripcionId: number; titular: string; titularCodigo: string;
-  alumnosIncluidos: number; ocupados: number; restantes: number;
+  alumnosIncluidos: number; ocupados: number; restantes: number; tutorEnComun: boolean;
 };
 
 const campo = "rounded-lg border border-vs-linea bg-white px-3 py-2 text-sm " +
@@ -48,9 +48,48 @@ export function FormularioInscripcion({
   const esFamiliar = (elegido?.alumnosIncluidos ?? 1) > 1;
   const planes = (programaId !== null ? planesFamiliares[programaId] : undefined) ?? [];
   const seSuma = cubiertaPor !== "";
+  const planElegido = planes.find((pl) => String(pl.inscripcionId) === cubiertaPor);
+  const pideConfirmar = planElegido !== undefined && !planElegido.tutorEnComun;
+  const conTutor = planes.filter((pl) => pl.tutorEnComun);
+  const sinTutor = planes.filter((pl) => !pl.tutorEnComun);
   const pesos = (c: number) =>
     new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 0 })
       .format(c / 100);
+
+  const tarjetas = (lista: PlanFamiliar[]) => (
+    <>
+      {lista.map((pl) => (
+              <label
+                key={pl.inscripcionId}
+                htmlFor={`plan-${pl.inscripcionId}`}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+                  cubiertaPor === String(pl.inscripcionId)
+                    ? "border-vs-naranja bg-vs-crema"
+                    : "border-vs-linea hover:border-vs-line-strong"
+                }`}
+              >
+                <input
+                  id={`plan-${pl.inscripcionId}`} type="radio" name="cubiertaPorId"
+                  value={pl.inscripcionId} className="mt-1"
+                  onChange={() => setCubiertaPor(String(pl.inscripcionId))}
+                />
+                <span>
+                  <span className="text-sm font-medium">
+                    Sumarlo al plan de {pl.titular}
+                  </span>
+                  <span className="ml-2 font-mono text-[11px] text-vs-tinta-3">
+                    {pl.titularCodigo}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-vs-tinta-3">
+                    Ocupa {pl.ocupados + 1} de {pl.alumnosIncluidos} lugares ·{" "}
+                    {pl.restantes} libre{pl.restantes === 1 ? "" : "s"}. Su período abre en $0:
+                    la mensualidad la sigue pagando {pl.titular.split(" ")[0]}.
+                  </span>
+                </span>
+              </label>
+            ))}
+    </>
+  );
 
   return (
     <form action={accion} className="flex flex-col gap-5">
@@ -131,43 +170,39 @@ export function FormularioInscripcion({
               </span>
             </label>
 
-            {planes.map((pl) => (
-              <label
-                key={pl.inscripcionId}
-                htmlFor={`plan-${pl.inscripcionId}`}
-                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
-                  cubiertaPor === String(pl.inscripcionId)
-                    ? "border-vs-naranja bg-vs-crema"
-                    : "border-vs-linea hover:border-vs-line-strong"
-                }`}
-              >
-                <input
-                  id={`plan-${pl.inscripcionId}`} type="radio" name="cubiertaPorId"
-                  value={pl.inscripcionId} className="mt-1"
-                  onChange={() => setCubiertaPor(String(pl.inscripcionId))}
-                />
-                <span>
-                  <span className="text-sm font-medium">
-                    Sumarlo al plan de {pl.titular}
+            {conTutor.length > 0 && tarjetas(conTutor)}
+
+            {sinTutor.length > 0 && (
+              <>
+                <p className="mt-2 text-xs font-medium text-vs-tinta-2">
+                  {conTutor.length > 0 ? "Otros planes con lugar libre" : "Planes con lugar libre"}{" "}
+                  <span className="font-normal text-vs-tinta-3">
+                    — no comparten tutor: al elegir uno confirmas que son familia
                   </span>
-                  <span className="ml-2 font-mono text-[11px] text-vs-tinta-3">
-                    {pl.titularCodigo}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-vs-tinta-3">
-                    Ocupa {pl.ocupados + 1} de {pl.alumnosIncluidos} lugares ·{" "}
-                    {pl.restantes} libre{pl.restantes === 1 ? "" : "s"}. Su período abre en $0:
-                    la mensualidad la sigue pagando {pl.titular.split(" ")[0]}.
-                  </span>
-                </span>
-              </label>
-            ))}
+                </p>
+                {tarjetas(sinTutor)}
+              </>
+            )}
           </div>
+
+          {pideConfirmar && (
+            <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-vs-naranja bg-vs-crema px-3 py-2 text-sm">
+              <input type="checkbox" name="familiaConfirmada" value="1" required className="mt-1" />
+              <span>
+                Confirmo que este alumno y {planElegido?.titular} son familia
+                <span className="block text-xs text-vs-tinta-3">
+                  No comparten tutor registrado (por ejemplo, abuela y nieta: la abuela es adulta y no
+                  tiene tutor). La confirmación queda en la bitácora.
+                </span>
+              </span>
+            </label>
+          )}
 
           {planes.length === 0 && (
             <p className="mt-3 rounded-lg border border-vs-linea bg-vs-crema px-3 py-2 text-xs text-vs-tinta-2">
-              No hay planes familiares con lugar libre para este alumno. Para compartir uno,
-              los hermanos deben tener un <strong>tutor en común</strong> registrado y estar en
-              el mismo programa.
+              Todavía no hay un plan de este programa con lugar libre. Elige «Abrir un plan nuevo»
+              para que este alumno sea el titular; el familiar se suma después, desde su propia
+              inscripción.
             </p>
           )}
         </section>

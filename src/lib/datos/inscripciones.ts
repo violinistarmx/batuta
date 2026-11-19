@@ -66,6 +66,8 @@ export type DatosInscripcion = {
   notas: string | null;
   /** Plan familiar al que se suma. NULL si es individual o si es la titular. */
   cubiertaPorId?: number | null;
+  /** Quien inscribe confirmó que son familia aunque no compartan tutor. Ver familia.ts. */
+  familiaConfirmada?: boolean;
 };
 
 /**
@@ -77,7 +79,7 @@ export type DatosInscripcion = {
 function exigirCoberturaValida(
   tx: Tx,
   titularId: number,
-  d: { alumnoId: number; programaId: number },
+  d: { alumnoId: number; programaId: number; familiaConfirmada?: boolean },
   alumnosIncluidos: number,
 ): void {
   const titular = tx.select({
@@ -110,6 +112,7 @@ function exigirCoberturaValida(
     titularYaEstaCubierto: titular.cubiertaPorId !== null,
     titularActivo: titular.estado === "activa",
     compartenTutor: tutorEnComun > 0,
+    familiaConfirmada: d.familiaConfirmada === true,
     mismoAlumno: titular.alumnoId === d.alumnoId,
   });
 
@@ -401,14 +404,19 @@ export type PlanFamiliarDisponible = {
   ocupados: number;
   restantes: number;
   precioCentavos: number;
+  /** Comparte tutor con el titular: se suma sin más. Si no, hay que confirmar que son familia. */
+  tutorEnComun: boolean;
 };
 
 /**
  * Planes familiares con lugar libre a los que ESTE alumno puede sumarse.
  *
- * Se exige tutor en común, no apellido: los apellidos se repiten en Pachuca y el
- * parentesco que la academia sí registró es el del tutor. Un plan lleno no aparece,
- * de modo que la pantalla no ofrece algo que el servidor va a rechazar.
+ * Primero salen los que comparten tutor (no apellido: los apellidos se repiten en
+ * Pachuca y el parentesco que la academia sí registró es el del tutor). Los demás
+ * también salen, marcados `tutorEnComun: false`: se pueden elegir solo con la
+ * confirmación expresa de quien inscribe (abuela adulta y nieta no comparten tutor).
+ * Un plan lleno no aparece, de modo que la pantalla no ofrece algo que el servidor
+ * va a rechazar.
  */
 export function planesFamiliaresDisponibles(
   alumnoId: number,
@@ -425,6 +433,11 @@ export function planesFamiliaresDisponibles(
       ocupados: sql<number>`(
         SELECT count(*) FROM inscripciones cub WHERE cub.cubierta_por_id = inscripciones.id
       )`,
+      tutorEnComun: sql<number>`EXISTS (
+        SELECT 1 FROM alumnos_tutores a
+        JOIN alumnos_tutores b ON b.tutor_id = a.tutor_id
+        WHERE a.alumno_id = inscripciones.alumno_id AND b.alumno_id = ${alumnoId}
+      )`,
     })
     .from(inscripciones)
     .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
@@ -438,18 +451,18 @@ export function planesFamiliaresDisponibles(
       eq(inscripciones.estado, "activa"),
       isNull(inscripciones.cubiertaPorId),
       sql`${inscripciones.alumnoId} <> ${alumnoId}`,
-      sql`EXISTS (
-        SELECT 1 FROM alumnos_tutores a
-        JOIN alumnos_tutores b ON b.tutor_id = a.tutor_id
-        WHERE a.alumno_id = inscripciones.alumno_id AND b.alumno_id = ${alumnoId}
-      )`,
     ))
     .orderBy(asc(alumnos.nombre))
     .all();
 
   return filas
-    .map((f) => ({ ...f, restantes: cupoRestante(f.alumnosIncluidos, f.ocupados) }))
-    .filter((f) => f.restantes > 0);
+    .map((f) => ({
+      ...f,
+      tutorEnComun: Boolean(f.tutorEnComun),
+      restantes: cupoRestante(f.alumnosIncluidos, f.ocupados),
+    }))
+    .filter((f) => f.restantes > 0)
+    .sort((a, b) => Number(b.tutorEnComun) - Number(a.tutorEnComun));
 }
 
 export type Familia = {
