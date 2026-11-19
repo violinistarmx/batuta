@@ -42,9 +42,11 @@ function BotonAnular({ reciboId }: { reciboId: number }) {
  * falta cuando el sistema envíe recibos por correo solo, que llega en la fase 2.
  */
 export function Imprimir({
-  volverA, folio, reciboId,
+  volverA, folio, reciboId, whatsapp,
 }: {
   volverA: string; folio: string; reciboId: number;
+  /** Liga directa al chat de quien paga, con el mensaje escrito; null si no hay número registrado. */
+  whatsapp: { href: string; para: string } | null;
 }) {
   return (
     <div className="no-imprimir mx-auto flex max-w-[820px] flex-wrap items-center gap-3 px-5 pt-6">
@@ -63,6 +65,25 @@ export function Imprimir({
 
       <BotonAnular reciboId={reciboId} />
 
+      {whatsapp ? (
+        <a
+          id="enviar-whatsapp"
+          href={whatsapp.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Abre WhatsApp con ${whatsapp.para}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-4 py-2
+                     text-sm font-semibold text-green-800 no-underline transition hover:bg-green-100
+                     focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+        >
+          Enviar comprobante por WhatsApp
+        </a>
+      ) : (
+        <span id="sin-whatsapp" className="rounded-lg border border-vs-linea bg-vs-crema px-4 py-2 text-sm text-vs-tinta-3">
+          Sin WhatsApp registrado para enviar
+        </span>
+      )}
+
       <button
         type="button"
         onClick={() => window.print()}
@@ -74,8 +95,10 @@ export function Imprimir({
       </button>
 
       <p className="w-full text-xs text-vs-tinta-3">
-        Folio <strong>{folio}</strong>. En el diálogo de impresión elige «Guardar como PDF»
-        para enviarlo por WhatsApp o correo.
+        Folio <strong>{folio}</strong>.
+        {whatsapp && <> El botón verde abre WhatsApp con <strong>{whatsapp.para}</strong>.</>}{" "}
+        Para adjuntar el comprobante, elige «Guardar como PDF» en el diálogo de impresión y
+        súbelo al chat.
       </p>
     </div>
   );

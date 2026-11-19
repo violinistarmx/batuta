@@ -79,3 +79,25 @@ export function descripcionDelComprobante(descripcion: string | null, clases: re
   if (descripcion?.trim()) return descripcion.trim();
   return clases.length > 0 ? "Clases programadas en las siguientes fechas y horarios:" : null;
 }
+
+/**
+ * El mensaje de WhatsApp que acompaña al comprobante. Una liga de wa.me no puede adjuntar el
+ * archivo (el chat se abre con el texto escrito); el PDF se adjunta después, desde el chat.
+ * Para un tutor se nombra al alumno; para un adulto, el comprobante es suyo.
+ */
+export function textoComprobanteWhatsApp(d: {
+  saludo: string;
+  alumno: string;
+  paraTutor: boolean;
+  folio: string;
+  total: string;
+}): string {
+  const deQuien = d.paraTutor ? ` de ${d.alumno}` : "";
+  return [
+    `Hola, ${d.saludo} 😊`,
+    `Le compartimos el comprobante de pago ${d.folio} por ${d.total}${deQuien}.`,
+    "",
+    "¡Muchas gracias por su confianza! Quedamos atentos. 🎶✨",
+    "— Academia de Música VioliniStar",
+  ].join("\n");
+}

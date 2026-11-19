@@ -12,7 +12,9 @@ import { valesDeRecibo } from "@/lib/datos/vales";
 import { tutoresDe } from "@/lib/datos/alumnos";
 import {
   contactoDelComprobante, descripcionDelComprobante, lineasDeClases, periodoLegible,
+  textoComprobanteWhatsApp,
 } from "@/lib/dominio/comprobante";
+import { destinosDeClase, enlaceWhatsApp } from "@/lib/dominio/recordatorios";
 import { esMenorDeEdad, pesosExactos } from "@/lib/formato";
 import { qrDeVale, urlBase } from "@/lib/qr";
 import { fechaCivil } from "@/lib/zona";
@@ -83,11 +85,31 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
   // Los datos de quien paga salen de la cuenta del alumno; si es menor, del tutor responsable.
   // Adulto solo si consta que tiene 18 o más (sin fecha se trata como menor, como en los recordatorios).
   const esAdulto = !!r.alumnoNacimiento && !esMenorDeEdad(r.alumnoNacimiento);
+  const tutoresDelAlumno = tutoresDe(r.alumnoId);
   const contacto = contactoDelComprobante(
     { nombre: r.alumno, telefono: r.alumnoTelefono, direccion: r.alumnoDireccion },
-    esAdulto ? [] : tutoresDe(r.alumnoId),
+    esAdulto ? [] : tutoresDelAlumno,
     esAdulto,
   );
+
+  // WhatsApp del comprobante: a quien paga. Un alumno adulto (o la cuenta de un responsable de
+  // pago, como la titular de un plan familiar) recibe en su propio número; un menor, en el de su
+  // tutor responsable. Sin número registrado el botón avisa en vez de abrir un chat equivocado.
+  const destinos = destinosDeClase(tutoresDelAlumno, { nombre: r.alumno, telefono: r.alumnoTelefono }, esAdulto);
+  const preferido = destinos.sugerido === "tutor" ? destinos.tutor : destinos.alumno;
+  const destinoWa = preferido ?? destinos.alumno ?? destinos.tutor;
+  const whatsapp = destinoWa
+    ? {
+        href: enlaceWhatsApp(destinoWa.numero, textoComprobanteWhatsApp({
+          saludo: destinoWa.saludo,
+          alumno: r.alumno.split(" ")[0] ?? r.alumno,
+          paraTutor: destinoWa.paraTutor,
+          folio: r.folio,
+          total: pesosExactos(totalReal),
+        })),
+        para: destinoWa.paraTutor ? `${destinoWa.saludo} (tutor responsable)` : destinoWa.saludo,
+      }
+    : null;
   const clasesLista = lineasDeClases(r.clasesTexto);
   const descripcionPago = descripcionDelComprobante(r.descripcion, clasesLista);
   const banco = {
@@ -103,7 +125,7 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
         <AvisoTras />
       </Suspense>
       {/* La barra no se imprime: solo existe para volver y para disparar la impresión. */}
-      <Imprimir volverA={`/alumnos/${r.alumnoId}`} folio={r.folio} reciboId={r.id} />
+      <Imprimir volverA={`/alumnos/${r.alumnoId}`} folio={r.folio} reciboId={r.id} whatsapp={whatsapp} />
 
       <div className={`comprobante ${barlow.variable} ${barlowCondensada.variable}`}>
         <main className="hoja recibo-hoja">

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import {
   contactoDelComprobante, descripcionDelComprobante, fechaCorta, horaCorta, lineaDeClase,
-  lineasDeClases, periodoLegible,
+  lineasDeClases, periodoLegible, textoComprobanteWhatsApp,
 } from "./comprobante.ts";
 
 test("fechaCorta y periodoLegible usan el formato de la plantilla", () => {
@@ -58,4 +58,13 @@ test("la descripción: lo escrito, la frase de la plantilla o nada", () => {
   assert.equal(descripcionDelComprobante(" Mensualidad ", ["x"]), "Mensualidad");
   assert.match(descripcionDelComprobante(null, ["x"]) ?? "", /siguientes fechas y horarios/);
   assert.equal(descripcionDelComprobante(null, []), null);
+});
+
+test("el mensaje de WhatsApp al tutor nombra al alumno; al adulto no", () => {
+  const base = { saludo: "Sra. Laura", alumno: "Ana Victoria", folio: "VS-2026-0001", total: "$1,450.00" };
+  const tutor = textoComprobanteWhatsApp({ ...base, paraTutor: true });
+  assert.match(tutor, /Hola, Sra\. Laura/);
+  assert.match(tutor, /VS-2026-0001 por \$1,450\.00 de Ana Victoria\./);
+  const adulto = textoComprobanteWhatsApp({ ...base, saludo: "Ana", paraTutor: false });
+  assert.doesNotMatch(adulto, / de Ana Victoria/);
 });
