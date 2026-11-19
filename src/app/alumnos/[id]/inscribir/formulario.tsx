@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -34,10 +35,13 @@ function Guardar() {
   );
 }
 
+type TutorOpcion = { id: number; nombre: string; parentesco: string; esResponsablePago: boolean };
+
 export function FormularioInscripcion({
-  alumnoId, programas, instrumentos, docentes, planesFamiliares, hoy,
+  alumnoId, alumnoNombre, esAdulto, tutores, programas, instrumentos, docentes, planesFamiliares, hoy,
 }: {
-  alumnoId: number; programas: Programa[]; instrumentos: Opcion[];
+  alumnoId: number; alumnoNombre: string; esAdulto: boolean; tutores: TutorOpcion[];
+  programas: Programa[]; instrumentos: Opcion[];
   docentes: Opcion[]; planesFamiliares: Record<number, PlanFamiliar[]>; hoy: string;
 }) {
   const [estado, accion] = useActionState<EstadoInscripcion, FormData>(inscribir, {});
@@ -164,8 +168,10 @@ export function FormularioInscripcion({
               <span>
                 <span className="text-sm font-medium">Abrir un plan nuevo</span>
                 <span className="mt-0.5 block text-xs text-vs-tinta-3">
-                  Este alumno queda como titular y su expediente lleva el cargo de{" "}
-                  {pesos(elegido?.precio ?? 0)}. Los hermanos se suman después.
+                  {esAdulto
+                    ? <>{alumnoNombre} es la titular: el plan de {pesos(elegido?.precio ?? 0)} se le carga a ella.</>
+                    : <>El titular es el adulto que paga: el plan de {pesos(elegido?.precio ?? 0)} se le carga a su cuenta, no a la del alumno.</>}
+                  {" "}Los familiares se suman después.
                 </span>
               </span>
             </label>
@@ -184,6 +190,35 @@ export function FormularioInscripcion({
               </>
             )}
           </div>
+
+          {!seSuma && !esAdulto && (
+            <div className="mt-3 rounded-lg border border-vs-naranja bg-vs-crema px-3 py-3">
+              <label htmlFor="responsableTutorId" className="text-sm font-medium">
+                Titular del plan y responsable de pago
+              </label>
+              {tutores.length === 0 ? (
+                <p className="mt-1 text-xs text-vs-tinta-2">
+                  {alumnoNombre} es menor de edad y no tiene un tutor registrado. Un menor no puede
+                  ser titular: registra primero al tutor que paga en{" "}
+                  <Link href={`/alumnos/${alumnoId}/editar`} className="underline">Editar datos</Link>.
+                </p>
+              ) : (
+                <>
+                  <select
+                    id="responsableTutorId" name="responsableTutorId" required className={`${campo} mt-1.5 w-full`}
+                    defaultValue={String((tutores.find((t) => t.esResponsablePago) ?? tutores[0])?.id ?? "")}
+                  >
+                    {tutores.map((t) => (
+                      <option key={t.id} value={t.id}>{t.nombre} · {t.parentesco}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-vs-tinta-3">
+                    La mensualidad, los recibos y los avisos de adeudo van a su nombre.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           {pideConfirmar && (
             <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-vs-naranja bg-vs-crema px-3 py-2 text-sm">

@@ -35,6 +35,12 @@ export const inscripciones = sqliteTable("inscripciones", {
    * NULL en toda inscripcion individual y en el titular de una familia.
    */
   cubiertaPorId: integer("cubierta_por_id"),
+  /**
+   * En la inscripción titular de un plan familiar: la cuenta de pago a la que se le carga
+   * el plan, cuando quien paga no es el alumno de esta inscripción (la mamá, no el niño).
+   * NULL = se le carga a su propio alumno.
+   */
+  cuentaPagoId: integer("cuenta_pago_id"),
   notas: text("notas"),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (t) => [

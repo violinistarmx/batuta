@@ -3,7 +3,7 @@ import test from "node:test";
 
 import {
   ahorroFamiliarCentavos, cupoRestante, esPlanFamiliar,
-  motivoParaRechazarCobertura, precioDelCicloCentavos, precioPorAlumnoCentavos,
+  motivoParaRechazarCobertura, motivoParaRechazarTitular, precioDelCicloCentavos, precioPorAlumnoCentavos,
   type SolicitudDeCobertura,
 } from "./familia.ts";
 
@@ -119,4 +119,17 @@ test("rechaza un plan inactivo", () => {
 test("la inscripción cubierta abre su ciclo en cero", () => {
   assert.equal(precioDelCicloCentavos(145_000, false), 145_000);
   assert.equal(precioDelCicloCentavos(145_000, true), 0);
+});
+
+test("un menor no puede ser titular si no hay adulto responsable del pago", () => {
+  const m = motivoParaRechazarTitular({ alumnoEsAdulto: false, hayResponsableAdulto: false });
+  assert.match(m ?? "", /adulto que paga/i);
+});
+
+test("un menor sí abre el plan si se indica el adulto que paga", () => {
+  assert.equal(motivoParaRechazarTitular({ alumnoEsAdulto: false, hayResponsableAdulto: true }), null);
+});
+
+test("un alumno adulto es su propio titular", () => {
+  assert.equal(motivoParaRechazarTitular({ alumnoEsAdulto: true, hayResponsableAdulto: false }), null);
 });

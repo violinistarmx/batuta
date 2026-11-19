@@ -21,6 +21,10 @@ const Inscripcion = z.object({
   /** Plan familiar al que se suma. Vacío = individual o titular de uno nuevo. */
   cubiertaPorId: z.string().trim().transform((s) => (s === "" ? null : Number(s)))
     .refine((n) => n === null || (Number.isInteger(n) && n > 0), "Plan familiar inválido."),
+  /** Al abrir un plan familiar con un menor: el tutor que paga y queda como titular. */
+  responsableTutorId: z.string().optional()
+    .transform((v) => (v === undefined || v === "" ? null : Number(v)))
+    .refine((n) => n === null || (Number.isInteger(n) && n > 0), "Responsable de pago inválido."),
   /** Casilla «confirmo que son familia»: permite el plan sin tutor en común. */
   familiaConfirmada: z.string().optional().transform((v) => v === "1"),
 });
@@ -42,6 +46,7 @@ export async function inscribir(
     notas: datos.get("notas") ?? "",
     cubiertaPorId: datos.get("cubiertaPorId") ?? "",
     familiaConfirmada: datos.get("familiaConfirmada") ?? undefined,
+    responsableTutorId: datos.get("responsableTutorId") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -83,6 +88,7 @@ export async function inscribir(
       docenteId: d.docenteId,
       fechaInicio: d.fechaInicio,
       cubiertaPorId: d.cubiertaPorId,
+      ...(d.responsableTutorId !== null ? { responsableTutorId: d.responsableTutorId } : {}),
       // Quedó confirmado por una persona, no por el tutor en común: que se pueda auditar.
       ...(d.cubiertaPorId !== null && d.familiaConfirmada ? { familiaConfirmadaPorPersonal: true } : {}),
     },

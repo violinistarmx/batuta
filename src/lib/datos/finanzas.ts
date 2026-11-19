@@ -55,6 +55,7 @@ export function generarMensualidad(cicloId: number, usuarioId: number): number {
       terminaEl: ciclos.terminaEl,
       precioCentavos: ciclos.precioCentavos,
       alumnoId: inscripciones.alumnoId,
+      cuentaPagoId: inscripciones.cuentaPagoId,
       alumno: alumnos.nombre,
       programa: programas.nombre,
       cubiertaPorId: inscripciones.cubiertaPorId,
@@ -84,7 +85,8 @@ export function generarMensualidad(cicloId: number, usuarioId: number): number {
       : [];
 
     const fila = tx.insert(cargos).values({
-      alumnoId: ciclo.alumnoId,
+      // El plan se le carga al adulto que paga (su cuenta), no al niño titular.
+      alumnoId: ciclo.cuentaPagoId ?? ciclo.alumnoId,
       inscripcionId: ciclo.inscripcionId,
       cicloId: ciclo.id,
       concepto: "mensualidad",

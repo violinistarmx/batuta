@@ -18,7 +18,7 @@ export type Accion =
   | "alumno.crear" | "alumno.editar" | "alumno.eliminar" | "alumno.consultar_qr"
   | "tutor.editar"
   | "salud.leer" | "salud.editar"
-  | "inscripcion.crear" | "inscripcion.cambiar_programa" | "inscripcion.baja"
+  | "inscripcion.crear" | "inscripcion.cambiar_programa" | "inscripcion.baja" | "inscripcion.responsable_pago"
   | "ciclo.renovar" | "ciclo.cerrar"
   | "clase.crear" | "clase.asistencia" | "clase.reprogramar" | "clase.autorizar_excepcion"
   | "clase.corregir"

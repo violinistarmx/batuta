@@ -3,14 +3,16 @@ import { notFound } from "next/navigation";
 
 import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
+import { alumnoPorId, tutoresDe } from "@/lib/datos/alumnos";
 import { aulasActivas, clasesDeInscripcion } from "@/lib/datos/clases";
 import { ciclosDe, familiaDe, inscripcionPorId, movimientosDe } from "@/lib/datos/inscripciones";
 import { progresoDeInscripcion, tareasDeInscripcion } from "@/lib/datos/expediente";
 import { diasRestantes } from "@/lib/dominio/ciclos";
-import { ZONA, fechaLarga, pesos } from "@/lib/formato";
+import { ZONA, esMenorDeEdad, fechaLarga, pesos } from "@/lib/formato";
 import { horaCivil } from "@/lib/zona";
 import { Agendar } from "./agendar";
 import { BotonRenovar } from "./renovar";
+import { AsignarResponsable } from "./responsable";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +58,18 @@ export default async function Inscripcion({ params }: { params: Promise<{ id: st
   const avances = progresoDeInscripcion(insc.id);
   const familia = familiaDe(insc.id);
   const esTitular = familia?.titularInscripcionId === insc.id;
+  // Plan abierto con un menor como titular (antes de que el titular fuera el adulto que paga):
+  // se ofrece pasarlo a su tutor. Los planes de un adulto o con cuenta ya están bien.
+  const titularAlumno = esTitular && familia && !familia.responsable.esCuenta
+    ? alumnoPorId(insc.alumnoId, alcanceDe(sesion))
+    : undefined;
+  const titularEsMenor = !!titularAlumno
+    && (!titularAlumno.fechaNacimiento || esMenorDeEdad(titularAlumno.fechaNacimiento));
+  const tutoresDelTitular = titularEsMenor && puedeRenovar
+    ? tutoresDe(insc.alumnoId).map((t) => ({
+        id: t.id, nombre: t.nombre, parentesco: t.parentesco, esResponsablePago: t.esResponsablePago,
+      }))
+    : [];
 
   const hoy = new Intl.DateTimeFormat("en-CA", {
     timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit",
@@ -98,38 +112,55 @@ export default async function Inscripcion({ params }: { params: Promise<{ id: st
         {familia && (
           <section className="mt-7 rounded-xl border border-vs-naranja bg-vs-crema p-5">
             <h2 className="font-display text-lg font-semibold">
-              {esTitular ? "Titular de un plan familiar" : "Incluido en un plan familiar"}
+              {esTitular ? "Plan familiar: lleva el cargo" : "Incluido en un plan familiar"}
             </h2>
 
-            {esTitular ? (
-              <p className="mt-1 text-sm text-vs-tinta-2">
-                Esta inscripción lleva la mensualidad de{" "}
-                <strong>{pesos(familia.precioCentavos)}</strong> de todo el grupo. Los hermanos
-                tienen su propio maestro, horario y saldo de clases, y su período abre en $0.
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-vs-tinta-2">
-                La mensualidad la lleva la inscripción de{" "}
-                <Link href={`/inscripciones/${familia.titularInscripcionId}`}
-                      className="font-medium no-underline hover:underline">
-                  {familia.titular}
-                </Link>
-                . Aquí no hay adeudo que cobrar: el cargo del grupo vive una sola vez.
-              </p>
-            )}
+            <p className="mt-1 text-sm text-vs-tinta-2">
+              Titular y responsable de pago:{" "}
+              <Link href={`/alumnos/${familia.responsable.alumnoId}`}
+                    className="font-medium no-underline hover:underline">
+                {familia.responsable.nombre}
+              </Link>
+              . La mensualidad de <strong>{pesos(familia.precioCentavos)}</strong> es del grupo y se
+              cobra una sola vez; cada alumno tiene su propia inscripción, maestro, horario y saldo
+              de clases.
+              {!esTitular && (
+                <>
+                  {" "}El cargo lo lleva la inscripción de{" "}
+                  <Link href={`/inscripciones/${familia.titularInscripcionId}`}
+                        className="font-medium no-underline hover:underline">
+                    {familia.titular}
+                  </Link>
+                  ; aquí el período abre en $0.
+                </>
+              )}
+            </p>
 
             <ul className="mt-3 flex flex-wrap gap-2 text-sm">
-              <li className="rounded-lg border border-vs-linea bg-white px-3 py-1.5">
-                <Link href={`/inscripciones/${familia.titularInscripcionId}`} className="no-underline">
-                  {familia.titular}
+              <li className="rounded-lg border border-vs-naranja bg-white px-3 py-1.5">
+                <Link href={`/alumnos/${familia.responsable.alumnoId}`} className="no-underline">
+                  {familia.responsable.nombre}
                 </Link>
-                <span className="ml-2 text-[11px] uppercase tracking-wider text-vs-tinta-3">titular</span>
+                <span className="ml-2 text-[11px] uppercase tracking-wider text-vs-tinta-3">titular · paga</span>
               </li>
+              {/* Los alumnos del plan: el de la inscripción que lleva el cargo y los que cubre. */}
+              {(familia.responsable.esCuenta
+                ? [{ inscripcionId: familia.titularInscripcionId, alumno: familia.titular }]
+                : []
+              ).map((c) => (
+                <li key={c.inscripcionId} className="rounded-lg border border-vs-linea bg-white px-3 py-1.5">
+                  <Link href={`/inscripciones/${c.inscripcionId}`} className="no-underline">
+                    {c.alumno}
+                  </Link>
+                  <span className="ml-2 text-[11px] uppercase tracking-wider text-vs-tinta-3">alumno</span>
+                </li>
+              ))}
               {familia.cubiertos.map((c) => (
                 <li key={c.inscripcionId} className="rounded-lg border border-vs-linea bg-white px-3 py-1.5">
                   <Link href={`/inscripciones/${c.inscripcionId}`} className="no-underline">
                     {c.alumno}
                   </Link>
+                  <span className="ml-2 text-[11px] uppercase tracking-wider text-vs-tinta-3">alumno</span>
                 </li>
               ))}
               {Array.from({
@@ -141,6 +172,9 @@ export default async function Inscripcion({ params }: { params: Promise<{ id: st
                 </li>
               ))}
             </ul>
+            {titularEsMenor && puedeRenovar && (
+              <AsignarResponsable inscripcionId={insc.id} tutores={tutoresDelTitular} />
+            )}
           </section>
         )}
 

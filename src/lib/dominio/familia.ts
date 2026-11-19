@@ -97,6 +97,22 @@ export function motivoParaRechazarCobertura(s: SolicitudDeCobertura): string | n
 }
 
 /**
+ * Por qué NO puede abrirse un plan familiar con este titular, o null si puede.
+ *
+ * El titular es quien paga: un adulto. Un menor no puede serlo, así que si el alumno
+ * que abre el plan es menor (o no consta su fecha de nacimiento) debe indicarse el
+ * adulto responsable del pago. Un alumno adulto es su propio titular.
+ */
+export function motivoParaRechazarTitular(s: {
+  alumnoEsAdulto: boolean;
+  hayResponsableAdulto: boolean;
+}): string | null {
+  if (s.alumnoEsAdulto || s.hayResponsableAdulto) return null;
+  return "El titular de un plan familiar es el adulto que paga: un menor no puede serlo. " +
+    "Elige el tutor responsable del pago (o registra la fecha de nacimiento si el alumno es mayor de edad).";
+}
+
+/**
  * Lo que se le cobra al abrir el ciclo de esta inscripción.
  *
  * Cero para las cubiertas: su mensualidad ya viene en el cargo del titular. No es

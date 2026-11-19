@@ -119,6 +119,12 @@ export const alumnos = sqliteTable("alumnos", {
    * solo al convertir un prospecto; sirve para el costo de adquisición por canal.
    */
   origen: text("origen"),
+  /**
+   * Cuenta de pago: un adulto que paga un plan familiar pero no toma clases (la mamá de
+   * dos hermanos). Vive aquí porque cargos, pagos y recibos cuelgan de `alumnos`; esta
+   * marca la oculta de la lista de alumnos. Nunca tiene inscripciones propias.
+   */
+  soloResponsable: integer("solo_responsable", { mode: "boolean" }).notNull().default(false),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (t) => [
   uniqueIndex("ux_alumnos_codigo").on(t.codigo),
@@ -140,6 +146,8 @@ export const tutores = sqliteTable("tutores", {
   email: text("email"),
   direccion: text("direccion"),
   notas: text("notas"),
+  /** Su cuenta de pago (ver `alumnos.soloResponsable`), si ya se le abrió una. */
+  cuentaAlumnoId: integer("cuenta_alumno_id"),
   creadoEn: integer("creado_en", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (t) => [index("ix_tutores_nombre").on(t.nombre)]);
 

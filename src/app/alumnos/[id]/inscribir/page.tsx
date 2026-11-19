@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 
 import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
-import { alumnoPorId } from "@/lib/datos/alumnos";
+import { alumnoPorId, tutoresDe } from "@/lib/datos/alumnos";
 import { catalogoParaInscribir, planesFamiliaresDisponibles } from "@/lib/datos/inscripciones";
-import { ZONA } from "@/lib/formato";
+import { esMenorDeEdad, ZONA } from "@/lib/formato";
 import { FormularioInscripcion } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,13 @@ export default async function Inscribir({ params }: { params: Promise<{ id: stri
   if (!alumno) notFound();
 
   const catalogo = catalogoParaInscribir();
+
+  // El titular de un plan familiar es el adulto que paga. Un alumno adulto lo es él mismo;
+  // si es menor (o no consta su fecha de nacimiento) se elige entre sus tutores.
+  const esAdulto = !!alumno.fechaNacimiento && !esMenorDeEdad(alumno.fechaNacimiento);
+  const tutoresDelAlumno = tutoresDe(alumno.id).map((t) => ({
+    id: t.id, nombre: t.nombre, parentesco: t.parentesco, esResponsablePago: t.esResponsablePago,
+  }));
 
   // Para cada programa familiar, los planes con lugar libre a los que este alumno
   // puede sumarse. Se resuelve aquí y no al vuelo: la pantalla no debe ofrecer un
@@ -54,6 +61,9 @@ export default async function Inscribir({ params }: { params: Promise<{ id: stri
         <div className="mt-7">
           <FormularioInscripcion
             alumnoId={alumno.id}
+            alumnoNombre={alumno.nombre}
+            esAdulto={esAdulto}
+            tutores={tutoresDelAlumno}
             programas={catalogo.programas}
             instrumentos={catalogo.instrumentos}
             docentes={catalogo.docentes}

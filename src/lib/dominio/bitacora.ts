@@ -54,6 +54,7 @@ const ACCIONES: Record<string, Descripcion> = {
   "inscripcion.crear": { texto: "Inscribió a un alumno", grupo: "alumnos" },
   "inscripcion.cambiar_programa": { texto: "Cambió de programa", grupo: "alumnos" },
   "inscripcion.baja": { texto: "Dio de baja una inscripción", grupo: "alumnos", delicado: true },
+  "inscripcion.responsable_pago": { texto: "Asignó el responsable de pago de un plan familiar", grupo: "alumnos", delicado: true },
   "ciclo.renovar": { texto: "Renovó el período", grupo: "alumnos" },
   "ciclo.cerrar": { texto: "Cerró el período", grupo: "alumnos" },
 

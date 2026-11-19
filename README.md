@@ -339,6 +339,23 @@ copia de la misma madre, y la tabla N:N que existe justo para compartirla no ser
 nada. Ahora el alta ofrece el padrón, y **Editar datos** también permite vincular a un alumno ya
 registrado un tutor que ya existe (sin duplicarlo).
 
+**El titular es el adulto que paga, nunca un menor.** Al abrir un plan familiar con un alumno
+menor (o sin fecha de nacimiento) se elige el tutor responsable de pago, que queda como titular
+y a cuyo nombre van la mensualidad, los recibos y los avisos de adeudo. Un alumno adulto es su
+propio titular (la abuela). Cada alumno conserva su inscripción, maestro, horario y saldo de
+clases. Como la cobranza cuelga de `alumnos`, el tutor tiene una **cuenta de pago**
+(`alumnos.solo_responsable`, folio `RP-0001`): no sale en la lista de alumnos ni en los conteos y
+su expediente muestra solo contacto, los planes que paga y su cobranza. El cargo sigue ligado a
+la inscripción del plan (`cargos.inscripcion_id`), así que los reportes por programa no cambian.
+Migración `0023_responsable_pago` (reversa en `drizzle/reversas/`).
+
+**Planes abiertos antes de este cambio** (menor como titular): la inscripción titular ofrece
+«Asignar responsable». Pasa el plan al tutor y mueve la mensualidad vigente solo si **no tiene
+pagos aplicados**; lo ya abonado no se mueve, para no descuadrar saldos ni recibos.
+
+**Recordatorio de clase:** en la clase se elige *Al alumno / Al tutor / A ambos* (cada opción
+solo si hay teléfono). El sistema sugiere al alumno si es adulto y al tutor si es menor.
+
 **Familiares sin tutor en común** (abuela adulta y nieta: la abuela no tiene tutor). Al inscribir,
 los planes con lugar libre que no comparten tutor salen en un grupo aparte, y elegir uno exige
 marcar «Confirmo que son familia». Esa confirmación sustituye al tutor en común, no al cupo ni

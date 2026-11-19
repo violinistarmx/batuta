@@ -9,7 +9,7 @@ import { registrar } from "@/lib/bitacora";
 import {
   alumnoPorId, consentimientosDe, credencialDe, saludDe, tutoresDe,
 } from "@/lib/datos/alumnos";
-import { inscripcionesDe } from "@/lib/datos/inscripciones";
+import { inscripcionesDe, planesQuePaga } from "@/lib/datos/inscripciones";
 import { cargosDeAlumno, cargosDeAlumnoCancelados, pagosDeAlumno } from "@/lib/datos/finanzas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
 import {
@@ -54,6 +54,10 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const consents = consentimientosDe(alumno.id);
   const credencial = credencialDe(alumno.id);
   const menor = esMenorDeEdad(alumno.fechaNacimiento);
+  // Cuenta de responsable de pago: un adulto que paga un plan pero no toma clases.
+  // Su expediente es solo contacto y cobranza; sin credencial, salud ni inscripciones.
+  const cuenta = alumno.soloResponsable;
+  const planesPagados = cuenta ? planesQuePaga(alumno.id) : [];
 
   const puedeVerSalud = tienePermiso(sesion, "salud.leer");
   const salud = puedeVerSalud ? saludDe(alumno.id) : null;
@@ -169,6 +173,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
+          {!cuenta && (
           <div className="rounded-xl border border-vs-linea bg-white p-3 text-center">
             <div
               className="[&>svg]:h-32 [&>svg]:w-32"
@@ -183,9 +188,10 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
               Credencial · compartir
             </Link>
           </div>
+          )}
         </div>
 
-        {!imagen?.otorgado && (
+        {!cuenta && !imagen?.otorgado && (
           <p className="mt-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
             <strong>No autoriza uso de imagen.</strong> Este alumno queda excluido de Demo Videos,
             redes sociales y cualquier publicación.
@@ -257,6 +263,8 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
             )}
           </section>
 
+          {!cuenta && (
+          <>
           <section className="rounded-xl border border-vs-linea bg-white p-5">
             <h2 className="font-display text-lg font-semibold">Objetivo y experiencia</h2>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-sm">
@@ -286,8 +294,11 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
               </dd>
             </dl>
           </section>
+          </>
+          )}
         </div>
 
+        {!cuenta && (
         <section className="mt-5 rounded-xl border border-vs-linea bg-white p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-display text-lg font-semibold">
@@ -327,7 +338,33 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
             </>
           )}
         </section>
+        )}
 
+        {cuenta ? (
+          <section className="mt-5 rounded-xl border border-vs-naranja bg-vs-crema p-5">
+            <h2 className="font-display text-lg font-semibold">Cuenta de responsable de pago</h2>
+            <p className="mt-1 text-sm text-vs-tinta-2">
+              Esta persona paga un plan familiar pero no toma clases: aquí se le cargan las
+              mensualidades y se registran sus pagos. Los alumnos tienen cada uno su inscripción.
+            </p>
+            {planesPagados.length === 0 ? (
+              <p className="mt-3 text-sm text-vs-tinta-3">Todavía no paga ningún plan activo.</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2 text-sm">
+                {planesPagados.map((pl) => (
+                  <li key={pl.titularInscripcionId} className="rounded-lg border border-vs-linea bg-white px-3 py-2">
+                    <Link href={`/inscripciones/${pl.titularInscripcionId}`} className="font-medium no-underline hover:underline">
+                      {pl.programa}
+                    </Link>
+                    <span className="ml-2 text-xs text-vs-tinta-3">
+                      el cargo lo lleva la inscripción de {pl.alumno}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : (
         <section className="mt-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="font-display text-xl font-semibold">
@@ -421,6 +458,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
             </div>
           )}
         </section>
+        )}
 
         {verFinanzas && (
           <section className="mt-5">

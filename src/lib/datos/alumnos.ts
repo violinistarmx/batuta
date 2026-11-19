@@ -201,7 +201,8 @@ export type ResumenAlumno = {
 };
 
 export function listarAlumnos(alcance: Alcance, busqueda?: string): ResumenAlumno[] {
-  const condiciones = [filtroAlcance(alcance)];
+  // Las cuentas de responsable de pago (adultos que no toman clases) no son alumnos.
+  const condiciones = [filtroAlcance(alcance), eq(alumnos.soloResponsable, false)];
 
   if (busqueda?.trim()) {
     // Se normalizan los dos lados: buscar "martinez" encuentra "Martínez".

@@ -4,14 +4,16 @@ import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  alumnos, alumnosTutores, ciclos, creditosClase, docentes, inscripciones,
-  instrumentos, preciosVigencia, programas,
+  alumnos, alumnosTutores, cargos, ciclos, creditosClase, docentes, inscripciones,
+  instrumentos, preciosVigencia, programas, secuencias, tutores,
 } from "@/db/schema/index";
 import { movimientoDeCierre } from "@/lib/dominio/creditos";
 import { periodoMensual, sumarDias } from "@/lib/dominio/ciclos";
 import {
-  cupoRestante, motivoParaRechazarCobertura, precioDelCicloCentavos,
+  cupoRestante, motivoParaRechazarCobertura, motivoParaRechazarTitular, precioDelCicloCentavos,
 } from "@/lib/dominio/familia";
+import { esMenorDeEdad } from "@/lib/formato";
+import { generarTokenQr } from "@/lib/qr";
 import type { Alcance } from "@/lib/auth/permisos";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -68,7 +70,74 @@ export type DatosInscripcion = {
   cubiertaPorId?: number | null;
   /** Quien inscribe confirmó que son familia aunque no compartan tutor. Ver familia.ts. */
   familiaConfirmada?: boolean;
+  /**
+   * Al abrir un plan familiar con un alumno menor: el tutor (de este alumno) que paga y
+   * queda como titular del plan. No se usa si el alumno es adulto (es su propio titular).
+   */
+  responsableTutorId?: number | null;
 };
+
+/** Siguiente folio de cuenta de pago: RP-0001. Va aparte del de alumnos (VS-). */
+function siguienteCodigoResponsable(tx: Tx): string {
+  tx.insert(secuencias).values({ clave: "responsable", valor: 0 }).onConflictDoNothing().run();
+  const fila = tx.update(secuencias)
+    .set({ valor: sql`${secuencias.valor} + 1` })
+    .where(eq(secuencias.clave, "responsable"))
+    .returning({ valor: secuencias.valor })
+    .get();
+  return `RP-${String(fila?.valor ?? 1).padStart(4, "0")}`;
+}
+
+/**
+ * La cuenta de pago de un tutor: el registro donde se le cargan los planes que paga.
+ * Se crea la primera vez y se reutiliza después (un tutor con dos planes, una cuenta).
+ * No es un alumno: no se lista entre ellos ni tiene inscripciones (`solo_responsable`).
+ */
+export function cuentaDeTutor(tx: Tx, tutorId: number): number {
+  const t = tx.select().from(tutores).where(eq(tutores.id, tutorId)).get();
+  if (!t) throw new Error("El tutor no existe.");
+  if (t.cuentaAlumnoId !== null) return t.cuentaAlumnoId;
+
+  const cuenta = tx.insert(alumnos).values({
+    codigo: siguienteCodigoResponsable(tx),
+    qrToken: generarTokenQr(),
+    nombre: t.nombre,
+    telefono: t.whatsapp ?? t.telefono,
+    email: t.email,
+    direccion: t.direccion,
+    fechaInscripcion: new Date().toISOString().slice(0, 10),
+    soloResponsable: true,
+  }).returning({ id: alumnos.id }).get();
+  if (!cuenta) throw new Error("No se pudo crear la cuenta del responsable de pago.");
+
+  tx.update(tutores).set({ cuentaAlumnoId: cuenta.id }).where(eq(tutores.id, tutorId)).run();
+  return cuenta.id;
+}
+
+/**
+ * Al abrir un plan familiar: de quién es la cuenta que paga. Un alumno adulto paga él
+ * mismo (null). Uno menor necesita el tutor que paga; sin él, el plan no se abre.
+ */
+function cuentaDelTitular(tx: Tx, d: DatosInscripcion): number | null {
+  const a = tx.select({ nacimiento: alumnos.fechaNacimiento }).from(alumnos)
+    .where(eq(alumnos.id, d.alumnoId)).get();
+  if (!a) throw new Error("El alumno no existe.");
+  // Adulto solo si consta que tiene 18 o más; sin fecha se trata como menor (lo prudente).
+  const esAdulto = a.nacimiento !== null && !esMenorDeEdad(a.nacimiento);
+
+  const tutorId = d.responsableTutorId ?? null;
+  const motivo = motivoParaRechazarTitular({
+    alumnoEsAdulto: esAdulto,
+    hayResponsableAdulto: tutorId !== null,
+  });
+  if (motivo) throw new Error(motivo);
+  if (esAdulto || tutorId === null) return null;
+
+  const vinculo = tx.select({ n: sql<number>`count(*)` }).from(alumnosTutores)
+    .where(and(eq(alumnosTutores.alumnoId, d.alumnoId), eq(alumnosTutores.tutorId, tutorId))).get();
+  if (!vinculo || vinculo.n === 0) throw new Error("Ese tutor no está vinculado a este alumno.");
+  return cuentaDeTutor(tx, tutorId);
+}
 
 /**
  * Comprueba dentro de la transacción que esta inscripción puede colgarse del plan.
@@ -133,6 +202,11 @@ export function crearInscripcion(d: DatosInscripcion, usuarioId: number): number
     if (cubiertaPorId !== null) {
       exigirCoberturaValida(tx, cubiertaPorId, d, programa.alumnosIncluidos);
     }
+    // Quien abre un plan familiar es su titular: el adulto que paga. Si el alumno es menor,
+    // el cargo irá a la cuenta de su tutor, no a la de un niño.
+    const cuentaPagoId = cubiertaPorId === null && programa.alumnosIncluidos > 1
+      ? cuentaDelTitular(tx, d)
+      : null;
 
     // El precio se congela al abrir el ciclo. Un cambio de tarifa posterior no
     // reescribe contratos vigentes.
@@ -153,6 +227,7 @@ export function crearInscripcion(d: DatosInscripcion, usuarioId: number): number
       fechaInicio: d.fechaInicio,
       notas: d.notas,
       cubiertaPorId,
+      cuentaPagoId,
     }).returning({ id: inscripciones.id }).get();
 
     if (!inscripcion) throw new Error("No se pudo crear la inscripción.");
@@ -425,8 +500,9 @@ export function planesFamiliaresDisponibles(
   const filas = db
     .select({
       inscripcionId: inscripciones.id,
-      titular: alumnos.nombre,
-      titularCodigo: alumnos.codigo,
+      // Titular = quien paga: la cuenta del responsable si la hay, si no el propio alumno.
+      titular: sql<string>`coalesce((SELECT c.nombre FROM alumnos c WHERE c.id = inscripciones.cuenta_pago_id), ${alumnos.nombre})`,
+      titularCodigo: sql<string>`coalesce((SELECT c.codigo FROM alumnos c WHERE c.id = inscripciones.cuenta_pago_id), ${alumnos.codigo})`,
       programa: programas.nombre,
       alumnosIncluidos: programas.alumnosIncluidos,
       precioCentavos: preciosVigencia.precioCentavos,
@@ -472,6 +548,11 @@ export type Familia = {
   programa: string;
   alumnosIncluidos: number;
   precioCentavos: number;
+  /**
+   * Quien paga el plan: la cuenta del responsable (la mamá), o el propio alumno titular si es
+   * adulto (la abuela). Un menor nunca es el responsable.
+   */
+  responsable: { alumnoId: number; nombre: string; esCuenta: boolean };
   /** El titular NO aparece aquí: son las que él cubre. */
   cubiertos: { inscripcionId: number; alumnoId: number; alumno: string }[];
 };
@@ -501,6 +582,7 @@ export function familiaDe(inscripcionId: number): Familia | null {
     programa: programas.nombre,
     alumnosIncluidos: programas.alumnosIncluidos,
     precioCentavos: ciclos.precioCentavos,
+    cuentaPagoId: inscripciones.cuentaPagoId,
   })
     .from(inscripciones)
     .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
@@ -509,6 +591,11 @@ export function familiaDe(inscripcionId: number): Familia | null {
     .where(eq(inscripciones.id, titularId)).get();
 
   if (!t) return null;
+
+  const cuenta = t.cuentaPagoId !== null
+    ? db.select({ id: alumnos.id, nombre: alumnos.nombre }).from(alumnos)
+        .where(eq(alumnos.id, t.cuentaPagoId)).get()
+    : undefined;
 
   const cubiertos = db.select({
     inscripcionId: inscripciones.id,
@@ -528,6 +615,92 @@ export function familiaDe(inscripcionId: number): Familia | null {
     programa: t.programa,
     alumnosIncluidos: t.alumnosIncluidos,
     precioCentavos: t.precioCentavos ?? 0,
+    responsable: cuenta
+      ? { alumnoId: cuenta.id, nombre: cuenta.nombre, esCuenta: true }
+      : { alumnoId: t.alumnoId, nombre: t.alumno, esCuenta: false },
     cubiertos,
   };
+}
+
+
+export type PlanPagado = {
+  titularInscripcionId: number;
+  programa: string;
+  /** Alumno de la inscripción que lleva el cargo; los demás del plan se ven en la inscripción. */
+  alumno: string;
+};
+
+/** Los planes familiares que paga una cuenta de responsable (la mamá), para su expediente. */
+export function planesQuePaga(cuentaId: number): PlanPagado[] {
+  return db.select({
+    titularInscripcionId: inscripciones.id,
+    programa: programas.nombre,
+    alumno: alumnos.nombre,
+  })
+    .from(inscripciones)
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
+    .where(and(eq(inscripciones.cuentaPagoId, cuentaId), eq(inscripciones.estado, "activa")))
+    .orderBy(asc(inscripciones.id))
+    .all();
+}
+
+
+/**
+ * Pasa el plan familiar de un titular menor a su tutor responsable de pago.
+ *
+ * Para los planes que se abrieron antes de que el titular fuera el adulto que paga (dos
+ * hermanos, uno de ellos como titular). Solo mira hacia adelante y no toca dinero ya
+ * cobrado: el plan, sus cargos futuros y la mensualidad vigente SIN pagos aplicados pasan a
+ * la cuenta del tutor; lo que ya tiene un abono o un pago se queda donde está, para que
+ * los saldos y los recibos ya emitidos no cambien.
+ */
+export function asignarResponsableDelPlan(
+  titularInscripcionId: number,
+  tutorId: number,
+): { cargosMovidos: number; cuentaId: number } {
+  return db.transaction((tx) => {
+    const t = tx.select({
+      id: inscripciones.id,
+      alumnoId: inscripciones.alumnoId,
+      cubiertaPorId: inscripciones.cubiertaPorId,
+      cuentaPagoId: inscripciones.cuentaPagoId,
+      alumnosIncluidos: programas.alumnosIncluidos,
+      nacimiento: alumnos.fechaNacimiento,
+    })
+      .from(inscripciones)
+      .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+      .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
+      .where(eq(inscripciones.id, titularInscripcionId)).get();
+
+    if (!t) throw new Error("La inscripción no existe.");
+    if (t.alumnosIncluidos <= 1 || t.cubiertaPorId !== null) {
+      throw new Error("Solo el titular de un plan familiar tiene responsable de pago.");
+    }
+    if (t.nacimiento !== null && !esMenorDeEdad(t.nacimiento)) {
+      throw new Error("El titular es adulto: él mismo es el responsable de pago.");
+    }
+
+    const vinculo = tx.select({ n: sql<number>`count(*)` }).from(alumnosTutores)
+      .where(and(eq(alumnosTutores.alumnoId, t.alumnoId), eq(alumnosTutores.tutorId, tutorId))).get();
+    if (!vinculo || vinculo.n === 0) throw new Error("Ese tutor no está vinculado al alumno titular.");
+
+    const cuentaId = cuentaDeTutor(tx, tutorId);
+    tx.update(inscripciones).set({ cuentaPagoId: cuentaId })
+      .where(eq(inscripciones.id, titularInscripcionId)).run();
+
+    // Solo los cargos del plan sin ningún pago aplicado: mover uno con abonos separaría el
+    // pago de su cargo y descuadraría el saldo del alumno y el de la cuenta.
+    const sinPagos = tx.select({ id: cargos.id }).from(cargos)
+      .where(and(
+        eq(cargos.inscripcionId, titularInscripcionId),
+        eq(cargos.concepto, "mensualidad"),
+        eq(cargos.cancelado, false),
+        sql`NOT EXISTS (SELECT 1 FROM aplicaciones ap WHERE ap.cargo_id = cargos.id)`,
+      )).all();
+    for (const c of sinPagos) {
+      tx.update(cargos).set({ alumnoId: cuentaId }).where(eq(cargos.id, c.id)).run();
+    }
+    return { cargosMovidos: sinPagos.length, cuentaId };
+  });
 }
