@@ -9,7 +9,7 @@ import { configuracion, recibos } from "@/db/schema/index";
 import { tutoresDe } from "@/lib/datos/alumnos";
 import { reciboPorId, renglonesDeRecibo } from "@/lib/datos/finanzas";
 import {
-  contactoDelComprobante, descripcionDelComprobante, lineasDeClases,
+  agruparClases, contactoDelComprobante, descripcionDelComprobante,
 } from "@/lib/dominio/comprobante";
 import { esMenorDeEdad } from "@/lib/formato";
 import { fechaCivil } from "@/lib/zona";
@@ -57,7 +57,9 @@ export function armarComprobante(reciboId: number) {
     esAdulto,
   );
 
-  const clasesLista = lineasDeClases(r.clasesTexto);
+  // Las clases vienen agrupadas por alumno en un plan familiar (cada uno numera las suyas).
+  const clasesGrupos = agruparClases(r.clasesTexto);
+  const clasesLista = clasesGrupos.flatMap((g) => g.clases);
   const banco = {
     nombre: cfg.recibo_banco_nombre, titular: cfg.recibo_banco_titular, cuenta: cfg.recibo_banco_cuenta,
     clabe: cfg.recibo_banco_clabe, tarjeta: cfg.recibo_banco_tarjeta,
@@ -68,7 +70,7 @@ export function armarComprobante(reciboId: number) {
     fechaPago: { anio, mes, dia },
     emision: { anio: ae, mes: me, dia: de },
     totalReal, aFavor, esAdulto, tutoresDelAlumno, contacto,
-    clasesLista,
+    clasesGrupos, clasesLista,
     descripcionPago: descripcionDelComprobante(r.descripcion, clasesLista),
     banco,
     hayBanco: Boolean(banco.cuenta || banco.clabe || banco.tarjeta),

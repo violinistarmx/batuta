@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  contactoDelComprobante, descripcionDelComprobante, fechaCorta, horaCorta, lineaDeClase,
-  lineasDeClases, periodoLegible, textoComprobanteWhatsApp,
+  agruparClases, clasesDelFormulario, contactoDelComprobante, descripcionDelComprobante, fechaCorta, horaCorta, lineaDeClase,
+  lineasDeClases, periodoLegible, serializarClases, textoComprobanteWhatsApp,
 } from "./comprobante.ts";
 
 test("fechaCorta y periodoLegible usan el formato de la plantilla", () => {
@@ -73,4 +73,30 @@ test("el mensaje de WhatsApp incluye el enlace al PDF cuando lo hay", () => {
   const base = { saludo: "Laura", alumno: "Ana", paraTutor: true, folio: "VS-1", total: "$1.00" };
   assert.match(textoComprobanteWhatsApp({ ...base, enlace: "https://x.mx/comprobante/abc" }), /PDF aquí: https:\/\/x\.mx\/comprobante\/abc/);
   assert.doesNotMatch(textoComprobanteWhatsApp(base), /PDF aquí/);
+});
+
+test("agruparClases: un plan familiar separa las clases por alumno", () => {
+  const g = agruparClases("# Ana María\nSáb 1\nSáb 8\n# Ana Victoria\nDom 2\n\n# Gael\nLun 3\nLun 10\nLun 17");
+  assert.deepEqual(g.map((x) => [x.alumno, x.clases.length]), [["Ana María", 2], ["Ana Victoria", 1], ["Gael", 3]]);
+});
+
+test("agruparClases: sin marcas son clases sueltas de un grupo sin nombre (pagos anteriores)", () => {
+  assert.deepEqual(agruparClases("Sáb 1\nSáb 8"), [{ alumno: null, clases: ["Sáb 1", "Sáb 8"] }]);
+  assert.deepEqual(agruparClases(null), []);
+});
+
+test("agruparClases ignora grupos sin clases", () => {
+  assert.deepEqual(agruparClases("# Ana\n# Gael\nLun 3"), [{ alumno: "Gael", clases: ["Lun 3"] }]);
+});
+
+test("serializarClases y agruparClases son inversas", () => {
+  const grupos = [{ alumno: "Ana", clases: ["A", "B"] }, { alumno: "Gael", clases: ["C"] }];
+  assert.deepEqual(agruparClases(serializarClases(grupos)), grupos);
+  assert.equal(serializarClases([{ alumno: "Ana", clases: [" "] }]), null);
+});
+
+test("clasesDelFormulario: un campo por alumno en planes familiares, texto libre si no", () => {
+  assert.equal(clasesDelFormulario(["Ana", "Gael"], ["A\nB", "C"], ""), "# Ana\nA\nB\n# Gael\nC");
+  assert.equal(clasesDelFormulario([], [], " X \n Y"), "X\nY");
+  assert.equal(clasesDelFormulario(["Ana", "Gael"], ["", ""], ""), null);
 });

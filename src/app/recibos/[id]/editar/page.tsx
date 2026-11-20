@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
-import { reciboPorId } from "@/lib/datos/finanzas";
+import { reciboPorId, renglonesDeRecibo } from "@/lib/datos/finanzas";
+import { integrantesDelPlan } from "@/lib/datos/inscripciones";
+import { agruparClases } from "@/lib/dominio/comprobante";
 import { FormularioEditarPago } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +19,23 @@ export default async function EditarPago({ params }: { params: Promise<{ id: str
   if (!r) notFound();
 
   const puedeDescontar = tienePermiso(sesion, "configuracion.gestionar");
+
+  // Plan familiar: un campo de clases por alumno del plan, con lo ya guardado de cada uno. Lo
+  // guardado de alguien que ya no está en el plan se conserva como un bloque más: no se pierde.
+  const primera = renglonesDeRecibo(r.pagoId).find((x) => x.inscripcionId !== null);
+  const plan = primera?.inscripcionId != null ? integrantesDelPlan(primera.inscripcionId) : null;
+  const guardadas = agruparClases(r.clasesTexto);
+  const integrantes = plan
+    ? [
+        ...plan.map((m) => ({
+          nombre: m.alumno,
+          inicial: guardadas.find((g) => g.alumno === m.alumno)?.clases.join("\n") ?? "",
+        })),
+        ...guardadas
+          .filter((g) => g.alumno && !plan.some((m) => m.alumno === g.alumno))
+          .map((g) => ({ nombre: g.alumno!, inicial: g.clases.join("\n") })),
+      ]
+    : undefined;
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8">
@@ -54,6 +73,7 @@ export default async function EditarPago({ params }: { params: Promise<{ id: str
           selloPago: r.selloPago,
         }}
         puedeDescontar={puedeDescontar}
+        integrantes={integrantes}
       />
     </main>
   );

@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { editarPago, type EstadoEditar } from "@/app/finanzas/acciones";
-import { CamposComprobante } from "@/components/campos-comprobante";
+import { CamposComprobante, type IntegranteClases } from "@/components/campos-comprobante";
 
 const campo = "rounded-lg border border-vs-linea bg-white px-3 py-2 text-sm " +
   "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vs-naranja-700";
@@ -38,7 +38,7 @@ type Inicial = {
 };
 
 export function FormularioEditarPago({
-  reciboId, pagoId, alumnoId, alumno, folio, inicial, puedeDescontar,
+  reciboId, pagoId, alumnoId, alumno, folio, inicial, puedeDescontar, integrantes,
 }: {
   reciboId: number;
   pagoId: number;
@@ -46,6 +46,7 @@ export function FormularioEditarPago({
   alumno: string;
   folio: string;
   inicial: Inicial;
+  integrantes?: IntegranteClases[];
   puedeDescontar?: boolean;
 }) {
   const [estado, accion] = useActionState<EstadoEditar, FormData>(editarPago, {});
@@ -118,7 +119,7 @@ export function FormularioEditarPago({
         </div>
       </div>
 
-      <CamposComprobante inicial={{ descripcion: inicial.descripcion, clases: inicial.clasesTexto, nota: inicial.nota, sello: inicial.selloPago }} />
+      <CamposComprobante integrantes={integrantes} inicial={{ descripcion: inicial.descripcion, clases: inicial.clasesTexto, nota: inicial.nota, sello: inicial.selloPago }} />
 
       <div className="flex flex-wrap items-center gap-4">
         <Boton />

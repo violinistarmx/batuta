@@ -104,3 +104,55 @@ export function textoComprobanteWhatsApp(d: {
     "— Academia de Música VioliniStar",
   ].join("\n");
 }
+
+
+// ---------------------------------------------------- clases por alumno (planes familiares) ---
+
+/** Las clases de un alumno del comprobante. `alumno` es null en los pagos de un solo alumno. */
+export type GrupoClases = { alumno: string | null; clases: string[] };
+
+/**
+ * Lee el texto de clases de un pago. Se guarda en texto plano: en un plan familiar cada alumno
+ * abre con una línea «# Nombre» y sus clases una por línea debajo; sin esa marca (pagos de un
+ * solo alumno y todo lo anterior) son clases sueltas de un grupo sin nombre.
+ */
+export function agruparClases(texto: string | null | undefined): GrupoClases[] {
+  const grupos: GrupoClases[] = [];
+  let actual: GrupoClases | null = null;
+  for (const linea of (texto ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    const m = /^#\s+(.+)$/.exec(linea);
+    if (m) {
+      actual = { alumno: m[1]!.trim(), clases: [] };
+      grupos.push(actual);
+    } else {
+      if (!actual) { actual = { alumno: null, clases: [] }; grupos.push(actual); }
+      actual.clases.push(linea);
+    }
+  }
+  return grupos.filter((g) => g.clases.length > 0);
+}
+
+/** Lo inverso de `agruparClases`: devuelve null si no hay ninguna clase. */
+export function serializarClases(grupos: readonly GrupoClases[]): string | null {
+  const partes = grupos
+    .map((g) => ({ alumno: g.alumno?.trim() || null, clases: g.clases.map((c) => c.trim()).filter(Boolean) }))
+    .filter((g) => g.clases.length > 0)
+    .map((g) => (g.alumno ? [`# ${g.alumno}`, ...g.clases] : g.clases).join("\n"));
+  return partes.length > 0 ? partes.join("\n") : null;
+}
+
+/**
+ * El texto de clases que llega del formulario. En un plan familiar el formulario manda un campo
+ * por alumno (`nombres[i]` con `textos[i]`); en un pago de un solo alumno, un solo texto libre.
+ */
+export function clasesDelFormulario(
+  nombres: readonly string[],
+  textos: readonly string[],
+  libre: string,
+): string | null {
+  if (nombres.length === 0) return serializarClases([{ alumno: null, clases: libre.split(/\r?\n/) }]);
+  return serializarClases(nombres.map((n, i) => ({
+    alumno: n,
+    clases: (textos[i] ?? "").split(/\r?\n/),
+  })));
+}

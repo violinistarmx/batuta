@@ -30,6 +30,22 @@ const MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
+/** Las clases del pago. En un plan familiar, un bloque por alumno con su nombre y su propia numeración. */
+function Clases({ grupos }: { grupos: { alumno: string | null; clases: string[] }[] }) {
+  return (
+    <>
+      {grupos.map((g, i) => (
+        <div key={i} className="clases-grupo">
+          {g.alumno && <p className="clases-alumno">{g.alumno}</p>}
+          <ol className="clases">
+            {g.clases.map((c, k) => <li key={k}>{c}</li>)}
+          </ol>
+        </div>
+      ))}
+    </>
+  );
+}
+
 const METODO: Record<string, string> = {
   efectivo: "Efectivo", transferencia: "Transferencia",
   tarjeta: "Tarjeta", deposito: "Depósito", otro: "Otro",
@@ -46,7 +62,7 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
   if (!c) notFound();
   const {
     r, renglones, cfg, fechaPago, emision, totalReal, aFavor, esAdulto, tutoresDelAlumno, contacto,
-    clasesLista, descripcionPago, banco, hayBanco, instagram,
+    clasesGrupos, clasesLista, descripcionPago, banco, hayBanco, instagram,
   } = c;
   const { anio, mes, dia } = fechaPago;
   const { anio: ae, mes: me, dia: de } = emision;
@@ -166,11 +182,7 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
                       )}
                       {/* Descripción y clases del pago: van con la primera partida. */}
                       {i === 0 && descripcionPago && <p className="desc">{descripcionPago}</p>}
-                      {i === 0 && clasesLista.length > 0 && (
-                        <ol className="clases">
-                          {clasesLista.map((c, k) => <li key={k}>{c}</li>)}
-                        </ol>
-                      )}
+                      {i === 0 && <Clases grupos={clasesGrupos} />}
                     </div>
                     <div className="num r">{pesosExactos(x.montoAplicado)}</div>
                     <div className="num r">1</div>
@@ -183,9 +195,7 @@ export default async function Recibo({ params }: { params: Promise<{ id: string 
                 <div className="tr primera">
                   <div>
                     {descripcionPago && <p className="desc" style={{ marginTop: 0 }}>{descripcionPago}</p>}
-                    {clasesLista.length > 0 && (
-                      <ol className="clases">{clasesLista.map((c, k) => <li key={k}>{c}</li>)}</ol>
-                    )}
+                    <Clases grupos={clasesGrupos} />
                   </div>
                   <div /><div /><div />
                 </div>

@@ -139,6 +139,33 @@ const s = StyleSheet.create({
   emitido: { textAlign: "center", fontSize: p(10), color: "#555555", paddingTop: p(8), paddingBottom: p(10) },
 });
 
+/**
+ * Las clases del pago: en un plan familiar, un bloque por alumno con su nombre y su numeración.
+ * Con varios alumnos las líneas van más juntas para que 3 × 4 clases quepan en la hoja.
+ */
+const ClasesPdf = ({ grupos }: { grupos: { alumno: string | null; clases: string[] }[] }) => {
+  const compacto = grupos.length > 1;
+  return (
+    <View>
+      {grupos.map((g, i) => (
+        <View key={i} style={{ marginTop: p(compacto ? 6 : 12) }}>
+          {g.alumno && (
+            <Text style={{ fontWeight: 700, fontSize: p(10.5), letterSpacing: p(2), textTransform: "uppercase", color: K.cafe, marginBottom: p(3) }}>
+              {g.alumno}
+            </Text>
+          )}
+          {g.clases.map((t, k) => (
+            <View key={k} style={[s.clase, compacto ? { paddingVertical: p(1) } : {}]} wrap={false}>
+              <Text style={[s.claseNum, compacto ? { width: p(17), height: p(17), fontSize: p(10), paddingTop: p(3), marginRight: p(8) } : {}]}>{k + 1}</Text>
+              <Text style={[s.claseTexto, compacto ? { fontSize: p(12) } : {}]}>{t}</Text>
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+};
+
 const Fila = ({ etiqueta, children, primera }: { etiqueta: string; children: React.ReactNode; primera?: boolean }) => (
   <View style={primera ? [s.fila, s.filaPrimera] : s.fila}>
     <Text style={s.etiquetaDato}>{etiqueta}</Text>
@@ -147,10 +174,11 @@ const Fila = ({ etiqueta, children, primera }: { etiqueta: string; children: Rea
 );
 
 export function ComprobantePdf({ c }: { c: Comprobante }) {
-  const { r, renglones, cfg, fechaPago, emision, totalReal, aFavor, contacto, clasesLista, descripcionPago, banco, hayBanco, instagram } = c;
+  const { r, renglones, cfg, fechaPago, emision, totalReal, aFavor, contacto, clasesGrupos, clasesLista, descripcionPago, banco, hayBanco, instagram } = c;
   const f2 = (n: number) => String(n).padStart(2, "0");
   // El pie viaja fijo al fondo de cada página; el contenido deja ese espacio libre.
-  const alturaCierre = hayBanco ? p(14 + 84 + 40 + 34 + 40 + 30) : p(14 + 40 + 34 + 40 + 30);
+  // Medido sobre el PDF: lema + franja + fecha de emisión + marco ≈ 92 pt; con datos de pago, ≈ 150 pt.
+  const alturaCierre = hayBanco ? 150 : 92;
 
   return (
     <Document title={`Comprobante de pago ${r.folio}`} author="Academia de Música VioliniStar" subject="Comprobante de pago">
@@ -202,9 +230,9 @@ export function ComprobantePdf({ c }: { c: Comprobante }) {
             const resta = x.montoCargo - x.aplicadoTotal;
             const parcial = x.montoAplicado < x.montoCargo;
             return (
-              <View key={i} style={[s.tr, i === 0 ? { minHeight: p(130) } : {}]} wrap={false}>
+              <View key={i} style={[s.tr, i === 0 ? { minHeight: p(130) } : {}, i === 0 && clasesGrupos.length > 1 ? { paddingVertical: p(9) } : {}]} wrap={i !== 0}>
                 <View style={s.cDesc}>
-                  <Text style={s.programa}>{x.descripcion}</Text>
+                  <Text style={x.descripcion.length > 40 ? [s.programa, { fontSize: p(17) }] : s.programa}>{x.descripcion}</Text>
                   {x.periodo && <Text style={s.periodo}>{periodoLegible(x.periodo)}</Text>}
                   {parcial && (
                     <Text style={s.desc}>
@@ -212,16 +240,7 @@ export function ComprobantePdf({ c }: { c: Comprobante }) {
                     </Text>
                   )}
                   {i === 0 && descripcionPago && <Text style={s.desc}>{descripcionPago}</Text>}
-                  {i === 0 && clasesLista.length > 0 && (
-                    <View style={{ marginTop: p(12) }}>
-                      {clasesLista.map((t, k) => (
-                        <View key={k} style={s.clase} wrap={false}>
-                          <Text style={s.claseNum}>{k + 1}</Text>
-                          <Text style={s.claseTexto}>{t}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
+                  {i === 0 && <ClasesPdf grupos={clasesGrupos} />}
                 </View>
                 <Text style={[s.num, s.cUnit]}>{pesosExactos(x.montoAplicado)}</Text>
                 <Text style={[s.num, s.cCant]}>1</Text>
@@ -233,9 +252,7 @@ export function ComprobantePdf({ c }: { c: Comprobante }) {
             <View style={[s.tr, { minHeight: p(130) }]} wrap={false}>
               <View style={s.cDesc}>
                 {descripcionPago && <Text style={[s.desc, { marginTop: 0 }]}>{descripcionPago}</Text>}
-                {clasesLista.map((t, k) => (
-                  <View key={k} style={s.clase}><Text style={s.claseNum}>{k + 1}</Text><Text style={s.claseTexto}>{t}</Text></View>
-                ))}
+                <ClasesPdf grupos={clasesGrupos} />
               </View>
             </View>
           )}

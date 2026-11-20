@@ -10,6 +10,7 @@ import { configuracion, nominaPartidas } from "@/db/schema/index";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { alumnoPorId } from "@/lib/datos/alumnos";
+import { clasesDelFormulario } from "@/lib/dominio/comprobante";
 import { actualizarPago, anularPago, generarNomina, pagarNomina, reciboPorId, registrarPago } from "@/lib/datos/finanzas";
 import { pesos } from "@/lib/formato";
 import { hoyEnMexico, instanteEnMexico } from "@/lib/zona";
@@ -40,7 +41,7 @@ const Pago = z.object({
    */
   descripcion: z.string().trim().max(1000).transform((s) => (s === "" ? null : s)),
   /** Fechas y horarios de las clases que cubre, una por línea. Salen numeradas en el comprobante. */
-  clasesTexto: z.string().trim().max(1500).transform((s) => (s === "" ? null : s)),
+  clasesTexto: z.string().trim().max(3000).transform((s) => (s === "" ? null : s)),
   /** Notas que salen impresas en el recuadro «Notas» del comprobante. */
   nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
   /** Casilla «Pago registrado»: el sello del comprobante. Desmarcada no llega el campo. */
@@ -63,7 +64,10 @@ export async function cobrar(_previo: EstadoPago, datos: FormData): Promise<Esta
     recibidoEl: datos.get("recibidoEl"),
     referencia: datos.get("referencia") ?? "",
     descripcion: datos.get("descripcion") ?? "",
-    clasesTexto: datos.get("clasesTexto") ?? "",
+    clasesTexto: clasesDelFormulario(
+      datos.getAll("claseAlumno").map(String), datos.getAll("claseTexto").map(String),
+      String(datos.get("clasesTexto") ?? ""),
+    ) ?? "",
     nota: datos.get("nota") ?? "",
     selloPago: datos.get("selloPago") ?? undefined,
     cargoObjetivoId: datos.get("cargoObjetivoId") ?? "",
@@ -119,7 +123,7 @@ const PagoEditar = z.object({
   recibidoEl: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige la fecha del pago."),
   referencia: z.string().trim().max(100).transform((s) => (s === "" ? null : s)),
   descripcion: z.string().trim().max(1000).transform((s) => (s === "" ? null : s)),
-  clasesTexto: z.string().trim().max(1500).transform((s) => (s === "" ? null : s)),
+  clasesTexto: z.string().trim().max(3000).transform((s) => (s === "" ? null : s)),
   nota: z.string().trim().max(2000).transform((s) => (s === "" ? null : s)),
   selloPago: z.string().optional().transform((v) => v === "1"),
 });
@@ -137,7 +141,10 @@ export async function editarPago(_previo: EstadoEditar, datos: FormData): Promis
     recibidoEl: datos.get("recibidoEl"),
     referencia: datos.get("referencia") ?? "",
     descripcion: datos.get("descripcion") ?? "",
-    clasesTexto: datos.get("clasesTexto") ?? "",
+    clasesTexto: clasesDelFormulario(
+      datos.getAll("claseAlumno").map(String), datos.getAll("claseTexto").map(String),
+      String(datos.get("clasesTexto") ?? ""),
+    ) ?? "",
     nota: datos.get("nota") ?? "",
     selloPago: datos.get("selloPago") ?? undefined,
   });

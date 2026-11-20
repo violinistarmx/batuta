@@ -992,3 +992,32 @@ export function moverInscripcionAPlan(
     return { destino: d.programa, programa: d.programa, cargosCancelados: susCargos.length };
   });
 }
+
+
+export type IntegrantePlan = { inscripcionId: number; alumno: string };
+
+/**
+ * Los alumnos con inscripción activa en el plan familiar de esta inscripción (el titular y los que
+ * cubre), en un orden estable. null si la inscripción no es de un plan familiar. El comprobante
+ * pide las fechas y horarios de las clases de cada uno por separado.
+ */
+export function integrantesDelPlan(inscripcionId: number): IntegrantePlan[] | null {
+  const yo = db.select({
+    id: inscripciones.id, cubiertaPorId: inscripciones.cubiertaPorId, incluidos: programas.alumnosIncluidos,
+  })
+    .from(inscripciones)
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(eq(inscripciones.id, inscripcionId)).get();
+  if (!yo || yo.incluidos <= 1) return null;
+  const titularId = yo.cubiertaPorId ?? yo.id;
+
+  return db.select({ inscripcionId: inscripciones.id, alumno: alumnos.nombre })
+    .from(inscripciones)
+    .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
+    .where(and(
+      eq(inscripciones.estado, "activa"),
+      sql`(${inscripciones.id} = ${titularId} OR ${inscripciones.cubiertaPorId} = ${titularId})`,
+    ))
+    .orderBy(sql`${inscripciones.id} <> ${titularId}`, asc(inscripciones.id))
+    .all();
+}

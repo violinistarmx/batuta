@@ -9,8 +9,8 @@ import { registrar } from "@/lib/bitacora";
 import {
   alumnoPorId, consentimientosDe, credencialDe, saludDe, tutoresDe,
 } from "@/lib/datos/alumnos";
-import { clasesSugeridasParaComprobante } from "@/lib/datos/clases";
-import { inscripcionesDe, planesQuePaga } from "@/lib/datos/inscripciones";
+import { clasesSugeridasDeInscripcion } from "@/lib/datos/clases";
+import { inscripcionesDe, integrantesDelPlan, planesQuePaga } from "@/lib/datos/inscripciones";
 import { cargosDeAlumno, cargosDeAlumnoCancelados, pagosDeAlumno } from "@/lib/datos/finanzas";
 import { adeudoDe, resumirCobranza } from "@/lib/dominio/cobranza";
 import {
@@ -54,8 +54,16 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
   const cobranza = resumirCobranza(cargos, hoyMx);
   // Clases del período del adeudo más antiguo: se ofrecen ya escritas en el registro del pago.
   const cargoMasViejo = cargos.find((c) => adeudoDe(c) > 0 && c.inscripcionId !== null);
-  const clasesSugeridas = cargoMasViejo && cargoMasViejo.inscripcionId !== null
-    ? clasesSugeridasParaComprobante(cargoMasViejo.inscripcionId, cargoMasViejo.cicloId)
+  // Plan familiar: un bloque de clases por alumno del plan. Si no, las clases sugeridas del alumno.
+  const integrantesPlan = cargoMasViejo && cargoMasViejo.inscripcionId !== null
+    ? integrantesDelPlan(cargoMasViejo.inscripcionId)
+    : null;
+  const integrantesCobro = integrantesPlan?.map((m) => ({
+    nombre: m.alumno,
+    sugeridas: clasesSugeridasDeInscripcion(m.inscripcionId, cargoMasViejo?.cicloId ?? null),
+  }));
+  const clasesSugeridas = !integrantesPlan && cargoMasViejo && cargoMasViejo.inscripcionId !== null
+    ? clasesSugeridasDeInscripcion(cargoMasViejo.inscripcionId, cargoMasViejo.cicloId)
     : [];
   const consents = consentimientosDe(alumno.id);
   const credencial = credencialDe(alumno.id);
@@ -633,6 +641,7 @@ export default async function Expediente({ params }: { params: Promise<{ id: str
                     hoy={hoyMx}
                     adeudoTotal={cobranza.porCobrarCentavos}
                     clasesSugeridas={clasesSugeridas}
+                    integrantes={integrantesCobro}
                     cargosAbiertos={cargos
                       .filter((c) => adeudoDe(c) > 0)
                       .map((c) => ({ id: c.id, descripcion: c.descripcion, adeudoCentavos: adeudoDe(c) }))}

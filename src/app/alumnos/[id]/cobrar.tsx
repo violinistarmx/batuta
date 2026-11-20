@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { cobrar, type EstadoPago } from "@/app/finanzas/acciones";
-import { CamposComprobante } from "@/components/campos-comprobante";
+import { CamposComprobante, type IntegranteClases } from "@/components/campos-comprobante";
 
 const campo = "rounded-lg border border-vs-linea bg-white px-3 py-2 text-sm " +
   "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vs-naranja-700";
@@ -26,7 +26,7 @@ function Boton() {
 }
 
 export function Cobrar({
-  alumnoId, hoy, adeudoTotal, adeudoTexto, puedeDescontar, cargosAbiertos = [], clasesSugeridas = [],
+  alumnoId, hoy, adeudoTotal, adeudoTexto, puedeDescontar, cargosAbiertos = [], clasesSugeridas = [], integrantes,
 }: {
   alumnoId: number; hoy: string; adeudoTotal: number; adeudoTexto: string;
   puedeDescontar?: boolean;
@@ -34,6 +34,8 @@ export function Cobrar({
   cargosAbiertos?: { id: number; descripcion: string; adeudoCentavos: number }[];
   /** Clases agendadas del período del adeudo más antiguo, para ofrecerlas ya escritas. */
   clasesSugeridas?: string[];
+  /** Si el adeudo más antiguo es de un plan familiar: los alumnos del plan, cada uno con sus clases. */
+  integrantes?: IntegranteClases[];
 }) {
   const [estado, accion] = useActionState<EstadoPago, FormData>(cobrar, {});
   const [monto, setMonto] = useState(adeudoTotal > 0 ? (adeudoTotal / 100).toFixed(2) : "");
@@ -116,7 +118,7 @@ export function Cobrar({
         </div>
       )}
 
-      <CamposComprobante sugeridas={clasesSugeridas} />
+      <CamposComprobante sugeridas={clasesSugeridas} integrantes={integrantes} />
 
       {parcial && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">

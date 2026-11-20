@@ -504,6 +504,15 @@ fidelidad exacta y cero dependencias, y un PDF servidor solo hará falta cuando 
 comprobantes por correo (fase 2). El estilo vive en `src/app/recibos/[id]/comprobante.css`; el
 armazón `.recibo` de `globals.css` queda para la credencial, el programa de recital y la responsiva.
 
+**Planes familiares: las clases van por alumno.** Cuando el adeudo es de un plan familiar, el
+registro del pago no pide una lista de clases sino un bloque por cada alumno del plan (2 o 3,
+los que tiene inscritos), cada uno con su nombre y sus propias fechas y horarios, sugeridos desde
+su agenda del período. El comprobante —en pantalla y en el PDF del enlace— los muestra agrupados
+con el nombre del alumno y la numeración reiniciada: 4, 4 y 4, no una lista de 12. Se guarda en
+`pagos.clases_texto` como texto con una línea `# Nombre` por alumno (los pagos de un solo alumno
+y los anteriores siguen siendo una lista simple, sin migración). El PDF compacta las líneas para
+que tres alumnos quepan en una hoja.
+
 **Qué se captura y qué sale solo.** Al registrar (o editar) un pago se agregan únicamente los
 datos que la plantilla pide y el sistema no tiene: *descripción*, *fechas y horarios de las
 clases* (una por línea; se sugieren desde la agenda del período), *notas* y el sello «Pago

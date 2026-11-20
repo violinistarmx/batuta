@@ -587,6 +587,7 @@ export function renglonesDeRecibo(pagoId: number) {
       descripcion: cargos.descripcion,
       concepto: cargos.concepto,
       periodo: cargos.periodo,
+      inscripcionId: cargos.inscripcionId,
       montoCargo: cargos.montoCentavos,
       montoAplicado: aplicaciones.montoCentavos,
       aplicadoTotal: APLICADO,
