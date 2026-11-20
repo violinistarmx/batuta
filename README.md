@@ -353,6 +353,15 @@ Migración `0023_responsable_pago` (reversa en `drizzle/reversas/`).
 «Asignar responsable». Pasa el plan al tutor y mueve la mensualidad vigente solo si **no tiene
 pagos aplicados**; lo ya abonado no se mueve, para no descuadrar saldos ni recibos.
 
+**Cambiar el plan (Duet de 2 → Duet de 3).** Si la familia suma a otro integrante cuando el plan
+ya está abierto, la inscripción titular tiene «Cambiar el plan». Pasa al titular y a todos los
+alumnos que cubre al programa familiar elegido y pone el precio vigente del programa nuevo en el
+período abierto y en su cargo. Reglas: el programa nuevo debe dar las mismas clases por alumno y
+cubrir al menos a los que ya están; y **si el cargo del período ya tiene pagos aplicados se
+rechaza**: hay que anular el pago primero, para que lo cobrado no quede contra otro precio. Los
+períodos cerrados, las clases y los créditos no se tocan. Queda en la bitácora
+(`inscripcion.cambiar_programa`, con programa y precio antes y después).
+
 **Recordatorio de clase:** en la clase se elige *Al alumno / Al tutor / A ambos* (cada opción
 solo si hay teléfono). El sistema sugiere al alumno si es adulto y al tutor si es menor.
 

@@ -96,6 +96,45 @@ export function motivoParaRechazarCobertura(s: SolicitudDeCobertura): string | n
   return null;
 }
 
+export type SolicitudDeCambioDePlan = {
+  esTitular: boolean;
+  titularActivo: boolean;
+  /** Alumnos con inscripción activa en el plan, el titular incluido. */
+  miembros: number;
+  actual: { programaId: number; clases: number; minutos: number; alumnosIncluidos: number };
+  nuevo: { programaId: number; clases: number; minutos: number; alumnosIncluidos: number; activo: boolean };
+  /** El cargo del período vigente ya recibió algún pago. */
+  pagosAplicados: boolean;
+};
+
+/**
+ * Por qué NO puede cambiarse el plan familiar a otro programa, o null si sí puede.
+ *
+ * El caso típico: se inscribió un Duet de 2 y la familia suma un tercero, así que pasa al
+ * Duet de 3. Se exige que el programa nuevo dé las mismas clases por alumno (si no, habría que
+ * rehacer los créditos del período) y que no haya dinero ya cobrado contra el precio anterior.
+ */
+export function motivoParaRechazarCambioDePlan(s: SolicitudDeCambioDePlan): string | null {
+  if (!s.esTitular) return "El plan se cambia desde la inscripción titular.";
+  if (s.actual.alumnosIncluidos <= 1) return "Esa inscripción no es de un plan familiar.";
+  if (!s.titularActivo) return "El plan ya no está activo.";
+  if (s.nuevo.alumnosIncluidos <= 1) return "Elige un programa familiar.";
+  if (!s.nuevo.activo) return "Ese programa ya no se ofrece.";
+  if (s.nuevo.programaId === s.actual.programaId) return "El plan ya está en ese programa.";
+  if (s.nuevo.alumnosIncluidos < s.miembros) {
+    return `Ese programa cubre ${s.nuevo.alumnosIncluidos} alumnos y el plan ya tiene ${s.miembros}.`;
+  }
+  if (s.nuevo.clases !== s.actual.clases || s.nuevo.minutos !== s.actual.minutos) {
+    return "Ese programa da otras clases por alumno: cambiarlo a mitad de período obligaría a rehacer " +
+      "los créditos. Hazlo al renovar.";
+  }
+  if (s.pagosAplicados) {
+    return "El período vigente ya tiene pagos aplicados. Anula el pago y cambia el plan, o el " +
+      "importe cobrado dejaría de coincidir con el precio.";
+  }
+  return null;
+}
+
 /**
  * Por qué NO puede abrirse un plan familiar con este titular, o null si puede.
  *

@@ -5,13 +5,16 @@ import { Encabezado } from "@/components/encabezado";
 import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { alumnoPorId, tutoresDe } from "@/lib/datos/alumnos";
 import { aulasActivas, clasesDeInscripcion } from "@/lib/datos/clases";
-import { ciclosDe, familiaDe, inscripcionPorId, movimientosDe } from "@/lib/datos/inscripciones";
+import {
+  ciclosDe, familiaDe, inscripcionPorId, movimientosDe, opcionesParaCambiarPlan,
+} from "@/lib/datos/inscripciones";
 import { progresoDeInscripcion, tareasDeInscripcion } from "@/lib/datos/expediente";
 import { diasRestantes } from "@/lib/dominio/ciclos";
 import { ZONA, esMenorDeEdad, fechaLarga, pesos } from "@/lib/formato";
 import { horaCivil } from "@/lib/zona";
 import { Agendar } from "./agendar";
 import { BotonRenovar } from "./renovar";
+import { CambiarPlan } from "./cambiar-plan";
 import { AsignarResponsable } from "./responsable";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +68,8 @@ export default async function Inscripcion({ params }: { params: Promise<{ id: st
     : undefined;
   const titularEsMenor = !!titularAlumno
     && (!titularAlumno.fechaNacimiento || esMenorDeEdad(titularAlumno.fechaNacimiento));
+  // Cambiar el plan (Duet de 2 → Duet de 3) se hace desde la inscripción titular, con período abierto.
+  const opcionesPlan = esTitular && puedeRenovar && vigente ? opcionesParaCambiarPlan(insc.id) : [];
   const tutoresDelTitular = titularEsMenor && puedeRenovar
     ? tutoresDe(insc.alumnoId).map((t) => ({
         id: t.id, nombre: t.nombre, parentesco: t.parentesco, esResponsablePago: t.esResponsablePago,
@@ -174,6 +179,13 @@ export default async function Inscripcion({ params }: { params: Promise<{ id: st
             </ul>
             {titularEsMenor && puedeRenovar && (
               <AsignarResponsable inscripcionId={insc.id} tutores={tutoresDelTitular} />
+            )}
+            {opcionesPlan.length > 0 && (
+              <CambiarPlan
+                inscripcionId={insc.id}
+                precioActualCentavos={familia.precioCentavos}
+                opciones={opcionesPlan}
+              />
             )}
           </section>
         )}

@@ -4,13 +4,14 @@ import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  alumnos, alumnosTutores, cargos, ciclos, creditosClase, docentes, inscripciones,
+  alumnos, alumnosTutores, aplicaciones, cargos, ciclos, creditosClase, docentes, inscripciones,
   instrumentos, preciosVigencia, programas, secuencias, tutores,
 } from "@/db/schema/index";
 import { movimientoDeCierre } from "@/lib/dominio/creditos";
 import { periodoMensual, sumarDias } from "@/lib/dominio/ciclos";
 import {
-  cupoRestante, motivoParaRechazarCobertura, motivoParaRechazarTitular, precioDelCicloCentavos,
+  cupoRestante, motivoParaRechazarCambioDePlan, motivoParaRechazarCobertura, motivoParaRechazarTitular,
+  precioDelCicloCentavos,
 } from "@/lib/dominio/familia";
 import { esMenorDeEdad } from "@/lib/formato";
 import { generarTokenQr } from "@/lib/qr";
@@ -702,5 +703,134 @@ export function asignarResponsableDelPlan(
       tx.update(cargos).set({ alumnoId: cuentaId }).where(eq(cargos.id, c.id)).run();
     }
     return { cargosMovidos: sinPagos.length, cuentaId };
+  });
+}
+
+
+export type OpcionCambioDePlan = { id: number; nombre: string; alumnosIncluidos: number; precioCentavos: number };
+
+/**
+ * A qué programas familiares se puede pasar un plan sin rehacer nada: los que dan las mismas
+ * clases por alumno y cubren al menos a los que ya están. El caso típico: de Duet de 2 a Duet de 3.
+ */
+export function opcionesParaCambiarPlan(titularInscripcionId: number): OpcionCambioDePlan[] {
+  const t = db.select({
+    programaId: inscripciones.programaId,
+    cubiertaPorId: inscripciones.cubiertaPorId,
+    clases: programas.clasesPorCiclo,
+    minutos: programas.minutosPorClase,
+    incluidos: programas.alumnosIncluidos,
+  })
+    .from(inscripciones)
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(eq(inscripciones.id, titularInscripcionId)).get();
+  if (!t || t.cubiertaPorId !== null || t.incluidos <= 1) return [];
+
+  const cubiertas = db.select({ n: sql<number>`count(*)` }).from(inscripciones)
+    .where(and(eq(inscripciones.cubiertaPorId, titularInscripcionId), eq(inscripciones.estado, "activa"))).get()?.n ?? 0;
+  const miembros = cubiertas + 1;
+
+  return db.select({
+    id: programas.id, nombre: programas.nombre, alumnosIncluidos: programas.alumnosIncluidos,
+    precioCentavos: preciosVigencia.precioCentavos,
+  })
+    .from(programas)
+    .innerJoin(preciosVigencia, and(eq(preciosVigencia.programaId, programas.id), isNull(preciosVigencia.vigenteHasta)))
+    .where(and(
+      eq(programas.activo, true),
+      eq(programas.clasesPorCiclo, t.clases),
+      eq(programas.minutosPorClase, t.minutos),
+      sql`${programas.alumnosIncluidos} > 1`,
+      sql`${programas.alumnosIncluidos} >= ${miembros}`,
+      sql`${programas.id} <> ${t.programaId}`,
+    ))
+    .orderBy(asc(programas.alumnosIncluidos), asc(programas.orden))
+    .all();
+}
+
+/**
+ * Cambia un plan familiar a otro programa (típicamente de Duet de 2 a Duet de 3 cuando la
+ * familia suma un integrante). Todo en una transacción:
+ *
+ * - el titular y todos los alumnos que cubre pasan al programa nuevo (el plan exige el mismo
+ *   programa para todos);
+ * - el período vigente del titular y su cargo toman el precio vigente del programa nuevo;
+ * - se rechaza si ese cargo ya tiene pagos aplicados: el dinero cobrado no puede quedar contra
+ *   un precio distinto. La salida es anular el pago y cambiar el plan.
+ *
+ * Los períodos ya cerrados, sus cargos y las clases no se tocan. Los créditos tampoco: el
+ * programa nuevo debe dar las mismas clases por alumno.
+ */
+export function cambiarProgramaDelPlan(
+  titularInscripcionId: number,
+  programaNuevoId: number,
+): { de: string; a: string; precioAntesCentavos: number; precioDespuesCentavos: number; miembros: number } {
+  return db.transaction((tx) => {
+    const t = tx.select({
+      id: inscripciones.id,
+      estado: inscripciones.estado,
+      cubiertaPorId: inscripciones.cubiertaPorId,
+      programaId: inscripciones.programaId,
+      nombre: programas.nombre,
+      clases: programas.clasesPorCiclo,
+      minutos: programas.minutosPorClase,
+      incluidos: programas.alumnosIncluidos,
+    })
+      .from(inscripciones)
+      .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+      .where(eq(inscripciones.id, titularInscripcionId)).get();
+    if (!t) throw new Error("La inscripción no existe.");
+
+    const nuevo = tx.select({
+      id: programas.id, nombre: programas.nombre, clases: programas.clasesPorCiclo,
+      minutos: programas.minutosPorClase, incluidos: programas.alumnosIncluidos, activo: programas.activo,
+    }).from(programas).where(eq(programas.id, programaNuevoId)).get();
+    if (!nuevo) throw new Error("El programa no existe.");
+
+    const cubiertas = tx.select({ id: inscripciones.id }).from(inscripciones)
+      .where(and(eq(inscripciones.cubiertaPorId, titularInscripcionId), eq(inscripciones.estado, "activa"))).all();
+
+    // El cargo del período vigente y si ya recibió pagos.
+    const ciclo = tx.select({ id: ciclos.id, precio: ciclos.precioCentavos }).from(ciclos)
+      .where(and(eq(ciclos.inscripcionId, titularInscripcionId), eq(ciclos.estado, "abierto"))).get();
+    const cargo = ciclo
+      ? tx.select({ id: cargos.id }).from(cargos)
+          .where(and(eq(cargos.cicloId, ciclo.id), eq(cargos.concepto, "mensualidad"), eq(cargos.cancelado, false))).get()
+      : undefined;
+    const pagado = cargo
+      ? tx.select({ n: sql<number>`count(*)` }).from(aplicaciones).where(eq(aplicaciones.cargoId, cargo.id)).get()?.n ?? 0
+      : 0;
+
+    const motivo = motivoParaRechazarCambioDePlan({
+      esTitular: t.cubiertaPorId === null,
+      titularActivo: t.estado === "activa",
+      miembros: cubiertas.length + 1,
+      actual: { programaId: t.programaId, clases: t.clases, minutos: t.minutos, alumnosIncluidos: t.incluidos },
+      nuevo: {
+        programaId: nuevo.id, clases: nuevo.clases, minutos: nuevo.minutos,
+        alumnosIncluidos: nuevo.incluidos, activo: nuevo.activo,
+      },
+      pagosAplicados: pagado > 0,
+    });
+    if (motivo) throw new Error(motivo);
+
+    const precio = tx.select({ v: preciosVigencia.precioCentavos }).from(preciosVigencia)
+      .where(and(eq(preciosVigencia.programaId, nuevo.id), isNull(preciosVigencia.vigenteHasta))).get();
+    if (!precio) throw new Error("El programa nuevo no tiene precio vigente.");
+
+    // El plan exige un solo programa para todos sus integrantes.
+    const ids = [titularInscripcionId, ...cubiertas.map((c) => c.id)];
+    for (const id of ids) {
+      tx.update(inscripciones).set({ programaId: nuevo.id }).where(eq(inscripciones.id, id)).run();
+    }
+    if (ciclo) {
+      tx.update(ciclos).set({ precioCentavos: precio.v }).where(eq(ciclos.id, ciclo.id)).run();
+      if (cargo) tx.update(cargos).set({ montoCentavos: precio.v }).where(eq(cargos.id, cargo.id)).run();
+    }
+
+    return {
+      de: t.nombre, a: nuevo.nombre, precioAntesCentavos: ciclo?.precio ?? 0,
+      precioDespuesCentavos: precio.v, miembros: ids.length,
+    };
   });
 }

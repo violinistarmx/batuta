@@ -3,7 +3,7 @@ import test from "node:test";
 
 import {
   ahorroFamiliarCentavos, cupoRestante, esPlanFamiliar,
-  motivoParaRechazarCobertura, motivoParaRechazarTitular, precioDelCicloCentavos, precioPorAlumnoCentavos,
+  motivoParaRechazarCambioDePlan, motivoParaRechazarCobertura, motivoParaRechazarTitular, precioDelCicloCentavos, precioPorAlumnoCentavos,
   type SolicitudDeCobertura,
 } from "./familia.ts";
 
@@ -132,4 +132,34 @@ test("un menor sí abre el plan si se indica el adulto que paga", () => {
 
 test("un alumno adulto es su propio titular", () => {
   assert.equal(motivoParaRechazarTitular({ alumnoEsAdulto: true, hayResponsableAdulto: false }), null);
+});
+
+const cambio = {
+  esTitular: true, titularActivo: true, miembros: 2, pagosAplicados: false,
+  actual: { programaId: 1, clases: 4, minutos: 60, alumnosIncluidos: 2 },
+  nuevo: { programaId: 2, clases: 4, minutos: 60, alumnosIncluidos: 3, activo: true },
+};
+
+test("cambio de plan: de Duet de 2 a Duet de 3 procede", () => {
+  assert.equal(motivoParaRechazarCambioDePlan(cambio), null);
+});
+
+test("cambio de plan: el nuevo debe caber a los que ya están", () => {
+  const m = motivoParaRechazarCambioDePlan({ ...cambio, miembros: 3, nuevo: { ...cambio.nuevo, alumnosIncluidos: 2 } });
+  assert.match(m ?? "", /cubre 2 alumnos y el plan ya tiene 3/);
+});
+
+test("cambio de plan: no a mitad de período si cambian las clases por alumno", () => {
+  const m = motivoParaRechazarCambioDePlan({ ...cambio, nuevo: { ...cambio.nuevo, clases: 8 } });
+  assert.match(m ?? "", /otras clases/);
+});
+
+test("cambio de plan: con pagos aplicados hay que anular primero", () => {
+  assert.match(motivoParaRechazarCambioDePlan({ ...cambio, pagosAplicados: true }) ?? "", /Anula el pago/);
+});
+
+test("cambio de plan: solo el titular, solo familiar, solo a otro programa", () => {
+  assert.match(motivoParaRechazarCambioDePlan({ ...cambio, esTitular: false }) ?? "", /titular/);
+  assert.match(motivoParaRechazarCambioDePlan({ ...cambio, nuevo: { ...cambio.nuevo, alumnosIncluidos: 1 } }) ?? "", /familiar/);
+  assert.match(motivoParaRechazarCambioDePlan({ ...cambio, nuevo: { ...cambio.nuevo, programaId: 1 } }) ?? "", /ya está en ese programa/);
 });
