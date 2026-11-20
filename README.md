@@ -362,6 +362,15 @@ rechaza**: hay que anular el pago primero, para que lo cobrado no quede contra o
 períodos cerrados, las clases y los créditos no se tocan. Queda en la bitácora
 (`inscripcion.cambiar_programa`, con programa y precio antes y después).
 
+**Mover a un alumno al plan de otra familia.** Si alguien se inscribió «abriendo un plan nuevo»
+y debía ir en un plan que ya existía (Gael quedó como titular de su propio plan y su mamá como
+responsable), su inscripción ofrece «¿… debía ir en el plan de otra familia?». Lo pasa al plan
+elegido —con lugar libre, mismas clases por alumno, y tutor en común o la confirmación de familia
+de siempre—, deja su período en $0 y **cancela el cargo que se le había generado al plan de
+origen**. Solo procede con un plan recién abierto: un período, sin otros integrantes y sin pagos
+aplicados (si los hay, se anulan primero). Sus clases y créditos se conservan y queda en la
+bitácora. La cuenta de pago del responsable de origen se queda sin movimientos.
+
 **Recordatorio de clase:** en la clase se elige *Al alumno / Al tutor / A ambos* (cada opción
 solo si hay teléfono). El sistema sugiere al alumno si es adulto y al tutor si es menor.
 

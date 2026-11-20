@@ -834,3 +834,161 @@ export function cambiarProgramaDelPlan(
     };
   });
 }
+
+
+export type PlanDestino = {
+  inscripcionId: number;
+  /** Quien paga el plan: la cuenta del responsable o el propio alumno titular. */
+  titular: string;
+  titularCodigo: string;
+  programa: string;
+  restantes: number;
+  tutorEnComun: boolean;
+};
+
+/**
+ * Planes familiares a los que se puede mover una inscripción que hoy es titular de su propio
+ * plan: de cualquier familia, con lugar libre y que den las mismas clases por alumno. Salen
+ * primero los que comparten tutor; para los demás hay que confirmar que son familia.
+ */
+export function planesParaMoverse(inscripcionId: number): PlanDestino[] {
+  const yo = db.select({
+    alumnoId: inscripciones.alumnoId,
+    clases: programas.clasesPorCiclo,
+    minutos: programas.minutosPorClase,
+  })
+    .from(inscripciones)
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(eq(inscripciones.id, inscripcionId)).get();
+  if (!yo) return [];
+
+  const filas = db.select({
+    inscripcionId: inscripciones.id,
+    titular: sql<string>`coalesce((SELECT c.nombre FROM alumnos c WHERE c.id = inscripciones.cuenta_pago_id), ${alumnos.nombre})`,
+    titularCodigo: sql<string>`coalesce((SELECT c.codigo FROM alumnos c WHERE c.id = inscripciones.cuenta_pago_id), ${alumnos.codigo})`,
+    programa: programas.nombre,
+    incluidos: programas.alumnosIncluidos,
+    ocupados: sql<number>`(SELECT count(*) FROM inscripciones cub WHERE cub.cubierta_por_id = inscripciones.id)`,
+    tutorEnComun: sql<number>`EXISTS (
+      SELECT 1 FROM alumnos_tutores a JOIN alumnos_tutores b ON b.tutor_id = a.tutor_id
+      WHERE a.alumno_id = inscripciones.alumno_id AND b.alumno_id = ${yo.alumnoId}
+    )`,
+  })
+    .from(inscripciones)
+    .innerJoin(alumnos, eq(alumnos.id, inscripciones.alumnoId))
+    .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+    .where(and(
+      eq(inscripciones.estado, "activa"),
+      isNull(inscripciones.cubiertaPorId),
+      sql`${inscripciones.id} <> ${inscripcionId}`,
+      sql`${inscripciones.alumnoId} <> ${yo.alumnoId}`,
+      sql`${programas.alumnosIncluidos} > 1`,
+      eq(programas.clasesPorCiclo, yo.clases),
+      eq(programas.minutosPorClase, yo.minutos),
+    ))
+    .orderBy(asc(alumnos.nombre))
+    .all();
+
+  return filas
+    .map((f) => ({
+      inscripcionId: f.inscripcionId, titular: f.titular, titularCodigo: f.titularCodigo,
+      programa: f.programa, tutorEnComun: Boolean(f.tutorEnComun),
+      restantes: cupoRestante(f.incluidos, f.ocupados),
+    }))
+    .filter((f) => f.restantes > 0)
+    .sort((a, b) => Number(b.tutorEnComun) - Number(a.tutorEnComun));
+}
+
+/**
+ * Mueve la inscripción de un alumno que abrió su propio plan familiar al plan de otro titular.
+ * El caso: se inscribió a Gael «abriendo un plan nuevo» y la familia ya tenía un plan con lugar.
+ *
+ * Solo procede si el plan de origen está recién abierto: un solo período, sin otros integrantes y
+ * sin pagos aplicados a su cargo. Entonces, en una transacción: el alumno pasa al programa del plan
+ * destino y queda cubierto por él (su período abre en $0) y la mensualidad que se le había cargado
+ * se cancela, porque el precio del grupo ya lo paga el titular destino. Sus clases y créditos se
+ * conservan. Las mismas reglas de cupo, programa y tutor (o confirmación de familia) que al
+ * sumarse desde cero.
+ */
+export function moverInscripcionAPlan(
+  inscripcionId: number,
+  titularDestinoId: number,
+  familiaConfirmada: boolean,
+): { destino: string; programa: string; cargosCancelados: number } {
+  return db.transaction((tx) => {
+    const o = tx.select({
+      id: inscripciones.id,
+      alumnoId: inscripciones.alumnoId,
+      programaId: inscripciones.programaId,
+      estado: inscripciones.estado,
+      cubiertaPorId: inscripciones.cubiertaPorId,
+      clases: programas.clasesPorCiclo,
+      minutos: programas.minutosPorClase,
+      incluidos: programas.alumnosIncluidos,
+    })
+      .from(inscripciones)
+      .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+      .where(eq(inscripciones.id, inscripcionId)).get();
+    if (!o) throw new Error("La inscripción no existe.");
+    if (o.estado !== "activa") throw new Error("La inscripción ya no está activa.");
+    if (o.cubiertaPorId !== null) throw new Error("Esa inscripción ya está en el plan de otro titular.");
+    if (o.incluidos <= 1) throw new Error("Solo un plan familiar se puede mover a otro plan familiar.");
+
+    const propias = tx.select({ n: sql<number>`count(*)` }).from(inscripciones)
+      .where(eq(inscripciones.cubiertaPorId, inscripcionId)).get()?.n ?? 0;
+    if (propias > 0) {
+      throw new Error("Su plan ya tiene otros integrantes: usa «Cambiar el plan» en lugar de moverlo.");
+    }
+
+    const d = tx.select({
+      id: inscripciones.id,
+      programaId: inscripciones.programaId,
+      programa: programas.nombre,
+      clases: programas.clasesPorCiclo,
+      minutos: programas.minutosPorClase,
+      incluidos: programas.alumnosIncluidos,
+      cubiertaPorId: inscripciones.cubiertaPorId,
+    })
+      .from(inscripciones)
+      .innerJoin(programas, eq(programas.id, inscripciones.programaId))
+      .where(eq(inscripciones.id, titularDestinoId)).get();
+    if (!d) throw new Error("El plan al que lo quieres mover no existe.");
+    if (d.clases !== o.clases || d.minutos !== o.minutos) {
+      throw new Error("Ese plan da otras clases por alumno: no se puede mover a mitad de período.");
+    }
+
+    // Solo un plan recién abierto: un período, y su cargo sin pagos aplicados.
+    const periodos = tx.select({ id: ciclos.id }).from(ciclos).where(eq(ciclos.inscripcionId, inscripcionId)).all();
+    if (periodos.length !== 1) {
+      throw new Error("Su plan ya tiene renovaciones: solo se mueve un plan recién abierto.");
+    }
+    const susCargos = tx.select({ id: cargos.id }).from(cargos)
+      .where(and(eq(cargos.cicloId, periodos[0]!.id), eq(cargos.cancelado, false))).all();
+    for (const c of susCargos) {
+      const pagado = tx.select({ n: sql<number>`count(*)` }).from(aplicaciones).where(eq(aplicaciones.cargoId, c.id)).get()?.n ?? 0;
+      if (pagado > 0) {
+        throw new Error("Su cargo ya tiene pagos aplicados. Anula ese pago primero y vuelve a intentarlo.");
+      }
+    }
+
+    // Mismas reglas que al sumarse desde cero: mismo programa, cupo, plan activo y tutor/confirmación.
+    exigirCoberturaValida(
+      tx, titularDestinoId,
+      { alumnoId: o.alumnoId, programaId: d.programaId, familiaConfirmada },
+      d.incluidos,
+    );
+
+    tx.update(inscripciones)
+      .set({ programaId: d.programaId, cubiertaPorId: titularDestinoId, cuentaPagoId: null })
+      .where(eq(inscripciones.id, inscripcionId)).run();
+    // Cubierta: su período abre en cero, la mensualidad ya viene en el cargo del titular destino.
+    tx.update(ciclos).set({ precioCentavos: 0 }).where(eq(ciclos.id, periodos[0]!.id)).run();
+    for (const c of susCargos) {
+      tx.update(cargos).set({
+        cancelado: true,
+        motivoCancelacion: "El alumno se sumó a otro plan familiar: el precio lo cubre el titular de ese plan.",
+      }).where(eq(cargos.id, c.id)).run();
+    }
+    return { destino: d.programa, programa: d.programa, cargosCancelados: susCargos.length };
+  });
+}

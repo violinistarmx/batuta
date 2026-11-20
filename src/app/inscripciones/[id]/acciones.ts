@@ -1,11 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { alcanceDe, exigirPermiso } from "@/lib/auth/permisos";
 import { registrar } from "@/lib/bitacora";
 import { sincronizarDescripcionFamiliar } from "@/lib/datos/finanzas";
-import { asignarResponsableDelPlan, cambiarProgramaDelPlan, inscripcionPorId } from "@/lib/datos/inscripciones";
+import {
+  asignarResponsableDelPlan, cambiarProgramaDelPlan, inscripcionPorId, moverInscripcionAPlan,
+} from "@/lib/datos/inscripciones";
 
 export type EstadoResponsable = { error?: string; ok?: string };
 
@@ -89,4 +92,46 @@ export async function cambiarPlan(
 
   revalidatePath(`/inscripciones/${inscripcionId}`);
   return { ok: `Listo: el plan ahora es «${r.a}».` };
+}
+
+export type EstadoMoverPlan = { error?: string };
+
+/**
+ * Pasa a un alumno que abrió su propio plan familiar al plan de otro titular (por ejemplo, el
+ * hermano que se inscribió «abriendo un plan nuevo» y debía ir en el plan de la familia).
+ */
+export async function moverAPlan(
+  _previo: EstadoMoverPlan,
+  datos: FormData,
+): Promise<EstadoMoverPlan> {
+  const sesion = await exigirPermiso("inscripciones.crear");
+  const inscripcionId = Number(datos.get("inscripcionId"));
+  const destinoId = Number(datos.get("destinoId"));
+  if (!Number.isInteger(inscripcionId) || !Number.isInteger(destinoId) || destinoId <= 0) {
+    return { error: "Elige el plan al que se suma." };
+  }
+  if (!inscripcionPorId(inscripcionId, alcanceDe(sesion))) return { error: "No se encontró la inscripción." };
+
+  const confirmada = datos.get("familiaConfirmada") === "1";
+  let r: ReturnType<typeof moverInscripcionAPlan>;
+  try {
+    r = moverInscripcionAPlan(inscripcionId, destinoId, confirmada);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo mover la inscripción." };
+  }
+  // El cargo del plan destino nombra a quiénes cubre: se reescribe con el integrante nuevo.
+  sincronizarDescripcionFamiliar(destinoId);
+
+  registrar({
+    usuarioId: sesion.usuarioId,
+    accion: "inscripcion.cambiar_programa",
+    entidad: "inscripciones",
+    entidadId: inscripcionId,
+    cambios: {
+      movidaAlPlan: destinoId, programa: r.programa, cargosCancelados: r.cargosCancelados,
+      ...(confirmada ? { familiaConfirmadaPorPersonal: true } : {}),
+    },
+  });
+
+  redirect(`/inscripciones/${inscripcionId}`);
 }

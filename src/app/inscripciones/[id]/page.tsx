@@ -6,7 +6,7 @@ import { alcanceDe, exigirPermiso, tienePermiso } from "@/lib/auth/permisos";
 import { alumnoPorId, tutoresDe } from "@/lib/datos/alumnos";
 import { aulasActivas, clasesDeInscripcion } from "@/lib/datos/clases";
 import {
-  ciclosDe, familiaDe, inscripcionPorId, movimientosDe, opcionesParaCambiarPlan,
+  ciclosDe, familiaDe, inscripcionPorId, movimientosDe, opcionesParaCambiarPlan, planesParaMoverse,
 } from "@/lib/datos/inscripciones";
 import { progresoDeInscripcion, tareasDeInscripcion } from "@/lib/datos/expediente";
 import { diasRestantes } from "@/lib/dominio/ciclos";
@@ -15,6 +15,7 @@ import { horaCivil } from "@/lib/zona";
 import { Agendar } from "./agendar";
 import { BotonRenovar } from "./renovar";
 import { CambiarPlan } from "./cambiar-plan";
+import { MoverAPlan } from "./mover-a-plan";
 import { AsignarResponsable } from "./responsable";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,11 @@ export default async function Inscripcion({ params }: { params: Promise<{ id: st
     && (!titularAlumno.fechaNacimiento || esMenorDeEdad(titularAlumno.fechaNacimiento));
   // Cambiar el plan (Duet de 2 → Duet de 3) se hace desde la inscripción titular, con período abierto.
   const opcionesPlan = esTitular && puedeRenovar && vigente ? opcionesParaCambiarPlan(insc.id) : [];
+  // Si es titular de un plan sin otros integrantes (p. ej. se inscribió «abriendo un plan nuevo»),
+  // se puede pasar al plan de otra familia que ya tenga lugar.
+  const planesDestino = esTitular && puedeRenovar && vigente && familia && familia.cubiertos.length === 0
+    ? planesParaMoverse(insc.id)
+    : [];
   const tutoresDelTitular = titularEsMenor && puedeRenovar
     ? tutoresDe(insc.alumnoId).map((t) => ({
         id: t.id, nombre: t.nombre, parentesco: t.parentesco, esResponsablePago: t.esResponsablePago,
@@ -180,6 +186,10 @@ export default async function Inscripcion({ params }: { params: Promise<{ id: st
             {titularEsMenor && puedeRenovar && (
               <AsignarResponsable inscripcionId={insc.id} tutores={tutoresDelTitular} />
             )}
+            {planesDestino.length > 0 && (
+              <MoverAPlan inscripcionId={insc.id} alumno={insc.alumno} planes={planesDestino} />
+            )}
+
             {opcionesPlan.length > 0 && (
               <CambiarPlan
                 inscripcionId={insc.id}
